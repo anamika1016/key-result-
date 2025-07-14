@@ -1,0 +1,92 @@
+# This file is auto-generated from the current state of the database. Instead
+# of editing this file, please use the migrations feature of Active Record to
+# incrementally modify your database, and then regenerate this schema definition.
+#
+# This file is the source Rails uses to define your schema when running `bin/rails
+# db:schema:load`. When creating a new database, `bin/rails db:schema:load` tends to
+# be faster and is potentially less error prone than running all of your
+# migrations from scratch. Old migrations may fail to apply correctly if those
+# migrations use external dependencies or application code.
+#
+# It's strongly recommended that you check this file into your version control system.
+
+ActiveRecord::Schema[8.0].define(version: 2025_07_14_061258) do
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "pg_catalog.plpgsql"
+
+  create_table "activities", force: :cascade do |t|
+    t.bigint "department_id", null: false
+    t.integer "activity_id"
+    t.string "activity_name"
+    t.string "unit"
+    t.float "weight"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["department_id"], name: "index_activities_on_department_id"
+  end
+
+  create_table "departments", force: :cascade do |t|
+    t.string "department_type"
+    t.integer "theme_id"
+    t.string "theme_name"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "employee_details", force: :cascade do |t|
+    t.string "employee_id"
+    t.string "employee_name"
+    t.string "employee_email"
+    t.string "employee_code"
+    t.string "l1_code"
+    t.string "l2_code"
+    t.string "l1_employer_name"
+    t.string "l2_employer_name"
+    t.string "post"
+    t.string "department"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "status", default: "pending"
+  end
+
+  create_table "user_details", force: :cascade do |t|
+    t.bigint "department_id", null: false
+    t.bigint "activity_id", null: false
+    t.text "april"
+    t.text "may"
+    t.text "june"
+    t.text "july"
+    t.text "august"
+    t.text "september"
+    t.text "october"
+    t.text "november"
+    t.text "december"
+    t.text "january"
+    t.text "february"
+    t.text "march"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "employee_detail_id"
+    t.index ["activity_id"], name: "index_user_details_on_activity_id"
+    t.index ["department_id"], name: "index_user_details_on_department_id"
+    t.index ["employee_detail_id"], name: "index_user_details_on_employee_detail_id"
+  end
+
+  create_table "users", force: :cascade do |t|
+    t.string "email", default: "", null: false
+    t.string "encrypted_password", default: "", null: false
+    t.string "reset_password_token"
+    t.datetime "reset_password_sent_at"
+    t.datetime "remember_created_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "role"
+    t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+  end
+
+  add_foreign_key "activities", "departments"
+  add_foreign_key "user_details", "activities"
+  add_foreign_key "user_details", "departments"
+  add_foreign_key "user_details", "employee_details"
+end

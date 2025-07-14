@@ -1,0 +1,46 @@
+<div class="min-h-screen pl-64 pr-4 pt-4 pb-12 overflow-x-auto bg-gray-100">
+  <div class="w-full max-w-7xl mx-auto bg-white p-8 rounded-xl shadow-lg">
+    <h2 class="text-2xl font-bold text-gray-800 mb-6 border-b pb-2">L1 Employee View</h2>
+
+    <table class="min-w-full divide-y divide-gray-200 text-sm">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="px-4 py-2 text-left text-gray-600 font-medium">Employee ID</th>
+          <th class="px-4 py-2 text-left text-gray-600 font-medium">Name</th>
+          <th class="px-4 py-2 text-left text-gray-600 font-medium">Post</th>
+          <th class="px-4 py-2 text-left text-gray-600 font-medium">Department</th>
+          <th class="px-4 py-2 text-left text-gray-600 font-medium">L1</th>
+          <th class="px-4 py-2 text-left text-gray-600 font-medium">L2</th>
+          <th class="px-4 py-2 text-left text-gray-600 font-medium">Status</th>
+          <th class="px-4 py-2 text-left text-gray-600 font-medium">View</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <% @employee_details.each do |emp| %>
+          <tr class="hover:bg-gray-50">
+            <td class="px-4 py-2"><%= emp.employee_id %></td>
+            <td class="px-4 py-2"><%= emp.employee_name %></td>
+            <td class="px-4 py-2"><%= emp.post %></td>
+            <td class="px-4 py-2"><%= emp.department %></td>
+            <td class="px-4 py-2"><%= emp.l1_employer_name %></td>
+            <td class="px-4 py-2"><%= emp.l2_employer_name %></td>
+            <td class="px-4 py-2">
+              <% status_color = case emp.status
+                 when "approved" then "bg-green-100 text-green-800"
+                 when "pending" then "bg-yellow-100 text-yellow-800"
+                 when "rejected" then "bg-red-100 text-red-800"
+                 else "bg-gray-100 text-gray-800"
+                 end %>
+              <span class="inline-block px-2 py-1 rounded-full text-xs font-semibold <%= status_color %>">
+                <%= emp.status.capitalize %>
+              </span>
+            </td>
+            <td class="px-4 py-2">
+              <%= link_to "View", employee_detail_path(emp), class: "text-blue-600 hover:underline font-medium" %>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

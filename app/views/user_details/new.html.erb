@@ -1,0 +1,795 @@
+<!-- app/views/user_details/new.html.erb -->
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <h2 class="mb-4 text-dark">Department Activity Data Entry</h2>
+      
+      <!-- Department Selection at Top -->
+      <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+          <h5 class="mb-0"><i class="fas fa-building me-2"></i>Select Department</h5>
+        </div>
+        <div class="card-body">
+          <%= form_with model: @user_detail, local: true, id: "user_detail_form", class: "needs-validation", novalidate: true do |form| %>
+            <div class="row mb-3">
+              <div class="col-md-6">
+                <%= form.label :department_id, "Department", class: "form-label fw-bold" %>
+                <%= form.select :department_id, 
+                    options_from_collection_for_select(@departments, :id, :department_type, @user_detail.department_id),
+                    { prompt: "-- Select Department --" }, 
+                    { class: "form-select form-select-lg", id: "department_select", required: true } %>
+                <div class="invalid-feedback">
+                  Please select a department.
+                </div>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Activities and Monthly Data Table -->
+      <div class="card">
+        <div class="card-header bg-secondary text-white">
+          <h5 class="mb-0"><i class="fas fa-table me-2"></i>Activities & Monthly Data</h5>
+        </div>
+        <div class="card-body p-0">
+          <div id="activities_container" style="display: none;">
+            <div class="table-responsive">
+              <table class="table table-bordered table-striped mb-0">
+                <thead class="table-dark">
+                  <tr>
+                    <th rowspan="2" class="sticky-col activity-col">Activity</th>
+                    <th rowspan="2" class="sticky-col theme-col">Theme</th>
+                    <th rowspan="2" class="sticky-col unit-col">Unit</th>
+                    <th colspan="12" class="text-center">Monthly Data Entry</th>
+                  </tr>
+                  <tr>
+                    <th class="month-header">April</th>
+                    <th class="month-header">May</th>
+                    <th class="month-header">June</th>
+                    <th class="month-header">July</th>
+                    <th class="month-header">August</th>
+                    <th class="month-header">September</th>
+                    <th class="month-header">October</th>
+                    <th class="month-header">November</th>
+                    <th class="month-header">December</th>
+                    <th class="month-header">January</th>
+                    <th class="month-header">February</th>
+                    <th class="month-header">March</th>
+                  </tr>
+                </thead>
+                <tbody id="activities_table_body">
+                  <!-- Activities will be populated here via JavaScript -->
+                </tbody>
+              </table>
+            </div>
+            
+            <div class="p-3 text-center bg-light border-top">
+              <button type="button" id="save_all_data" class="btn btn-success btn-lg px-4">
+                <i class="fas fa-save me-2"></i>Save All Data
+              </button>
+            </div>
+          </div>
+          
+          <div id="no_department_message" class="alert alert-info m-3">
+            <i class="fas fa-info-circle me-2"></i>Please select a department to view activities.
+          </div>
+        </div>
+      </div>
+
+      <!-- Existing Data Display -->
+      <% if @user_details.any? %>
+        <div class="card mt-4">
+          <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="fas fa-database me-2"></i>Existing Data</h5>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-bordered table-sm">
+                <thead class="table-dark">
+                  <tr>
+                    <th>Department</th>
+                    <th>Activity</th>
+                    <th>Theme</th>
+                    <th>Unit</th>
+                    <th>April</th>
+                    <th>May</th>
+                    <th>June</th>
+                    <th>July</th>
+                    <th>August</th>
+                    <th>September</th>
+                    <th>October</th>
+                    <th>November</th>
+                    <th>December</th>
+                    <th>January</th>
+                    <th>February</th>
+                    <th>March</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <% @user_details.each do |detail| %>
+                    <tr>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.department.department_type %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.activity.activity_name %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.department.theme_name.present? ? detail.department.theme_name : 'No Theme' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.activity.unit %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.april.present? ? detail.april : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.may.present? ? detail.may : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.june.present? ? detail.june : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.july.present? ? detail.july : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.august.present? ? detail.august : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.september.present? ? detail.september : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.october.present? ? detail.october : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.november.present? ? detail.november : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.december.present? ? detail.december : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.january.present? ? detail.january : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.february.present? ? detail.february : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <%= detail.march.present? ? detail.march : '-' %>
+                      </td>
+                      <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <%= link_to "Edit", edit_user_detail_path(detail), class: "btn btn-sm btn-outline-secondary me-1" %>
+                        <%= link_to "Delete", user_detail_path(detail), method: :delete, 
+                            confirm: "Are you sure?", class: "btn btn-sm btn-outline-danger" %>
+                      </td>
+                    </tr>
+                  <% end %>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const departmentSelect = document.getElementById('department_select');
+  const activitiesContainer = document.getElementById('activities_container');
+  const activitiesTableBody = document.getElementById('activities_table_body');
+  const noDepartmentMessage = document.getElementById('no_department_message');
+  const saveAllButton = document.getElementById('save_all_data');
+  
+  let activitiesData = [];
+  let departmentTheme = '';
+  
+  // Handle department selection
+  departmentSelect.addEventListener('change', function() {
+    const departmentId = this.value;
+    
+    if (departmentId) {
+      // Show loading state
+      activitiesTableBody.innerHTML = '<tr><td colspan="15" class="text-center"><i class="fas fa-spinner fa-spin me-2"></i>Loading activities...</td></tr>';
+      activitiesContainer.style.display = 'block';
+      noDepartmentMessage.style.display = 'none';
+      
+      // Get department theme from the selected option
+      const selectedOption = departmentSelect.options[departmentSelect.selectedIndex];
+      const selectedDepartments = <%= @departments.to_json.html_safe %>;
+      const selectedDept = selectedDepartments.find(dept => dept.id == departmentId);
+      departmentTheme = selectedDept ? (selectedDept.theme_name || 'No Theme') : 'No Theme';
+      
+      // Fetch activities for selected department
+      fetch(`/user_details/get_activities?department_id=${departmentId}`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+        }
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        return response.json();
+      })
+      .then(activities => {
+        activitiesData = activities;
+        populateActivitiesTable(activities);
+      })
+      .catch(error => {
+        console.error('Error fetching activities:', error);
+        activitiesTableBody.innerHTML = '<tr><td colspan="15" class="text-center text-danger"><i class="fas fa-exclamation-triangle me-2"></i>Error loading activities. Please try again.</td></tr>';
+      });
+    } else {
+      activitiesContainer.style.display = 'none';
+      noDepartmentMessage.style.display = 'block';
+      activitiesData = [];
+      departmentTheme = '';
+    }
+  });
+  
+  // Populate activities table
+  function populateActivitiesTable(activities) {
+    activitiesTableBody.innerHTML = '';
+    
+    if (activities.length === 0) {
+      activitiesTableBody.innerHTML = '<tr><td colspan="15" class="text-center text-muted"><i class="fas fa-info-circle me-2"></i>No activities found for this department.</td></tr>';
+      return;
+    }
+    
+    activities.forEach(activity => {
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td class="sticky-col activity-col">
+          <div class="fw-bold text-dark">${activity.activity_name}</div>
+          <input type="hidden" name="activity_ids[]" value="${activity.id}">
+        </td>
+        <td class="sticky-col theme-col">
+          <span class="badge bg-light text-dark border">${departmentTheme}</span>
+        </td>
+        <td class="sticky-col unit-col">
+          <span class="badge bg-secondary">${activity.unit}</span>
+        </td>
+        <td><input type="text" name="april_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="may_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="june_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="july_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="august_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="september_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="october_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="november_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="december_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="january_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="february_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+        <td><input type="text" name="march_${activity.id}" class="form-control form-control-sm text-center" placeholder="Target/Task" value=""></td>
+      `;
+      activitiesTableBody.appendChild(row);
+    });
+  }
+  
+  // Handle save all data
+  saveAllButton.addEventListener('click', function() {
+    const departmentId = departmentSelect.value;
+    
+    if (!departmentId) {
+      showAlert('Please select a department first.', 'warning');
+      return;
+    }
+    
+    if (activitiesData.length === 0) {
+      showAlert('No activities found for the selected department.', 'warning');
+      return;
+    }
+    
+    // Collect all form data
+    const formData = new FormData();
+    formData.append('department_id', departmentId);
+    formData.append('authenticity_token', document.querySelector('[name="csrf-token"]').content);
+    
+    let hasData = false;
+    
+    activitiesData.forEach(activity => {
+      const months = ['april', 'may', 'june', 'july', 'august', 'september', 
+                     'october', 'november', 'december', 'january', 'february', 'march'];
+      
+      const activityData = {};
+      let activityHasData = false;
+      
+      months.forEach(month => {
+        const input = document.querySelector(`[name="${month}_${activity.id}"]`);
+        const value = input ? input.value.trim() : '';
+        activityData[month] = value;
+        if (value && value !== '') activityHasData = true;
+      });
+      
+      if (activityHasData) {
+        hasData = true;
+        formData.append(`user_details[${activity.id}][activity_id]`, activity.id);
+        months.forEach(month => {
+          formData.append(`user_details[${activity.id}][${month}]`, activityData[month] || '');
+        });
+      }
+    });
+    
+    if (!hasData) {
+      showAlert('Please enter data for at least one activity.', 'warning');
+      return;
+    }
+    
+    // Show loading state
+    saveAllButton.disabled = true;
+    saveAllButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    
+    // Submit data
+    fetch('/user_details/bulk_create', {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content
+      }
+    })
+    .then(response => {
+      if (response.ok) {
+        showAlert('Data saved successfully!', 'success');
+        setTimeout(() => location.reload(), 1500);
+      } else {
+        throw new Error('Save failed');
+      }
+    })
+    .catch(error => {
+      console.error('Error saving data:', error);
+      showAlert('Error saving data. Please try again.', 'danger');
+    })
+    .finally(() => {
+      saveAllButton.disabled = false;
+      saveAllButton.innerHTML = '<i class="fas fa-save me-2"></i>Save All Data';
+    });
+  });
+  
+  // Show alert function
+  function showAlert(message, type) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+      ${message}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    setTimeout(() => {
+      if (alertDiv.parentNode) {
+        alertDiv.parentNode.removeChild(alertDiv);
+      }
+    }, 5000);
+  }
+});
+</script>
+
+<style>
+.container-fluid {
+  padding: 20px;
+  margin-left: 250px;
+  transition: margin-left 0.3s ease;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+}
+
+.card {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+}
+
+.card-header {
+  border-radius: 8px 8px 0 0;
+  border-bottom: 1px solid #dee2e6;
+  padding: 1rem 1.5rem;
+  background-color: #343a40;
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+.table-responsive {
+  max-height: 70vh;
+  overflow-x: auto;
+  overflow-y: auto;
+  border-radius: 8px;
+}
+
+.table {
+  margin-bottom: 0;
+}
+
+.table th {
+  background-color: #343a40;
+  color: white;
+  font-weight: 600;
+  text-align: center;
+  vertical-align: middle;
+  border: 1px solid #495057;
+  padding: 12px 8px;
+  font-size: 0.9rem;
+}
+
+.table td {
+  vertical-align: middle;
+  border: 1px solid #dee2e6;
+  padding: 8px;
+  background-color: white;
+}
+
+.sticky-col {
+  position: sticky;
+  left: 0;
+  background-color: #f8f9fa;
+  z-index: 2;
+  border-right: 2px solid #dee2e6 !important;
+}
+
+.activity-col {
+  min-width: 200px;
+  max-width: 250px;
+}
+
+.theme-col {
+  left: 200px;
+  min-width: 120px;
+  max-width: 150px;
+}
+
+.unit-col {
+  left: 320px;
+  min-width: 100px;
+  max-width: 120px;
+}
+
+.month-header {
+  min-width: 140px;
+  max-width: 160px;
+}
+
+.form-control-sm {
+  font-size: 0.875rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+}
+
+.form-control-sm:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-select {
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+}
+
+.form-select:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.form-select-lg {
+  padding: 0.75rem 1rem;
+  font-size: 1.1rem;
+}
+
+.btn {
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.btn-success {
+  background-color: #28a745;
+  border-color: #28a745;
+}
+
+.btn-success:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+.btn-outline-secondary {
+  color: #6c757d;
+  border-color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #6c757d;
+  border-color: #6c757d;
+  color: white;
+}
+
+.btn-outline-danger {
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.btn-outline-danger:hover {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}
+
+.badge {
+  font-size: 0.8rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.badge.bg-light {
+  background-color: #f8f9fa !important;
+  color: #495057 !important;
+}
+
+.badge.bg-secondary {
+  background-color: #6c757d !important;
+}
+
+.alert {
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+
+.text-dark {
+  color: #212529 !important;
+}
+
+@media (max-width: 992px) {
+  .container-fluid {
+    margin-left: 200px;
+  }
+  
+  .sticky-col {
+    position: static;
+  }
+  
+  .theme-col {
+    left: 0;
+  }
+  
+  .unit-col {
+    left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .container-fluid {
+    margin-left: 0;
+    padding: 10px;
+  }
+  
+  .card-header h5 {
+    font-size: 1rem;
+  }
+  
+  .table-responsive {
+    font-size: 0.75rem;
+    max-height: 60vh;
+  }
+  
+  .form-control-sm {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+  
+  .activity-col {
+    min-width: 150px;
+  }
+  
+  .theme-col {
+    min-width: 100px;
+  }
+  
+  .unit-col {
+    min-width: 80px;
+  }
+  
+  .month-header {
+    min-width: 120px;
+  }
+}
+
+.sidebar-collapsed .container-fluid {
+  margin-left: 60px;
+}
+
+.main-wrapper {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+}
+
+.main-content {
+  flex: 1;
+  overflow-x: hidden;
+}
+
+.main-content .container-fluid {
+  margin-left: 0;
+  padding: 20px;
+}
+
+@media print {
+  .container-fluid {
+    margin-left: 0;
+    background: white;
+  }
+  
+  .card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+  
+  .btn {
+    display: none;
+  }
+}
+
+.table-responsive::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.form-control-sm {
+  font-size: 0.875rem;
+  padding: 0.75rem 0.5rem; 
+  border-radius: 4px;
+  border: 1px solid #ced4da;
+  height: 48px; 
+  min-height: 48px; 
+}
+
+.form-control-sm:focus {
+  border-color: #80bdff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.month-header {
+  min-width: 160px; 
+  max-width: 180px;
+}
+
+.table td {
+  vertical-align: middle;
+  border: 1px solid #dee2e6;
+  padding: 12px 8px; 
+  background-color: white;
+}
+
+.table-sm td {
+  min-width: 160px; 
+  max-width: 180px;
+  text-align: center;
+  padding: 12px 8px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.table-sm th {
+  min-width: 160px;
+  max-width: 180px;
+  text-align: center;
+  padding: 12px 8px;
+  background-color: #343a40;
+  color: white;
+  font-weight: 600;
+  border: 1px solid #495057;
+}
+
+.table-sm td:nth-child(1),
+.table-sm th:nth-child(1) {
+  min-width: 200px; 
+  max-width: 250px;
+}
+
+.table-sm td:nth-child(2),
+.table-sm th:nth-child(2) {
+  min-width: 200px; 
+  max-width: 250px;
+}
+
+.table-sm td:nth-child(3),
+.table-sm th:nth-child(3) {
+  min-width: 120px;
+  max-width: 150px;
+}
+
+.table-sm td:nth-child(4),
+.table-sm th:nth-child(4) {
+  min-width: 100px; 
+  max-width: 120px;
+}
+
+.table-sm td:nth-child(17),
+.table-sm th:nth-child(17) {
+  min-width: 120px;
+  max-width: 150px;
+}
+
+@media (max-width: 768px) {
+  .form-control-sm {
+    font-size: 0.75rem;
+    padding: 0.5rem 0.5rem;
+    height: 40px;
+    min-height: 40px;
+  }
+  
+  .month-header {
+    min-width: 140px;
+  }
+  
+  .table-sm td,
+  .table-sm th {
+    min-width: 120px;
+    max-width: 140px;
+  }
+}
+
+.form-select {
+  border-radius: 8px;
+  border: 2px solid #e9ecef;
+  background: linear-gradient(145deg, #ffffff, #f8f9fa);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  font-weight: 500;
+  color: #495057;
+}
+
+.form-select:hover {
+  border-color: #007bff;
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.form-select:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.3rem rgba(0, 123, 255, 0.25), 0 4px 12px rgba(0, 123, 255, 0.15);
+  outline: none;
+  transform: translateY(-1px);
+}
+
+.form-select-lg {
+  padding: 1rem 1.25rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  height: 60px;
+  background: linear-gradient(145deg, #ffffff, #f8f9fa);
+}
+
+.form-label.fw-bold {
+  color: #343a40;
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  letter-spacing: 0.3px;
+}
+</style>

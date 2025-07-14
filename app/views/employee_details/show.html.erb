@@ -1,0 +1,76 @@
+<!-- Parent Layout with Sidebar and Main Content -->
+<div class="min-h-screen flex bg-gray-100">
+  
+  <!-- Sidebar (Already present in your layout, so skip if included elsewhere) -->
+  <div class="w-64 bg-white shadow-md hidden md:block">
+    <!-- Your sidebar code here -->
+  </div>
+
+  <!-- Main Content -->
+  <div class="flex-1 p-4 md:ml-64">
+    <div class="max-w-screen-xl mx-auto">
+
+      <div class="card w-full bg-white p-6 rounded shadow">
+        <h2 class="text-2xl font-bold border-b pb-4 mb-6 flex justify-between items-center">
+          Employee Data View
+
+          <% if @employee_detail.status.present? %>
+            <span class="px-4 py-2 rounded text-sm font-semibold 
+              <%= case @employee_detail.status
+                    when "approved" then 'bg-green-100 text-green-800'
+                    when "returned" then 'bg-red-100 text-red-800'
+                    else 'bg-yellow-100 text-yellow-800'
+                  end %>">
+              Status: <%= @employee_detail.status.capitalize %>
+            </span>
+          <% end %>
+        </h2>
+
+        <!-- Table -->
+        <% if @user_details.any? %>
+          <div class="overflow-auto">
+            <table class="min-w-full text-sm text-left border border-gray-300">
+              <thead class="bg-gray-700 text-white">
+                <tr>
+                  <th class="px-2 py-1 border">Department</th>
+                  <th class="px-2 py-1 border">Activity</th>
+                  <th class="px-2 py-1 border">Theme</th>
+                  <th class="px-2 py-1 border">Unit</th>
+                  <% %w[April May June July August September October November December January February March].each do |month| %>
+                    <th class="px-2 py-1 border"><%= month %></th>
+                  <% end %>
+                  <th class="px-2 py-1 border">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% @user_details.each do |detail| %>
+                  <tr class="hover:bg-gray-100">
+                    <td class="px-2 py-1 border"><%= detail.department.department_type %></td>
+                    <td class="px-2 py-1 border"><%= detail.activity.activity_name %></td>
+                    <td class="px-2 py-1 border"><%= detail.department.theme_name.presence || 'No Theme' %></td>
+                    <td class="px-2 py-1 border"><%= detail.activity.unit %></td>
+                    <% %i[april may june july august september october november december january february march].each do |month| %>
+                      <td class="px-2 py-1 border"><%= detail.send(month).presence || '-' %></td>
+                    <% end %>
+                  </tr>
+                <% end %>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Buttons -->
+          <div class="flex justify-end gap-4 mt-6">
+            <%= button_to "✅ Approve", approve_employee_detail_path(@employee_detail), method: :patch,
+                  class: "bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700" %>
+            <%= button_to "🔁 Return", return_employee_detail_path(@employee_detail), method: :patch,
+                  class: "bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700" %>
+          </div>
+
+        <% else %>
+          <div class="text-center text-gray-600 mt-8 text-sm">No existing data found for this employee.</div>
+        <% end %>
+      </div>
+      
+    </div>
+  </div>
+</div>
