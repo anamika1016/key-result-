@@ -67,7 +67,10 @@ gem 'devise'
 gem 'letter_opener'
 gem 'kaminari'
 gem 'roo'
-gem 'axlsx_rails'
+# gem 'axlsx_rails'
+gem 'caxlsx_rails'
+
 gem 'csv', require: false  # ✅ Fix for Ruby 3.4+
 gem 'ransack'
-
+gem 'cancancan', '~> 3.6'
+gem "byebug"
