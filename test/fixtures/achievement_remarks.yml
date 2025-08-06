@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  activity: one
+  month: MyString
+  l1_remarks: MyText
+  l1_percentage: 1.5
+  l2_remarks: MyText
+  l2_percentage: 1.5
+
+two:
+  activity: two
+  month: MyString
+  l1_remarks: MyText
+  l1_percentage: 1.5
+  l2_remarks: MyText
+  l2_percentage: 1.5

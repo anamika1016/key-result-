@@ -1,15 +1,16 @@
 class EmployeeDetail < ApplicationRecord
-  validates :name, presence: true
-  validates :employee_id, :employee_name, :employee_email, presence: true
   has_many :user_details, dependent: :destroy
- after_initialize :set_default_status, if: :new_record?
+  has_many :target_submissions
+  belongs_to :user, optional: true
+  after_initialize :set_default_status, if: :new_record?
+  # belongs_to :department  # only if you have a departments table and department_id column
 
   def name
     employee_name
   end
+
   def self.ransackable_attributes(auth_object = nil)
     %w[
-      id
       employee_id
       employee_name
       employee_email
@@ -27,13 +28,17 @@ class EmployeeDetail < ApplicationRecord
 
 
   enum :status, {
-    pending: "pending",
-    approved: "approved",
-    rejected: "returned",
-    l2_approved: "l2_approved",
-    l2_returned: "l2_returned"
+  pending: "pending",
+  l1_approved: "l1_approved",
+  l1_rejected: "l1_returned", 
+  l2_approved: "l2_approved",
+  l2_returned: "l2_returned"
+}
 
-  }
+# app/models/employee_detail.rb
+scope :l1_pending_records, -> { where(status: ['pending', 'returned']) }
+
+
 
   # ✅ Allow only safe associations (empty if none)
   def self.ransackable_associations(auth_object = nil)

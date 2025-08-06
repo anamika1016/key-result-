@@ -1,71 +1,46 @@
-# class ApplicationController < ActionController::Base
-#   before_action :configure_permitted_parameters, if: :devise_controller?
-
-#   protected
-
-#   # Permit role during sign_up
-#   def configure_permitted_parameters
-#     devise_parameter_sanitizer.permit(:sign_up, keys: [:role])
-#   end
-
-#   # Role-based redirection
-#   def after_sign_in_path_for(resource)
-#     session[:user_role] = resource.role
-
-#     case resource.role
-#     when "employee"
-#       employee_dashboard_path
-#     when "hod"
-#       hod_dashboard_path
-#     when "l1_employer"
-#       l1_dashboard_path
-#     when "l2_employer"
-#       l2_dashboard_path
-#     else
-#       root_path
-#     end
-#   end
-
-#   # After logout
-#   def after_sign_out_path_for(_resource_or_scope)
-#     new_user_session_path
-#   end
-# end
+# app/controllers/application_controller.rb
 class ApplicationController < ActionController::Base
+  before_action :authenticate_user!
   before_action :configure_permitted_parameters, if: :devise_controller?
 
   protected
 
-  # Allow role param during sign-up
+  # Only allow role param on sign up
   def configure_permitted_parameters
-    devise_parameter_sanitizer.permit(:sign_up, keys: [:role])
+    devise_parameter_sanitizer.permit(:sign_in, keys: [:employee_code, :role])
+    # For Sign Up
+    devise_parameter_sanitizer.permit(:sign_up, keys: [:employee_code, :role])
   end
 
-  # ✅ Redirection after sign in (login)
-  def after_sign_in_path_for(resource)
-    session[:user_role] = resource.role
+  # Redirect to dashboard based on role
+  # def after_sign_in_path_for(resource)
+  #   case resource.role
+  #   when 'hod'
+  #     new_user_detail_path
+  #   when 'employee'
+  #     employee_details_path
+  #   when 'l1_employer'
+  #     l1_employee_details_path
+  #   when 'l2_employer'
+  #     l2_employee_details_path
+  #   else
+  #     root_path
+  #   end
+  # end
 
-    case resource.role
-    when "employee"
-      employee_details_path
-    # when "hod"
-    #   hod_dashboard_path
-    # when "l1_employer"
-    #   l1_dashboard_path
-    # when "l2_employer"
-    #   l2_dashboard_path
-    else
-      root_path
+    def has_l1_responsibilities?
+      return true if current_user.hod?
+      EmployeeDetail.exists?(l1_code: current_user.employee_code)
     end
-  end
 
-  # ✅ Redirection after sign up
-  def after_sign_up_path_for(resource)
-    after_sign_in_path_for(resource)
-  end
+    # Check if current user has any L2 responsibilities  
+    def has_l2_responsibilities?
+      return true if current_user.hod?
+      EmployeeDetail.exists?(l2_code: current_user.employee_code) || 
+      EmployeeDetail.exists?(l2_employer_name: current_user.email)
+    end
 
-  # ✅ Redirection after logout
-  def after_sign_out_path_for(_resource_or_scope)
-    new_user_session_path
-  end
+  helper_method :has_l1_responsibilities?, :has_l2_responsibilities?
+
 end
+  

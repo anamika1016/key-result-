@@ -10,9 +10,36 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_07_14_061258) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_01_174000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "achievement_remarks", force: :cascade do |t|
+    t.text "l1_remarks"
+    t.float "l1_percentage"
+    t.text "l2_remarks"
+    t.float "l2_percentage"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.text "employee_remarks"
+    t.bigint "achievement_id", null: false
+    t.index ["achievement_id"], name: "index_achievement_remarks_on_achievement_id"
+  end
+
+  create_table "achievements", force: :cascade do |t|
+    t.bigint "user_detail_id", null: false
+    t.string "month"
+    t.string "achievement"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "status", default: "pending"
+    t.text "l1_remarks"
+    t.float "l1_percentage"
+    t.text "l2_remarks"
+    t.float "l2_percentage"
+    t.text "employee_remarks"
+    t.index ["user_detail_id"], name: "index_achievements_on_user_detail_id"
+  end
 
   create_table "activities", force: :cascade do |t|
     t.bigint "department_id", null: false
@@ -47,8 +74,15 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_14_061258) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "status", default: "pending"
+    t.bigint "user_id"
+    t.text "l1_remarks"
+    t.float "l1_percentage"
+    t.text "l2_remarks"
+    t.float "l2_percentage"
+    t.index ["user_id"], name: "index_employee_details_on_user_id"
   end
 
+  
   create_table "user_details", force: :cascade do |t|
     t.bigint "department_id", null: false
     t.bigint "activity_id", null: false
@@ -67,11 +101,27 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_14_061258) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "employee_detail_id"
+    t.bigint "user_id"
     t.index ["activity_id"], name: "index_user_details_on_activity_id"
     t.index ["department_id"], name: "index_user_details_on_department_id"
     t.index ["employee_detail_id"], name: "index_user_details_on_employee_detail_id"
+    t.index ["user_id"], name: "index_user_details_on_user_id"
   end
-
+  
+  create_table "target_submissions", force: :cascade do |t|
+    t.bigint "user_detail_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "employee_detail_id", null: false
+    t.string "month"
+    t.string "target"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employee_detail_id"], name: "index_target_submissions_on_employee_detail_id"
+    t.index ["user_detail_id"], name: "index_target_submissions_on_user_detail_id"
+    t.index ["user_id"], name: "index_target_submissions_on_user_id"
+  end
+  
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false
@@ -81,12 +131,20 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_14_061258) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "role"
+    t.string "employee_code"
     t.index ["email"], name: "index_users_on_email", unique: true
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
   end
 
+  add_foreign_key "achievement_remarks", "achievements"
+  add_foreign_key "achievements", "user_details"
   add_foreign_key "activities", "departments"
+  add_foreign_key "employee_details", "users"
+  add_foreign_key "target_submissions", "employee_details"
+  add_foreign_key "target_submissions", "user_details"
+  add_foreign_key "target_submissions", "users"
   add_foreign_key "user_details", "activities"
   add_foreign_key "user_details", "departments"
   add_foreign_key "user_details", "employee_details"
+  add_foreign_key "user_details", "users"
 end

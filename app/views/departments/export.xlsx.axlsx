@@ -1,0 +1,18 @@
+wb = xlsx_package.workbook
+
+wb.add_worksheet(name: "Departments") do |sheet|
+  # ✅ Updated headers to include Theme
+  sheet.add_row ["Department", "Theme", "Activity Name", "Unit", "Weight"]
+
+  @departments.each do |department|
+    department.activities.each do |activity|
+      sheet.add_row [
+        department.department_type,
+        department.theme_name,         # ✅ Include Theme here
+        activity.activity_name,
+        activity.unit,
+        activity.weight
+      ]
+    end
+  end
+end

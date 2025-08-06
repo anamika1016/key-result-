@@ -1,99 +1,857 @@
-<!-- L2 Show View -->
-
-<div class="min-h-screen flex bg-gray-100">
-
-  <!-- Sidebar (optional) -->
-  <div class="w-64 bg-white shadow-md hidden md:block">
-    <!-- Sidebar content -->
+<!-- Fixed Employee Detail show L2 View with Month-wise Remarks -->
+<div class="main-content bg-gray-50 min-h-screen">
+<div class="p-8 bg-white rounded-xl shadow-lg border border-gray-200 mx-4">
+  <div class="border-b border-gray-200 pb-6 mb-8">
+    <h2 class="text-3xl font-bold text-gray-800 flex items-center">
+      <i class="fas fa-user-circle mr-3 text-gray-600"></i>
+      Employee Detail - L2 Review
+      <% if params[:month].present? %>
+        <span class="ml-4 text-lg bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
+          <%= params[:month].titleize %> Activity
+        </span>
+      <% end %>
+    </h2>
   </div>
 
-  <!-- Main Content -->
-  <div class="flex-1 p-4 md:ml-64">
-    <div class="max-w-screen-xl mx-auto">
-
-      <!-- Flash messages -->
-      <% if notice %>
-        <div class="mb-4 px-4 py-2 rounded bg-green-100 text-green-800 text-sm">
-          <%= notice %>
-        </div>
-      <% elsif alert %>
-        <div class="mb-4 px-4 py-2 rounded bg-red-100 text-red-800 text-sm">
-          <%= alert %>
-        </div>
-      <% end %>
-
-      <div class="card w-full bg-white p-6 rounded shadow">
-        <h2 class="text-2xl font-bold border-b pb-4 mb-6 flex justify-between items-center">
-          Employee Data View
-
-          <% if @employee_detail.status.present? %>
-            <% label = case @employee_detail.status
-                        when "approved" then "Approved by L1"
-                        when "returned" then "Returned by L1"
-                        when "pending" then "Pending (L1)"
-                        when "l2_approved" then "Approved by L2"
-                        when "l2_returned" then "Returned by L2"
-                        else @employee_detail.status.titleize.gsub("_", " ")
-                      end %>
-
-            <span class="px-4 py-2 rounded text-sm font-semibold 
-              <%= case @employee_detail.status
-                    when "approved", "l2_approved" then 'bg-green-100 text-green-800'
-                    when "returned", "l2_returned" then 'bg-red-100 text-red-800'
-                    else 'bg-yellow-100 text-yellow-800'
-                  end %>">
-              Status: <%= label %>
-            </span>
-          <% end %>
-        </h2>
-
-        <% if @user_details.any? %>
-          <div class="overflow-auto">
-            <table class="min-w-full text-sm text-left border border-gray-300">
-              <thead class="bg-gray-700 text-white">
-                <tr>
-                  <th class="px-2 py-1 border">Department</th>
-                  <th class="px-2 py-1 border">Activity</th>
-                  <th class="px-2 py-1 border">Theme</th>
-                  <th class="px-2 py-1 border">Unit</th>
-                  <% %w[April May June July August September October November December January February March].each do |month| %>
-                    <th class="px-2 py-1 border"><%= month %></th>
-                  <% end %>
-                </tr>
-              </thead>
-              <tbody>
-                <% @user_details.each do |detail| %>
-                  <tr class="hover:bg-gray-100">
-                    <td class="px-2 py-1 border"><%= detail.department&.department_type || "-" %></td>
-                    <td class="px-2 py-1 border"><%= detail.activity&.activity_name || "-" %></td>
-                    <td class="px-2 py-1 border"><%= detail.department&.theme_name.presence || 'No Theme' %></td>
-                    <td class="px-2 py-1 border"><%= detail.activity&.unit || "-" %></td>
-                    <% %i[april may june july august september october november december january february march].each do |month| %>
-                      <td class="px-2 py-1 border"><%= detail.send(month).presence || '-' %></td>
-                    <% end %>
-                  </tr>
-                <% end %>
-              </tbody>
-            </table>
-          </div>
-
-          <!-- Approve/Return Buttons (only show if not yet acted by L2) -->
-          <% unless ["l2_approved", "l2_returned"].include?(@employee_detail.status) %>
-            <div class="flex justify-end gap-4 mt-6">
-              <%= button_to "✅ Approve", l2_approve_employee_detail_path(@employee_detail), method: :patch,
-                    class: "bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700" %>
-              <%= button_to "🔁 Return", l2_return_employee_detail_path(@employee_detail), method: :patch,
-                    class: "bg-red-600 text-white px-6 py-2 rounded hover:bg-red-700" %>
-            </div>
-          <% end %>
-
-        <% else %>
-          <div class="text-center text-gray-600 mt-8 text-sm">
-            No existing data found for this employee.
-          </div>
-        <% end %>
-      </div>
-
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+      <p class="text-gray-600 text-sm font-medium mb-1">Name</p>
+      <p class="text-gray-800 font-semibold text-lg"><%= @employee_detail.employee_name %></p>
+    </div>
+    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+      <p class="text-gray-600 text-sm font-medium mb-1">Email</p>
+      <p class="text-gray-800 font-semibold text-lg"><%= @employee_detail.employee_email %></p>
+    </div>
+    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+      <p class="text-gray-600 text-sm font-medium mb-1">Department</p>
+      <p class="text-gray-800 font-semibold text-lg"><%= @employee_detail.department %></p>
+    </div>
+    <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+     <p class="text-gray-600 text-sm font-medium mb-1">Status</p>
+      <%
+        # Calculate the overall status based on achievements
+        overall_status = "pending"
+        if @user_details.any?
+          achievement_statuses = []
+          @user_details.each do |detail|
+            detail.achievements.each do |ach|
+              if params[:month].present?
+                # If filtering by month, only consider that specific month
+                if ach.month == params[:month]
+                  achievement_statuses << (ach.status || "pending")
+                end
+              else
+                # Consider all achievements
+                achievement_statuses << (ach.status || "pending")
+              end
+            end
+          end
+          
+          # Determine overall status priority
+          if achievement_statuses.include?("l2_approved")
+            overall_status = "l2_approved"
+          elsif achievement_statuses.include?("l1_approved")
+            overall_status = "l1_approved"
+          elsif achievement_statuses.include?("l2_returned")
+            overall_status = "l2_returned"
+          elsif achievement_statuses.include?("l1_returned")
+            overall_status = "l1_returned"
+          elsif achievement_statuses.include?("submitted")
+            overall_status = "submitted"
+          else
+            overall_status = "pending"
+          end
+        end
+        
+        status_config = case overall_status
+        when "pending"
+          { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending Review", icon: "fas fa-clock" }
+        when "l1_approved"
+          { color: "bg-green-100 text-green-800 border-green-300", text: "L1 Approved", icon: "fas fa-check-circle" }
+        when "l1_returned"
+          { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+        when "l2_approved"
+          { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
+        when "l2_returned"
+          { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+        when "submitted"
+          { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
+        else
+          { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status", icon: "fas fa-question-circle" }
+        end
+      %>
+      <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border <%= status_config[:color] %>">
+        <i class="<%= status_config[:icon] %> mr-1"></i>
+        <%= status_config[:text] %>
+      </span>
     </div>
   </div>
+
+  <% if @user_details.any? && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm mt-8">
+      <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
+        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+          <i class="fas fa-trophy mr-3 text-gray-600"></i>
+          <% if params[:month].present? %>
+            <%= params[:month].titleize %> Achievement Details
+          <% else %>
+            Submitted Achievements
+          <% end %>
+        </h2>
+      </div>
+
+      <div class="p-6">
+        <div class="table-wrapper overflow-auto bg-white rounded-lg border border-gray-200">
+          <table class="table table-hover w-full min-w-full">
+            <thead class="bg-gray-800">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Department</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Name</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Activity</th>
+                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
+                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Target</th>
+                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement</th>
+                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Remarks</th>
+                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Status</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% @user_details.each_with_index do |detail, index| %>
+                <% existing_achievements = detail.achievements.index_by(&:month) %>
+                <% if params[:month].present? %>
+                  <!-- Show only selected month -->
+                  <% achievement_record = existing_achievements[params[:month]] %>
+                  <% if achievement_record&.achievement.present? %>
+                    <% target_value = detail.send(params[:month].to_sym) %>
+                    <% achievement_value = achievement_record.achievement %>
+                    <% employee_remarks = achievement_record.employee_remarks %>
+                    <% achievement_status = achievement_record.status || "pending" %>
+                    
+                    <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
+                      <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department&.department_type || 'N/A' %></td>
+                      <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
+                      <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity&.activity_name || 'N/A' %></td>
+                      <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity&.unit || 'N/A' %></td>
+                      <td class="px-3 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-gray-50">
+                        <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
+                          <%= target_value.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                        <span class="<%= achievement_value.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                          <%= achievement_value.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                        <span class="<%= employee_remarks.presence ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                          <%= employee_remarks.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                        <%
+                          status_config = case achievement_status
+                          when "pending"
+                            { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
+                          when "l1_approved"
+                            { color: "bg-green-100 text-green-800 border-green-300", text: "L1 Approved", icon: "fas fa-check-circle" }
+                          when "l1_returned"
+                            { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+                          when "l2_approved"
+                            { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
+                          when "l2_returned"
+                            { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+                          when "submitted"
+                            { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
+                          else
+                            { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status", icon: "fas fa-question-circle" }
+                          end
+                        %>
+                        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border <%= status_config[:color] %>">
+                          <i class="<%= status_config[:icon] %> mr-1"></i>
+                          <%= status_config[:text] %>
+                        </span>
+                      </td>
+                    </tr>
+                  <% end %>
+                <% else %>
+                  <!-- Show all months - need to restructure for employee remarks -->
+                  <% existing_achievements.each do |month, achievement_record| %>
+                    <% if achievement_record&.achievement.present? %>
+                      <% month_symbol = month.to_sym %>
+                      <% target_value = detail.send(month_symbol) %>
+                      <% achievement_value = achievement_record.achievement %>
+                      <% employee_remarks = achievement_record.employee_remarks %>
+                      <% achievement_status = achievement_record.status || "pending" %>
+                      
+                      <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
+                        <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department&.department_type || 'N/A' %></td>
+                        <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
+                        <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity&.activity_name || 'N/A' %> (<%= month.titleize %>)</td>
+                        <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity&.unit || 'N/A' %></td>
+                        <td class="px-3 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-gray-50">
+                          <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
+                            <%= target_value.presence || '-' %>
+                          </span>
+                        </td>
+                        <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                          <span class="<%= achievement_value.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                            <%= achievement_value.presence || '-' %>
+                          </span>
+                        </td>
+                        <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                          <span class="<%= employee_remarks.presence ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                            <%= employee_remarks.presence || '-' %>
+                          </span>
+                        </td>
+                        <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                          <%
+                            status_config = case achievement_status
+                            when "pending"
+                              { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
+                            when "l1_approved"
+                              { color: "bg-green-100 text-green-800 border-green-300", text: "L1 Approved", icon: "fas fa-check-circle" }
+                            when "l1_returned"
+                              { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+                            when "l2_approved"
+                              { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
+                            when "l2_returned"
+                              { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+                            when "submitted"
+                              { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
+                            else
+                              { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status", icon: "fas fa-question-circle" }
+                            end
+                          %>
+                          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border <%= status_config[:color] %>">
+                            <i class="<%= status_config[:icon] %> mr-1"></i>
+                            <%= status_config[:text] %>
+                          </span>
+                        </td>
+                      </tr>
+                    <% end %>
+                  <% end %>
+                <% end %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+<!-- Show L2 approve/return buttons only if L2 can take action -->
+<% if @can_l2_approve_or_return && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } && params[:month].present? %>
+  <%
+    # Check if the current month's achievement can be approved/returned by L2
+    can_take_l2_action = false
+    current_achievement_status = "pending"
+    
+    @user_details.each do |detail|
+      achievement = detail.achievements.find { |a| a.month == params[:month] }
+      if achievement
+        current_achievement_status = achievement.status || "pending"
+        can_take_l2_action = ['l1_approved', 'l2_returned'].include?(current_achievement_status)
+        break
+      end
+    end
+  %>
+  
+  <% if can_take_l2_action %>
+    <!-- L2 Buttons for specific activity/month -->
+    <div class="mt-8 pt-6 border-t border-gray-200">
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <!-- L2 Approve Button for specific activity/month -->
+        <button onclick="openModal('l2_approve')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+          L2 Approve <%= params[:month].titleize %> Activity
+        </button>
+
+        <!-- L2 Reject Button for specific activity/month -->
+        <button onclick="openModal('l2_reject')" class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+          L2 Return <%= params[:month].titleize %> Activity
+        </button>
+      </div>
+    </div>
+  <% else %>
+    <div class="mt-8 pt-6 border-t border-gray-200">
+      <div class="text-center">
+        <p class="text-gray-600 font-medium">
+          This <%= params[:month].titleize %> activity is currently "<%= current_achievement_status.titleize %>" and cannot be modified by L2.
+        </p>
+      </div>
+    </div>
+  <% end %>
+<% elsif @can_l2_approve_or_return && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
+  <!-- Show general L2 approve/return buttons when viewing all activities -->
+  <%
+    # Check if there are any achievements that can be approved/returned by L2
+    can_take_l2_bulk_action = false
+    @user_details.each do |detail|
+      detail.achievements.each do |achievement|
+        if ['l1_approved', 'l2_returned'].include?(achievement.status || "pending")
+          can_take_l2_bulk_action = true
+          break
+        end
+      end
+      break if can_take_l2_bulk_action
+    end
+  %>
+  
+  <% if can_take_l2_bulk_action %>
+    <div class="mt-8 pt-6 border-t border-gray-200">
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <button onclick="openModal('l2_approve')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+          L2 Approve All Activities
+        </button>
+        <button onclick="openModal('l2_reject')" class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+          L2 Return All Activities
+        </button>
+      </div>
+    </div>
+  <% else %>
+    <div class="mt-8 pt-6 border-t border-gray-200">
+      <div class="text-center">
+        <p class="text-gray-600 font-medium">
+          All activities have been processed and cannot be modified by L2.
+        </p>
+      </div>
+    </div>
+  <% end %>
+<% end %>
+
+<!-- Modal for L2 Actions -->
+<div id="decisionModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md">
+    <h2 class="text-xl font-bold mb-4" id="modalTitle">L2 Decision</h2>
+
+    <%= form_with url: '', method: :patch, id: 'modalForm', local: true do |f| %>
+      <div class="mb-4">
+        <%= f.label :l2_remarks, "L2 Remarks", class: "block font-semibold mb-1" %>
+        <%= f.text_area :l2_remarks, rows: 3, class: "w-full border border-gray-300 rounded-md" %>
+      </div>
+      <div class="mb-4">
+        <%= f.label :l2_percentage, "L2 Percentage", class: "block font-semibold mb-1" %>
+        <%= f.number_field :l2_percentage, step: 0.1, class: "w-full border border-gray-300 rounded-md" %>
+      </div>
+      
+      <!-- Hidden fields to track specific activity/month if present -->
+      <% if params[:user_detail_id].present? %>
+        <%= f.hidden_field :user_detail_id, value: params[:user_detail_id] %>
+      <% end %>
+      <% if params[:month].present? %>
+        <%= f.hidden_field :selected_month, value: params[:month] %>
+      <% end %>
+      
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Submit</button>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<!-- JavaScript for L2 Actions -->
+<script>
+  function openModal(actionType) {
+    const modal = document.getElementById("decisionModal");
+    const form = document.getElementById("modalForm");
+    const modalTitle = document.getElementById("modalTitle");
+
+    modal.classList.remove("hidden");
+
+    if (actionType === "l2_approve") {
+      form.action = "<%= l2_approve_employee_detail_path(@employee_detail) %>";
+      modalTitle.innerText = "L2 Approve with Remarks";
+    } else if (actionType === "l2_reject") {
+      form.action = "<%= l2_return_employee_detail_path(@employee_detail) %>";
+      modalTitle.innerText = "L2 Return with Remarks";
+    }
+  }
+
+  function closeModal() {
+    document.getElementById("decisionModal").classList.add("hidden");
+  }
+</script>
+
+<!-- FIXED: Combined L1 and L2 Remarks Section Side by Side -->
+<% if @user_details.any? %>
+  <%
+    # Collect L1 remarks by achievement (month + activity specific)
+    l1_remarks_data = []
+    l2_remarks_data = []
+    
+    @user_details.each do |detail|
+      detail.achievements.each do |achievement|
+        # Filter by month if specific month is selected
+        if params[:month].blank? || achievement.month == params[:month]
+          # L1 remarks
+          if achievement.achievement_remark&.l1_remarks.present? || achievement.achievement_remark&.l1_percentage.present?
+            l1_remarks_data << {
+              month: achievement.month,
+              activity_name: detail.activity&.activity_name,
+              remarks: achievement.achievement_remark.l1_remarks,
+              percentage: achievement.achievement_remark.l1_percentage
+            }
+          end
+          
+          # L2 remarks
+          if achievement.achievement_remark&.l2_remarks.present? || achievement.achievement_remark&.l2_percentage.present?
+            l2_remarks_data << {
+              month: achievement.month,
+              activity_name: detail.activity&.activity_name,
+              remarks: achievement.achievement_remark.l2_remarks,
+              percentage: achievement.achievement_remark.l2_percentage
+            }
+          end
+        end
+      end
+    end
+  %>
+  
+  <% if l1_remarks_data.any? || l2_remarks_data.any? %>
+    <div class="bg-white border border-gray-200 rounded-xl mt-6 shadow-lg overflow-hidden">
+      <!-- Header -->
+      <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
+        <h3 class="text-xl font-bold text-white flex items-center gap-2">
+          <i class="fas fa-comments"></i>
+          Remarks & Percentage 
+          <% if params[:month].present? %>
+            (<%= params[:month].titleize %>)
+          <% else %>
+            (Month-wise)
+          <% end %>
+        </h3>
+      </div>
+
+      <!-- Combined L1 and L2 Content -->
+      <div class="flex flex-col lg:flex-row min-h-96">
+        <!-- L1 Remarks Section -->
+        <div class="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
+          <div class="flex items-center gap-2 mb-4">
+            <i class="fas fa-user-check text-blue-600 text-lg"></i>
+            <h4 class="text-lg font-bold text-blue-700">L1 Remarks & Percentage</h4>
+          </div>
+          
+          <% if l1_remarks_data.any? %>
+            <div class="space-y-4">
+              <% l1_remarks_data.each_with_index do |data, index| %>
+                <div class="bg-white border-l-4 border-blue-500 rounded-lg p-4 shadow-sm">
+                  <h5 class="text-sm font-bold text-blue-600 mb-2 uppercase">
+                    <%= data[:month].titleize %>
+                  </h5>
+                  <p class="text-xs text-gray-600 mb-3 font-medium">
+                    Activity: <%= data[:activity_name] || 'N/A' %>
+                  </p>
+                  
+                  <div class="mb-3">
+                    <p class="text-xs text-blue-600 font-semibold mb-1">L1 Remarks</p>
+                    <p class="text-gray-700 text-sm whitespace-pre-line bg-blue-50 p-2 rounded border">
+                      <%= data[:remarks].presence || "No Remarks" %>
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p class="text-xs text-blue-600 font-semibold mb-1">L1 Percentage</p>
+                    <div class="bg-blue-100 p-2 rounded text-center border">
+                      <span class="text-blue-800 font-bold text-lg">
+                        <%= data[:percentage].present? ? "#{data[:percentage]}%" : "No Percentage" %>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="flex items-center justify-center h-32 bg-white rounded-lg border-2 border-dashed border-blue-200">
+              <p class="text-blue-400 font-medium">No L1 Remarks Available</p>
+            </div>
+          <% end %>
+        </div>
+
+        <!-- Dividing Line -->
+        <div class="w-px bg-gradient-to-b from-gray-200 via-gray-400 to-gray-200 lg:block hidden"></div>
+        <div class="h-px bg-gradient-to-r from-gray-200 via-gray-400 to-gray-200 lg:hidden block"></div>
+
+        <!-- L2 Remarks Section -->
+        <div class="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50 p-6">
+          <div class="flex items-center gap-2 mb-4">
+            <i class="fas fa-user-shield text-emerald-600 text-lg"></i>
+            <h4 class="text-lg font-bold text-emerald-700">L2 Remarks & Percentage</h4>
+          </div>
+          
+          <% if l2_remarks_data.any? %>
+            <div class="space-y-4">
+              <% l2_remarks_data.each_with_index do |data, index| %>
+                <div class="bg-white border-l-4 border-emerald-500 rounded-lg p-4 shadow-sm">
+                  <h5 class="text-sm font-bold text-emerald-600 mb-2 uppercase">
+                    <%= data[:month].titleize %>
+                  </h5>
+                  <p class="text-xs text-gray-600 mb-3 font-medium">
+                    Activity: <%= data[:activity_name] || 'N/A' %>
+                  </p>
+                  
+                  <div class="mb-3">
+                    <p class="text-xs text-emerald-600 font-semibold mb-1">L2 Remarks</p>
+                    <p class="text-gray-700 text-sm whitespace-pre-line bg-emerald-50 p-2 rounded border">
+                      <%= data[:remarks].presence || "No Remarks" %>
+                    </p>
+                  </div>
+                  
+                  <div>
+                    <p class="text-xs text-emerald-600 font-semibold mb-1">L2 Percentage</p>
+                    <div class="bg-emerald-100 p-2 rounded text-center border">
+                      <span class="text-emerald-800 font-bold text-lg">
+                        <%= data[:percentage].present? ? "#{data[:percentage]}%" : "No Percentage" %>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="flex items-center justify-center h-32 bg-white rounded-lg border-2 border-dashed border-emerald-200">
+              <p class="text-emerald-400 font-medium">No L2 Remarks Available</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  <% end %>
+<% end %>
+
+<style>
+.main-content {
+  margin-left: 240px;
+  padding: 2rem;
+  overflow-x: auto;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.table {
+  min-width: 1000px;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table th, .table td {
+  padding: 12px 16px;
+  text-align: center;
+  border-right: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.table th {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.table tbody tr:hover {
+  background-color: #f9fafb !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.table input[type="text"] {
+  width: 200px;
+  padding: 10px 14px;
+  font-size: 16px;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  background-color: #f9fafb;
+}
+
+.table input[type="text"]:focus {
+  outline: none;
+  border-color: #6b7280;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+}
+
+.main-content h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.bg-white {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+  
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.bg-white {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.inline-flex {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 1px solid #d1d5db;
+}
+
+/* Emerald colors for L2 status */
+.bg-emerald-100 {
+  background-color: #d1fae5;
+}
+
+.text-emerald-800 {
+  color: #065f46;
+}
+
+.border-emerald-300 {
+  border-color: #6ee7b7;
+}
+
+/* Additional hover effects for L2 buttons */
+.bg-emerald-600:hover {
+  background-color: #059669;
+}
+
+.bg-orange-600:hover {
+  background-color: #ea580c;
+}
+
+/* Enhanced table styling for L2 view */
+.table tbody tr:nth-child(even) {
+  background-color: #f9fafb;
+}
+
+.table tbody tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+/* Status badge hover effects */
+.inline-flex:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s ease;
+}
+
+/* Modal enhancements */
+#decisionModal .bg-white {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Responsive table improvements */
+@media (max-width: 1200px) {
+  .table {
+    min-width: 1200px;
+  }
+}
+
+@media (max-width: 992px) {
+  .table th, .table td {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+  }
+}
+
+/* Enhanced gradient backgrounds */
+.bg-gradient-to-r {
+  background-attachment: fixed;
+}
+
+/* Button group styling */
+.flex.gap-4 button {
+  min-width: 200px;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+/* Loading state styling (if needed) */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  border-color: #ffffff transparent #ffffff transparent;
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Achievement badges */
+.bg-green-50 {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.bg-blue-50 {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+/* Enhanced remarks cards */
+.bg-gray-50 {
+  background-color: #f9fafb;
+}
+
+.bg-green-50 {
+  background-color: #f0fdf4;
+}
+
+.bg-emerald-50 {
+  background-color: #ecfdf5;
+}
+
+/* Improved spacing for remarks sections */
+.grid.gap-4 > div {
+  min-height: 200px;
+}
+
+/* Better visual separation for month cards */
+.border-l-4 {
+  border-left-width: 4px;
+}
+
+/* Enhanced text readability */
+.whitespace-pre-line {
+  white-space: pre-line;
+  word-wrap: break-word;
+}
+
+/* Enhanced styling for the combined remarks section */
+.space-y-4 > * + * {
+  margin-top: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1024px) {
+  .flex-col.lg\\:flex-row {
+    flex-direction: column;
+  }
+  
+  .w-px.lg\\:block {
+    display: none;
+  }
+  
+  .h-px.lg\\:hidden {
+    display: block;
+  }
+}
+
+@media (min-width: 1024px) {
+  .h-px.lg\\:hidden {
+    display: none;
+  }
+  
+  .w-px.lg\\:block {
+    display: block;
+  }
+}
+
+/* Equal height sections */
+.flex-1 {
+  min-height: 400px;
+}
+
+/* Card hover effects */
+.border-l-4:hover {
+  transform: translateX(2px);
+  transition: transform 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Percentage display enhancement */
+.text-lg {
+  font-size: 1.125rem;
+}
+
+/* Border styling */
+.border-dashed {
+  border-style: dashed;
+}
+
+/* Background gradients */
+.bg-gradient-to-br {
+  background-image: linear-gradient(to bottom right, var(--tw-gradient-stops));
+}
+
+.from-blue-50 {
+  --tw-gradient-from: #eff6ff;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(239, 246, 255, 0));
+}
+
+.to-indigo-50 {
+  --tw-gradient-to: #eef2ff;
+}
+
+.from-emerald-50 {
+  --tw-gradient-from: #ecfdf5;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(236, 253, 245, 0));
+}
+
+.to-teal-50 {
+  --tw-gradient-to: #f0fdfa;
+}
+
+/* Dividing line gradient */
+.bg-gradient-to-b {
+  background-image: linear-gradient(to bottom, var(--tw-gradient-stops));
+}
+
+.bg-gradient-to-r {
+  background-image: linear-gradient(to right, var(--tw-gradient-stops));
+}
+
+.from-gray-200 {
+  --tw-gradient-from: #e5e7eb;
+  --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to, rgba(229, 231, 235, 0));
+}
+
+.via-gray-400 {
+  --tw-gradient-stops: var(--tw-gradient-from), #9ca3af, var(--tw-gradient-to, rgba(156, 163, 175, 0));
+}
+
+.to-gray-200 {
+  --tw-gradient-to: #e5e7eb;
+}
+</style>
+
 </div>

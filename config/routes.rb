@@ -1,16 +1,38 @@
 # config/routes.rb
 
 Rails.application.routes.draw do
-resources :user_details do
-  collection do
-    get :get_activities
-    post :bulk_create
+
+  resources :target_submissions do
+    member do
+      patch :approve
+      patch :reject
+    end
+    collection do
+      get :show
+    end
   end
-end
+
+  resources :user_details do
+    collection do
+      get :get_activities
+      post :bulk_create
+      get :get_user_detail
+      post :submit_achievements
+      get :export
+      post :import
+          get :download_template
+    post :bulk_upload
+
+    end
+  end
 
   resources :departments do
     member do
       get :edit_data
+    end
+    collection do
+      post :import
+      get :export
     end
     resources :activities, except: [:show]
   end
@@ -31,10 +53,16 @@ resources :employee_details do
       get :show_l2  # This maps to /employee_details/:id/show_l2
     end
   end
-    devise_for :users
-  
+
+  devise_for :users, controllers: {
+    sessions: 'users/sessions',
+    registrations: 'users/registrations'
+
+  }  
   # Add a specific route for the dashboard
-  root "employee_details#index"
+  root to: 'home#dashboard'  # 👈 now root goes to dashboard
+  get 'dashboard', to: 'home#dashboard'
+
 
   # Keep your other routes
   devise_scope :user do
