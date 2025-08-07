@@ -1,6 +1,4 @@
 
-
-
     <style>
         body {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -196,9 +194,7 @@
               <%= f.label :role, "Select Role", class: "form-label" %>
               <%= f.select :role, [
                 ["Employee", "employee"],
-                ["HOD", "hod"],
-                ["L1 Employer", "l1_employer"],
-                ["L2 Employer", "l2_employer"]
+                ["HOD", "hod"]
               ], { prompt: "Choose your role" }, class: "form-select", required: true %>
             </div>
             

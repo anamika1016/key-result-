@@ -90,7 +90,6 @@ class DepartmentsController < ApplicationController
     spreadsheet = Roo::Spreadsheet.open(file.path)
     header = spreadsheet.row(1)
 
-    # Correct header mapping — match the exported file!
     header_map = {
       "Department" => "department_type",
       "Theme" => "theme_name",
