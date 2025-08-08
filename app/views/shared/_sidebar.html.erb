@@ -34,6 +34,63 @@
 
   <!-- CSS HS -->
   <link rel="stylesheet" href="https://preline.co/assets/css/main.css?v=3.1.0">
+  
+  <!-- ONLY UI FIX - Prevent layout shift during CSS loading -->
+  <style>
+    /* Hide body until CSS is fully loaded */
+    body {
+      visibility: hidden;
+    }
+    
+    body.loaded {
+      visibility: visible;
+    }
+    
+    /* Force proper sidebar layout immediately */
+    #hs-application-sidebar {
+      min-width: 16rem !important;
+      width: 16rem !important;
+    }
+    
+    /* Force proper link layout */
+    #hs-application-sidebar .flex.items-center {
+      display: flex !important;
+      align-items: center !important;
+      gap: 0.875rem !important;
+      padding: 0.5rem 0.625rem !important;
+      border-radius: 0.5rem !important;
+    }
+    
+    /* Force icon size */
+    #hs-application-sidebar svg {
+      width: 1.5rem !important;
+      height: 1.5rem !important;
+      flex-shrink: 0 !important;
+    }
+    
+    /* Force text to show inline */
+    #hs-application-sidebar span {
+      display: inline !important;
+      white-space: nowrap !important;
+    }
+    
+    /* Force navigation to be visible */
+    #hs-application-sidebar nav {
+      display: flex !important;
+      flex-direction: column !important;
+      padding: 0.75rem !important;
+    }
+    
+    #hs-application-sidebar ul {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 0.25rem !important;
+    }
+    
+    #hs-application-sidebar li {
+      display: block !important;
+    }
+  </style>
 </head>
 
 <body class="bg-gray-50 dark:bg-neutral-900">
@@ -181,5 +238,33 @@
     </div>
   </div>
   <!-- End Sidebar -->
+
+  <!-- STRONGER UI FIX SCRIPT - Force proper layout -->
+  <script>
+    // Hide body until all resources are loaded
+    document.body.style.visibility = 'hidden';
+    
+    // Function to show content
+    function showContent() {
+      document.body.classList.add('loaded');
+      document.body.style.visibility = 'visible';
+    }
+    
+    // Wait for all resources including CSS
+    if (document.readyState === 'complete') {
+      setTimeout(showContent, 50);
+    } else {
+      window.addEventListener('load', function() {
+        setTimeout(showContent, 50);
+      });
+    }
+    
+    // Fallback - show content after 500ms regardless
+    setTimeout(function() {
+      if (!document.body.classList.contains('loaded')) {
+        showContent();
+      }
+    }, 500);
+  </script>
 </body>
 </html>
