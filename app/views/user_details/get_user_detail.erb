@@ -178,7 +178,7 @@
                 <% existing_achievements = detail.achievements.index_by(&:month) %>
                 <% if existing_achievements.values.any? { |a| a.achievement.present? } %>
                   <%
-                    # Calculate status for this specific activity
+                    # Calculate status for this specific activity - FIXED LOGIC
                     activity_statuses = []
                     detail.achievements.each do |ach|
                       activity_statuses << (ach.status || "pending") if ach.achievement.present?
@@ -218,7 +218,12 @@
                     end
                   %>
                   
-                  <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200 submitted-activity-row" data-activity="<%= detail.activity.activity_name %>">
+                  <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200 submitted-activity-row" data-activity="<%= detail.activity.activity_name %>" 
+                      data-detail-id="<%= detail.id %>"
+                      <% detail.achievements.each do |ach| %>
+                        data-<%= ach.month %>-status="<%= ach.status || 'no_data' %>"
+                      <% end %>
+                      >
                     <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department.department_type %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
@@ -226,7 +231,7 @@
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity.unit %></td>
                     
                     <!-- Activity-wise Status Column -->
-                    <td class="px-3 py-3 text-center border-r border-gray-200">
+                    <td class="px-3 py-3 text-center border-r border-gray-200 status-column">
                       <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border <%= status_config[:color] %>">
                         <i class="<%= status_config[:icon] %> mr-1 text-xs"></i>
                         <%= status_config[:text] %>
@@ -250,9 +255,29 @@
                         </span>
                       </td>
                       <td class="px-3 py-3 text-sm text-center border-r border-gray-200 submitted-month-cell" data-month="<%= month %>">
-                        <span class="<%= remarks.presence ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
-                          <%= remarks.presence || '-' %>
-                        </span>
+                        <div class="space-y-1">
+                          <span class="<%= remarks.presence ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs block' : 'text-gray-400' %>">
+                            <%= remarks.presence || '-' %>
+                          </span>
+                          
+                          <% if achievement_record && (achievement_record.achievement_remark&.l1_remarks.present? || achievement_record.achievement_remark&.l2_remarks.present? || target_value.present?) %>
+                            <div class="relative">
+                              <button class="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded border transition-colors details-btn" 
+                                      data-detail-id="<%= detail.id %>" 
+                                      data-month="<%= month %>"
+                                      data-target="<%= target_value %>"
+                                      data-achievement="<%= achievement %>"
+                                      data-l1-remarks="<%= achievement_record&.achievement_remark&.l1_remarks %>"
+                                      data-l2-remarks="<%= achievement_record&.achievement_remark&.l2_remarks %>"
+                                      data-l1-percentage="<%= achievement_record&.achievement_remark&.l1_percentage %>"
+                                      data-l2-percentage="<%= achievement_record&.achievement_remark&.l2_percentage %>"
+                                      data-employee-remarks="<%= remarks %>"
+                                      data-status="<%= achievement_record&.status %>">
+                                <i class="fas fa-eye mr-1"></i>Details
+                              </button>
+                            </div>
+                          <% end %>
+                        </div>
                       </td>
                     <% end %>
                   </tr>
@@ -265,6 +290,106 @@
     </div>
 
     <!-- L1 & L2 Remarks Display Section -->
+    <!-- Details Modal -->
+    <div id="detailsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+      <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 rounded-t-lg">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xl font-semibold flex items-center">
+              <i class="fas fa-info-circle mr-2"></i>
+              Achievement Details
+            </h3>
+            <button id="closeModal" class="text-white hover:text-gray-200 transition-colors">
+              <i class="fas fa-times text-xl"></i>
+            </button>
+          </div>
+        </div>
+        
+        <div class="p-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Basic Info -->
+            <div class="space-y-4">
+              <div class="bg-gray-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-gray-800 mb-3 flex items-center">
+                  <i class="fas fa-chart-bar mr-2 text-blue-600"></i>
+                  Performance Summary
+                </h4>
+                <div class="space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Month:</span>
+                    <span id="modalMonth" class="font-medium capitalize"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Target:</span>
+                    <span id="modalTarget" class="font-medium"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Achievement:</span>
+                    <span id="modalAchievement" class="font-medium text-green-600"></span>
+                  </div>
+                  <div class="flex justify-between border-t pt-2">
+                    <span class="text-gray-600">Percentage:</span>
+                    <span id="modalPercentage" class="font-bold text-lg"></span>
+                  </div>
+                  <div class="flex justify-between">
+                    <span class="text-gray-600">Status:</span>
+                    <span id="modalStatus" class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Remarks Section -->
+            <div class="space-y-4">
+              <!-- Employee Remarks -->
+              <div class="bg-blue-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-blue-800 mb-2 flex items-center">
+                  <i class="fas fa-user mr-2"></i>
+                  Employee Remarks
+                </h4>
+                <div id="modalEmployeeRemarks" class="text-sm text-blue-700 bg-white p-3 rounded border border-blue-200 min-h-[60px]"></div>
+              </div>
+
+              <!-- L1 Remarks & Percentage -->
+              <div class="bg-green-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-green-800 mb-2 flex items-center">
+                  <i class="fas fa-user-check mr-2"></i>
+                  L1 Authority Remarks & Percentage
+                </h4>
+                <div class="space-y-2">
+                  <div id="modalL1Remarks" class="text-sm text-green-700 bg-white p-3 rounded border border-green-200 min-h-[60px]"></div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-green-600 text-xs font-medium">L1 Percentage:</span>
+                    <span id="modalL1Percentage" class="bg-green-100 px-2 py-1 rounded text-green-800 font-semibold text-sm"></span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- L2 Remarks & Percentage -->
+              <div class="bg-purple-50 p-4 rounded-lg">
+                <h4 class="font-semibold text-purple-800 mb-2 flex items-center">
+                  <i class="fas fa-user-tie mr-2"></i>
+                  L2 Authority Remarks & Percentage
+                </h4>
+                <div class="space-y-2">
+                  <div id="modalL2Remarks" class="text-sm text-purple-700 bg-white p-3 rounded border border-purple-200 min-h-[60px]"></div>
+                  <div class="flex justify-between items-center">
+                    <span class="text-purple-600 text-xs font-medium">L2 Percentage:</span>
+                    <span id="modalL2Percentage" class="bg-purple-100 px-2 py-1 rounded text-purple-800 font-semibold text-sm"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="bg-gray-50 px-6 py-4 rounded-b-lg">
+          <button id="closeModalBtn" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors">
+            <i class="fas fa-times mr-2"></i>Close
+          </button>
+        </div>
+      </div>
+    </div>
 
   <% end %>
 </div>
@@ -476,6 +601,282 @@ document.addEventListener('turbo:load', function() {
             'october': 6, 'november': 7, 'december': 8, 'january': 9, 'february': 10, 'march': 11
         };
         
+        // FIXED: Function to update status based on month filter
+        function updateStatusBasedOnMonth() {
+            const monthFilter = document.getElementById('monthFilter');
+            if (!monthFilter) return;
+            
+            const selectedMonth = monthFilter.value;
+            const submittedRows = document.querySelectorAll('.submitted-activity-row');
+            
+            submittedRows.forEach(row => {
+                const statusColumn = row.querySelector('.status-column span');
+                if (!statusColumn) return;
+                
+                if (selectedMonth) {
+                    // Get status for the specific month
+                    const monthStatus = row.getAttribute(`data-${selectedMonth}-status`);
+                    
+                    if (monthStatus && monthStatus !== 'no_data') {
+                        // Update status display for specific month
+                        let statusConfig;
+                        
+                        switch (monthStatus) {
+                            case "pending":
+                                statusConfig = { 
+                                    color: "bg-yellow-100 text-yellow-800 border-yellow-300", 
+                                    text: "Pending", 
+                                    icon: "fas fa-clock" 
+                                };
+                                break;
+                            case "l1_approved":
+                                statusConfig = { 
+                                    color: "bg-green-100 text-green-800 border-green-300", 
+                                    text: "L1 Approved", 
+                                    icon: "fas fa-check-circle" 
+                                };
+                                break;
+                            case "l1_returned":
+                                statusConfig = { 
+                                    color: "bg-red-100 text-red-800 border-red-300", 
+                                    text: "L1 Returned", 
+                                    icon: "fas fa-exclamation-triangle" 
+                                };
+                                break;
+                            case "l2_approved":
+                                statusConfig = { 
+                                    color: "bg-emerald-100 text-emerald-800 border-emerald-300", 
+                                    text: "L2 Approved", 
+                                    icon: "fas fa-check-double" 
+                                };
+                                break;
+                            case "l2_returned":
+                                statusConfig = { 
+                                    color: "bg-orange-100 text-orange-800 border-orange-300", 
+                                    text: "L2 Returned", 
+                                    icon: "fas fa-exclamation-triangle" 
+                                };
+                                break;
+                            case "submitted":
+                                statusConfig = { 
+                                    color: "bg-blue-100 text-blue-800 border-blue-300", 
+                                    text: "Submitted", 
+                                    icon: "fas fa-paper-plane" 
+                                };
+                                break;
+                            default:
+                                statusConfig = { 
+                                    color: "bg-gray-100 text-gray-600 border-gray-300", 
+                                    text: "No Data", 
+                                    icon: "fas fa-question-circle" 
+                                };
+                        }
+                        
+                        // Update the status badge
+                        statusColumn.className = `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusConfig.color}`;
+                        statusColumn.innerHTML = `<i class="${statusConfig.icon} mr-1 text-xs"></i>${statusConfig.text}`;
+                        
+                    } else {
+                        // No data for this month
+                        statusColumn.className = "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border bg-gray-100 text-gray-600 border-gray-300";
+                        statusColumn.innerHTML = '<i class="fas fa-question-circle mr-1 text-xs"></i>No Data';
+                    }
+                } else {
+                    // Reset to original overall status when no month filter is applied
+                    // Get all month statuses for this row
+                    const allStatuses = [];
+                    const months = ['april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'january', 'february', 'march'];
+                    
+                    months.forEach(month => {
+                        const monthStatus = row.getAttribute(`data-${month}-status`);
+                        if (monthStatus && monthStatus !== 'no_data') {
+                            allStatuses.push(monthStatus);
+                        }
+                    });
+                    
+                    // Determine overall status
+                    let overallStatus = "pending";
+                    if (allStatuses.includes("l2_approved")) {
+                        overallStatus = "l2_approved";
+                    } else if (allStatuses.includes("l1_approved")) {
+                        overallStatus = "l1_approved";
+                    } else if (allStatuses.includes("l2_returned")) {
+                        overallStatus = "l2_returned";
+                    } else if (allStatuses.includes("l1_returned")) {
+                        overallStatus = "l1_returned";
+                    } else if (allStatuses.includes("submitted")) {
+                        overallStatus = "submitted";
+                    }
+                    
+                    let statusConfig;
+                    switch (overallStatus) {
+                        case "pending":
+                            statusConfig = { 
+                                color: "bg-yellow-100 text-yellow-800 border-yellow-300", 
+                                text: "Pending", 
+                                icon: "fas fa-clock" 
+                            };
+                            break;
+                        case "l1_approved":
+                            statusConfig = { 
+                                color: "bg-green-100 text-green-800 border-green-300", 
+                                text: "L1 Approved", 
+                                icon: "fas fa-check-circle" 
+                            };
+                            break;
+                        case "l1_returned":
+                            statusConfig = { 
+                                color: "bg-red-100 text-red-800 border-red-300", 
+                                text: "L1 Returned", 
+                                icon: "fas fa-exclamation-triangle" 
+                            };
+                            break;
+                        case "l2_approved":
+                            statusConfig = { 
+                                color: "bg-emerald-100 text-emerald-800 border-emerald-300", 
+                                text: "L2 Approved", 
+                                icon: "fas fa-check-double" 
+                            };
+                            break;
+                        case "l2_returned":
+                            statusConfig = { 
+                                color: "bg-orange-100 text-orange-800 border-orange-300", 
+                                text: "L2 Returned", 
+                                icon: "fas fa-exclamation-triangle" 
+                            };
+                            break;
+                        case "submitted":
+                            statusConfig = { 
+                                color: "bg-blue-100 text-blue-800 border-blue-300", 
+                                text: "Submitted", 
+                                icon: "fas fa-paper-plane" 
+                            };
+                            break;
+                        default:
+                            statusConfig = { 
+                                color: "bg-gray-100 text-gray-600 border-gray-300", 
+                                text: "No Status", 
+                                icon: "fas fa-question-circle" 
+                            };
+                    }
+                    
+                    // Update the status badge
+                    statusColumn.className = `inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border ${statusConfig.color}`;
+                    statusColumn.innerHTML = `<i class="${statusConfig.icon} mr-1 text-xs"></i>${statusConfig.text}`;
+                }
+            });
+        }
+        
+        // Modal functionality
+        function setupModal() {
+            const modal = document.getElementById('detailsModal');
+            const closeModal = document.getElementById('closeModal');
+            const closeModalBtn = document.getElementById('closeModalBtn');
+            
+            if (!modal) return;
+            
+            // Close modal functions
+            function hideModal() {
+                modal.classList.add('hidden');
+                document.body.style.overflow = 'auto';
+            }
+            
+            if (closeModal) closeModal.addEventListener('click', hideModal);
+            if (closeModalBtn) closeModalBtn.addEventListener('click', hideModal);
+            
+            // Close on outside click
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    hideModal();
+                }
+            });
+            
+            // Close on escape key
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+                    hideModal();
+                }
+            });
+            
+            // Details button click handlers
+            document.addEventListener('click', function(e) {
+                if (e.target.closest('.details-btn')) {
+                    const btn = e.target.closest('.details-btn');
+                    const detailId = btn.dataset.detailId;
+                    const month = btn.dataset.month;
+                    const target = btn.dataset.target;
+                    const achievement = btn.dataset.achievement;
+                    const l1Remarks = btn.dataset.l1Remarks;
+                    const l2Remarks = btn.dataset.l2Remarks;
+                    const l1Percentage = btn.dataset.l1Percentage;
+                    const l2Percentage = btn.dataset.l2Percentage;
+                    const employeeRemarks = btn.dataset.employeeRemarks;
+                    const status = btn.dataset.status;
+                    
+                    // Calculate percentage
+                    let percentage = 0;
+                    let percentageClass = 'text-gray-600';
+                    if (target && achievement && parseFloat(target) > 0) {
+                        percentage = ((parseFloat(achievement) / parseFloat(target)) * 100).toFixed(2);
+                        if (percentage >= 100) {
+                            percentageClass = 'text-green-600';
+                        } else if (percentage >= 75) {
+                            percentageClass = 'text-yellow-600';
+                        } else {
+                            percentageClass = 'text-red-600';
+                        }
+                    }
+                    
+                    // Status configuration
+                    let statusConfig = { color: "bg-gray-100 text-gray-600", text: "No Status" };
+                    switch (status) {
+                        case "pending":
+                            statusConfig = { color: "bg-yellow-100 text-yellow-800", text: "Pending" };
+                            break;
+                        case "l1_approved":
+                            statusConfig = { color: "bg-green-100 text-green-800", text: "L1 Approved" };
+                            break;
+                        case "l1_returned":
+                            statusConfig = { color: "bg-red-100 text-red-800", text: "L1 Returned" };
+                            break;
+                        case "l2_approved":
+                            statusConfig = { color: "bg-emerald-100 text-emerald-800", text: "L2 Approved" };
+                            break;
+                        case "l2_returned":
+                            statusConfig = { color: "bg-orange-100 text-orange-800", text: "L2 Returned" };
+                            break;
+                        case "submitted":
+                            statusConfig = { color: "bg-blue-100 text-blue-800", text: "Submitted" };
+                            break;
+                    }
+                    
+                    // Populate modal
+                    document.getElementById('modalMonth').textContent = month;
+                    document.getElementById('modalTarget').textContent = target || '-';
+                    document.getElementById('modalAchievement').textContent = achievement || '-';
+                    document.getElementById('modalPercentage').textContent = percentage ? `${percentage}%` : '-';
+                    document.getElementById('modalPercentage').className = `font-bold text-lg ${percentageClass}`;
+                    
+                    const statusElement = document.getElementById('modalStatus');
+                    statusElement.textContent = statusConfig.text;
+                    statusElement.className = `inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${statusConfig.color}`;
+                    
+                    // Populate remarks with proper checking
+                    document.getElementById('modalEmployeeRemarks').textContent = employeeRemarks && employeeRemarks !== '-' && employeeRemarks !== 'undefined' && employeeRemarks !== '' ? employeeRemarks : 'No employee remarks provided';
+                    document.getElementById('modalL1Remarks').textContent = l1Remarks && l1Remarks !== 'undefined' && l1Remarks !== '' && l1Remarks !== 'null' ? l1Remarks : 'No L1 remarks provided';
+                    document.getElementById('modalL2Remarks').textContent = l2Remarks && l2Remarks !== 'undefined' && l2Remarks !== '' && l2Remarks !== 'null' ? l2Remarks : 'No L2 remarks provided';
+                    
+                    // Populate percentages
+                    document.getElementById('modalL1Percentage').textContent = l1Percentage && l1Percentage !== 'undefined' && l1Percentage !== '' && l1Percentage !== 'null' ? `${l1Percentage}%` : '0%';
+                    document.getElementById('modalL2Percentage').textContent = l2Percentage && l2Percentage !== 'undefined' && l2Percentage !== '' && l2Percentage !== 'null' ? `${l2Percentage}%` : '0%';
+                    
+                    // Show modal
+                    modal.classList.remove('hidden');
+                    document.body.style.overflow = 'hidden';
+                }
+            });
+        }
+        
         // Filter functions
         function filterTable() {
             const activityFilter = document.getElementById('activityFilter');
@@ -521,6 +922,9 @@ document.addEventListener('turbo:load', function() {
                     el.style.display = '';
                 });
             }
+            
+            // FIXED: Update status after filtering
+            updateStatusBasedOnMonth();
         }
 
         function resetAllFilters() {
@@ -534,6 +938,9 @@ document.addEventListener('turbo:load', function() {
         // --- Setup ---
         // Populate dropdown immediately
         populateActivityDropdown();
+        
+        // Setup modal functionality
+        setupModal();
 
         // Attach event listeners
         const showSelectedBtn = document.getElementById('showSelected');
