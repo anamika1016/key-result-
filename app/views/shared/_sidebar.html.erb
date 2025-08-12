@@ -202,37 +202,43 @@
           <% end %>
 
           <!-- Logout -->
-          <li>
-            <%= button_to destroy_user_session_path, method: :delete, 
-                class: "w-full flex items-center gap-x-3.5 py-2 px-2.5 text-base text-gray-800 rounded-lg",
-                form: { style: "display: inline;" } do %>
-              <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
-                <polyline points="10 17 15 12 10 7" />
-                <line x1="15" y1="12" x2="3" y2="12" />
-              </svg>
-              <span class="font-semibold">Sign Out</span>
-            <% end %>
-          </li>
+          
         </ul>
       </nav>
     </div>
-      <div class="flex-shrink-0 border-t border-gray-200 p-4">
-        <div class="flex items-center space-x-3 text-base text-gray-600 overflow-hidden">
-          
-          <!-- गोल यूज़र आइकन -->
-          <div class="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-800" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 12c2.7 0 5-2.3 5-5s-2.3-5-5-5-5 2.3-5 5 2.3 5 5 5zm0 2c-3.3 0-10 1.7-10 5v3h20v-3c0-3.3-6.7-5-10-5z"/>
-            </svg>
-          </div>
+    <!-- Logout Button ABOVE the line -->
+    <div class="p-4">
+      <%= button_to destroy_user_session_path,
+          method: :delete,
+          data: { confirm: "Are you sure you want to sign out?" },
+          class: "w-full flex items-center gap-x-4 py-3 px-5 text-lg text-white bg-red-500 rounded-xl hover:bg-red-600 transition duration-200 shadow-md",
+          form: { style: "display: inline;" } do %>
+        <svg class="shrink-0 w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+          <polyline points="10 17 15 12 10 7" />
+          <line x1="15" y1="12" x2="3" y2="12" />
+        </svg>
+        <span class="font-bold">Sign Out</span>
+      <% end %>
+    </div>
 
-          <!-- यूज़र ईमेल -->
-          <span class="font-semibold text-[15px] text-gray-800 truncate max-w-[200px]">
+    <div class="flex-shrink-0 border-t border-gray-200 p-4 bg-gray-50">
+      <div class="flex items-center space-x-2 text-gray-700 overflow-hidden"> <!-- changed space-x-3 to space-x-2 -->
+
+        <!-- Your SVG avatar -->
+        <%= image_tag "business_female_male_users.svg",
+                      alt: "User Avatar",
+                      class: "h-14 w-14 rounded-full object-cover shadow-sm border border-gray-300" %>  <!-- increased size from h-10 w-10 to h-14 w-14 -->
+
+        <!-- Email inside fixed width -->
+        <div class="flex flex-col overflow-hidden">
+          <span class="font-semibold text-base text-gray-900 truncate max-w-[170px]"> <!-- increased font size and max-width -->
             <%= current_user.email %>
           </span>
+          <span class="text-sm text-gray-500">Logged in</span> <!-- increased font size a bit -->
         </div>
       </div>
+    </div>
       <!-- End Content -->
     </div>
   </div>
