@@ -15,6 +15,24 @@ test:
   database: 11_test
 
 production:
+  primary:
+    adapter: postgresql
+    encoding: unicode
+    database: myapp_production
+    pool: 5
+    username: myuser
+    password: <%= ENV['MYAPP_DATABASE_PASSWORD'] %>
+    host: localhost
+
+  cable:
+    adapter: postgresql
+    encoding: unicode
+    database: myapp_production
+    pool: 5
+    username: myuser
+    password: <%= ENV['MYAPP_DATABASE_PASSWORD'] %>
+    host: localhost
+
   <<: *default
   database: avoblog_production
   username: <%= ENV['PG_USERNAME'] || 'postgres' %>

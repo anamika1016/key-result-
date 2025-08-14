@@ -1,13 +1,13 @@
-<!-- Fixed Employee Detail show L2 View with Month-wise Remarks -->
+<!-- L2 Employee Detail Quarterly View with 3 Months per Activity -->
 <div class="main-content bg-gray-50 min-h-screen">
 <div class="p-8 bg-white rounded-xl shadow-lg border border-gray-200 mx-4">
   <div class="border-b border-gray-200 pb-6 mb-8">
     <h2 class="text-3xl font-bold text-gray-800 flex items-center">
       <i class="fas fa-user-circle mr-3 text-gray-600"></i>
       Employee Detail - L2 Review
-      <% if params[:month].present? %>
+      <% if params[:quarter].present? %>
         <span class="ml-4 text-lg bg-blue-100 text-blue-800 px-3 py-1 rounded-full">
-          <%= params[:month].titleize %> Activity
+          <%= params[:quarter] %> Quarter Activity
         </span>
       <% end %>
     </h2>
@@ -29,34 +29,42 @@
     <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
      <p class="text-gray-600 text-sm font-medium mb-1">Status</p>
       <%
-        # Calculate the overall status based on achievements
+        # Calculate the overall quarterly status
         overall_status = "pending"
-        if @user_details.any?
-          achievement_statuses = []
+        if @user_details.any? && params[:quarter].present?
+          # Define quarter months
+          quarter_months = case params[:quarter]
+          when 'Q1'
+            ['january', 'february', 'march']
+          when 'Q2'
+            ['april', 'may', 'june']
+          when 'Q3'
+            ['july', 'august', 'september']
+          when 'Q4'
+            ['october', 'november', 'december']
+          else
+            []
+          end
+          
+          quarter_statuses = []
           @user_details.each do |detail|
             detail.achievements.each do |ach|
-              if params[:month].present?
-                # If filtering by month, only consider that specific month
-                if ach.month == params[:month]
-                  achievement_statuses << (ach.status || "pending")
-                end
-              else
-                # Consider all achievements
-                achievement_statuses << (ach.status || "pending")
+              if quarter_months.include?(ach.month)
+                quarter_statuses << (ach.status || "pending")
               end
             end
           end
           
-          # Determine overall status priority
-          if achievement_statuses.include?("l2_approved")
+          # Determine overall quarterly status
+          if quarter_statuses.all? { |s| s == "l2_approved" }
             overall_status = "l2_approved"
-          elsif achievement_statuses.include?("l1_approved")
+          elsif quarter_statuses.all? { |s| s == "l1_approved" }
             overall_status = "l1_approved"
-          elsif achievement_statuses.include?("l2_returned")
+          elsif quarter_statuses.any? { |s| s == "l2_returned" }
             overall_status = "l2_returned"
-          elsif achievement_statuses.include?("l1_returned")
+          elsif quarter_statuses.any? { |s| s == "l1_returned" }
             overall_status = "l1_returned"
-          elsif achievement_statuses.include?("submitted")
+          elsif quarter_statuses.any? { |s| s == "submitted" }
             overall_status = "submitted"
           else
             overall_status = "pending"
@@ -87,16 +95,28 @@
     </div>
   </div>
 
-  <% if @user_details.any? && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
+  <% if @user_details.any? && params[:quarter].present? %>
+    <%
+      # Define quarter months
+      quarter_months = case params[:quarter]
+      when 'Q1'
+        ['january', 'february', 'march']
+      when 'Q2'
+        ['april', 'may', 'june']
+      when 'Q3'
+        ['july', 'august', 'september']
+      when 'Q4'
+        ['october', 'november', 'december']
+      else
+        []
+      end
+    %>
+    
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm mt-8">
       <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
         <h2 class="text-2xl font-bold text-gray-800 flex items-center">
           <i class="fas fa-trophy mr-3 text-gray-600"></i>
-          <% if params[:month].present? %>
-            <%= params[:month].titleize %> Achievement Details
-          <% else %>
-            Submitted Achievements
-          <% end %>
+          <%= params[:quarter] %> Quarter Achievement Details
         </h2>
       </div>
 
@@ -109,20 +129,20 @@
                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Name</th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Activity</th>
                 <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
+                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Month</th>
                 <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Target</th>
                 <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement</th>
                 <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Remarks</th>
-                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Status</th>
+                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Status</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
               <% @user_details.each_with_index do |detail, index| %>
                 <% existing_achievements = detail.achievements.index_by(&:month) %>
-                <% if params[:month].present? %>
-                  <!-- Show only selected month -->
-                  <% achievement_record = existing_achievements[params[:month]] %>
+                <% quarter_months.each do |month| %>
+                  <% achievement_record = existing_achievements[month] %>
                   <% if achievement_record&.achievement.present? %>
-                    <% target_value = detail.send(params[:month].to_sym) %>
+                    <% target_value = detail.send(month.to_sym) %>
                     <% achievement_value = achievement_record.achievement %>
                     <% employee_remarks = achievement_record.employee_remarks %>
                     <% achievement_status = achievement_record.status || "pending" %>
@@ -132,6 +152,11 @@
                       <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
                       <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity&.activity_name || 'N/A' %></td>
                       <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity&.unit || 'N/A' %></td>
+                      <td class="px-3 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-blue-50">
+                        <span class="text-blue-800 font-medium">
+                          <%= month.titleize %>
+                        </span>
+                      </td>
                       <td class="px-3 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-gray-50">
                         <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
                           <%= target_value.presence || '-' %>
@@ -147,7 +172,7 @@
                           <%= employee_remarks.presence || '-' %>
                         </span>
                       </td>
-                      <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                      <td class="px-3 py-3 text-sm text-center">
                         <%
                           status_config = case achievement_status
                           when "pending"
@@ -173,63 +198,6 @@
                       </td>
                     </tr>
                   <% end %>
-                <% else %>
-                  <!-- Show all months - need to restructure for employee remarks -->
-                  <% existing_achievements.each do |month, achievement_record| %>
-                    <% if achievement_record&.achievement.present? %>
-                      <% month_symbol = month.to_sym %>
-                      <% target_value = detail.send(month_symbol) %>
-                      <% achievement_value = achievement_record.achievement %>
-                      <% employee_remarks = achievement_record.employee_remarks %>
-                      <% achievement_status = achievement_record.status || "pending" %>
-                      
-                      <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
-                        <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department&.department_type || 'N/A' %></td>
-                        <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
-                        <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity&.activity_name || 'N/A' %> (<%= month.titleize %>)</td>
-                        <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity&.unit || 'N/A' %></td>
-                        <td class="px-3 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-gray-50">
-                          <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
-                            <%= target_value.presence || '-' %>
-                          </span>
-                        </td>
-                        <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                          <span class="<%= achievement_value.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
-                            <%= achievement_value.presence || '-' %>
-                          </span>
-                        </td>
-                        <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                          <span class="<%= employee_remarks.presence ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
-                            <%= employee_remarks.presence || '-' %>
-                          </span>
-                        </td>
-                        <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                          <%
-                            status_config = case achievement_status
-                            when "pending"
-                              { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
-                            when "l1_approved"
-                              { color: "bg-green-100 text-green-800 border-green-300", text: "L1 Approved", icon: "fas fa-check-circle" }
-                            when "l1_returned"
-                              { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
-                            when "l2_approved"
-                              { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
-                            when "l2_returned"
-                              { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
-                            when "submitted"
-                              { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
-                            else
-                              { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status", icon: "fas fa-question-circle" }
-                            end
-                          %>
-                          <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border <%= status_config[:color] %>">
-                            <i class="<%= status_config[:icon] %> mr-1"></i>
-                            <%= status_config[:text] %>
-                          </span>
-                        </td>
-                      </tr>
-                    <% end %>
-                  <% end %>
                 <% end %>
               <% end %>
             </tbody>
@@ -240,34 +208,52 @@
   <% end %>
 
 <!-- Show L2 approve/return buttons only if L2 can take action -->
-<% if @can_l2_approve_or_return && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } && params[:month].present? %>
+<% if @can_l2_approve_or_return && @user_details.any? && params[:quarter].present? %>
   <%
-    # Check if the current month's achievement can be approved/returned by L2
+    # Check if the current quarter's achievements can be approved/returned by L2
     can_take_l2_action = false
-    current_achievement_status = "pending"
+    
+    # Define quarter months
+    quarter_months = case params[:quarter]
+    when 'Q1'
+      ['january', 'february', 'march']
+    when 'Q2'
+      ['april', 'may', 'june']
+    when 'Q3'
+      ['july', 'august', 'september']
+    when 'Q4'
+      ['october', 'november', 'december']
+    else
+      []
+    end
     
     @user_details.each do |detail|
-      achievement = detail.achievements.find { |a| a.month == params[:month] }
-      if achievement
-        current_achievement_status = achievement.status || "pending"
-        can_take_l2_action = ['l1_approved', 'l2_returned'].include?(current_achievement_status)
-        break
+      quarter_months.each do |month|
+        achievement = detail.achievements.find { |a| a.month == month }
+        if achievement
+          current_status = achievement.status || "pending"
+          if ['l1_approved', 'l2_returned'].include?(current_status)
+            can_take_l2_action = true
+            break
+          end
+        end
       end
+      break if can_take_l2_action
     end
   %>
   
   <% if can_take_l2_action %>
-    <!-- L2 Buttons for specific activity/month -->
+    <!-- L2 Buttons for quarterly activity -->
     <div class="mt-8 pt-6 border-t border-gray-200">
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <!-- L2 Approve Button for specific activity/month -->
+        <!-- L2 Approve Button for quarterly activity -->
         <button onclick="openModal('l2_approve')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          L2 Approve <%= params[:month].titleize %> Activity
+          L2 Approve <%= params[:quarter] %> Quarter
         </button>
 
-        <!-- L2 Reject Button for specific activity/month -->
+        <!-- L2 Reject Button for quarterly activity -->
         <button onclick="openModal('l2_reject')" class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          L2 Return <%= params[:month].titleize %> Activity
+          L2 Return <%= params[:quarter] %> Quarter
         </button>
       </div>
     </div>
@@ -275,43 +261,7 @@
     <div class="mt-8 pt-6 border-t border-gray-200">
       <div class="text-center">
         <p class="text-gray-600 font-medium">
-          This <%= params[:month].titleize %> activity is currently "<%= current_achievement_status.titleize %>" and cannot be modified by L2.
-        </p>
-      </div>
-    </div>
-  <% end %>
-<% elsif @can_l2_approve_or_return && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
-  <!-- Show general L2 approve/return buttons when viewing all activities -->
-  <%
-    # Check if there are any achievements that can be approved/returned by L2
-    can_take_l2_bulk_action = false
-    @user_details.each do |detail|
-      detail.achievements.each do |achievement|
-        if ['l1_approved', 'l2_returned'].include?(achievement.status || "pending")
-          can_take_l2_bulk_action = true
-          break
-        end
-      end
-      break if can_take_l2_bulk_action
-    end
-  %>
-  
-  <% if can_take_l2_bulk_action %>
-    <div class="mt-8 pt-6 border-t border-gray-200">
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
-        <button onclick="openModal('l2_approve')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          L2 Approve All Activities
-        </button>
-        <button onclick="openModal('l2_reject')" class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          L2 Return All Activities
-        </button>
-      </div>
-    </div>
-  <% else %>
-    <div class="mt-8 pt-6 border-t border-gray-200">
-      <div class="text-center">
-        <p class="text-gray-600 font-medium">
-          All activities have been processed and cannot be modified by L2.
+          This <%= params[:quarter] %> Quarter activities cannot be modified by L2.
         </p>
       </div>
     </div>
@@ -325,20 +275,20 @@
 
     <%= form_with url: '', method: :patch, id: 'modalForm', local: true do |f| %>
       <div class="mb-4">
-        <%= f.label :l2_remarks, "L2 Remarks", class: "block font-semibold mb-1" %>
+        <%= f.label :l2_remarks, "L2 Quarterly Remarks", class: "block font-semibold mb-1" %>
         <%= f.text_area :l2_remarks, rows: 3, class: "w-full border border-gray-300 rounded-md" %>
       </div>
       <div class="mb-4">
-        <%= f.label :l2_percentage, "L2 Percentage", class: "block font-semibold mb-1" %>
+        <%= f.label :l2_percentage, "L2 Quarterly Percentage", class: "block font-semibold mb-1" %>
         <%= f.number_field :l2_percentage, step: 0.1, class: "w-full border border-gray-300 rounded-md" %>
       </div>
       
-      <!-- Hidden fields to track specific activity/month if present -->
+      <!-- Hidden fields for quarterly tracking -->
       <% if params[:user_detail_id].present? %>
         <%= f.hidden_field :user_detail_id, value: params[:user_detail_id] %>
       <% end %>
-      <% if params[:month].present? %>
-        <%= f.hidden_field :selected_month, value: params[:month] %>
+      <% if params[:quarter].present? %>
+        <%= f.hidden_field :selected_quarter, value: params[:quarter] %>
       <% end %>
       
       <div class="flex justify-end gap-2">
@@ -360,10 +310,10 @@
 
     if (actionType === "l2_approve") {
       form.action = "<%= l2_approve_employee_detail_path(@employee_detail) %>";
-      modalTitle.innerText = "L2 Approve with Remarks";
+      modalTitle.innerText = "L2 Approve Quarterly Activities";
     } else if (actionType === "l2_reject") {
       form.action = "<%= l2_return_employee_detail_path(@employee_detail) %>";
-      modalTitle.innerText = "L2 Return with Remarks";
+      modalTitle.innerText = "L2 Return Quarterly Activities";
     }
   }
 
@@ -372,32 +322,41 @@
   }
 </script>
 
-<!-- FIXED: Combined L1 and L2 Remarks Section Side by Side -->
-<% if @user_details.any? %>
+<!-- Quarterly L1 and L2 Remarks Section -->
+<% if @user_details.any? && params[:quarter].present? %>
   <%
-    # Collect L1 remarks by achievement (month + activity specific)
-    l1_remarks_data = []
-    l2_remarks_data = []
+    # Collect quarterly L1 and L2 remarks data
+    quarter_months = case params[:quarter]
+    when 'Q1'
+      ['january', 'february', 'march']
+    when 'Q2'
+      ['april', 'may', 'june']
+    when 'Q3'
+      ['july', 'august', 'september']
+    when 'Q4'
+      ['october', 'november', 'december']
+    else
+      []
+    end
     
+    quarterly_l1_remarks = nil
+    quarterly_l2_remarks = nil
+    activity_name = nil
+    
+    # Get the first available quarterly remarks (they should be the same for all months in a quarter)
     @user_details.each do |detail|
-      detail.achievements.each do |achievement|
-        # Filter by month if specific month is selected
-        if params[:month].blank? || achievement.month == params[:month]
-          # L1 remarks
-          if achievement.achievement_remark&.l1_remarks.present? || achievement.achievement_remark&.l1_percentage.present?
-            l1_remarks_data << {
-              month: achievement.month,
-              activity_name: detail.activity&.activity_name,
+      activity_name = detail.activity&.activity_name
+      quarter_months.each do |month|
+        achievement = detail.achievements.find { |a| a.month == month }
+        if achievement&.achievement_remark
+          if quarterly_l1_remarks.nil? && (achievement.achievement_remark.l1_remarks.present? || achievement.achievement_remark.l1_percentage.present?)
+            quarterly_l1_remarks = {
               remarks: achievement.achievement_remark.l1_remarks,
               percentage: achievement.achievement_remark.l1_percentage
             }
           end
-          
-          # L2 remarks
-          if achievement.achievement_remark&.l2_remarks.present? || achievement.achievement_remark&.l2_percentage.present?
-            l2_remarks_data << {
-              month: achievement.month,
-              activity_name: detail.activity&.activity_name,
+          if quarterly_l2_remarks.nil? && (achievement.achievement_remark.l2_remarks.present? || achievement.achievement_remark.l2_percentage.present?)
+            quarterly_l2_remarks = {
               remarks: achievement.achievement_remark.l2_remarks,
               percentage: achievement.achievement_remark.l2_percentage
             }
@@ -407,18 +366,13 @@
     end
   %>
   
-  <% if l1_remarks_data.any? || l2_remarks_data.any? %>
+  <% if quarterly_l1_remarks || quarterly_l2_remarks %>
     <div class="bg-white border border-gray-200 rounded-xl mt-6 shadow-lg overflow-hidden">
       <!-- Header -->
       <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
         <h3 class="text-xl font-bold text-white flex items-center gap-2">
           <i class="fas fa-comments"></i>
-          Remarks & Percentage 
-          <% if params[:month].present? %>
-            (<%= params[:month].titleize %>)
-          <% else %>
-            (Month-wise)
-          <% end %>
+          Quarterly Remarks & Percentage (<%= params[:quarter] %>)
         </h3>
       </div>
 
@@ -428,41 +382,37 @@
         <div class="flex-1 bg-gradient-to-br from-blue-50 to-indigo-50 p-6">
           <div class="flex items-center gap-2 mb-4">
             <i class="fas fa-user-check text-blue-600 text-lg"></i>
-            <h4 class="text-lg font-bold text-blue-700">L1 Remarks & Percentage</h4>
+            <h4 class="text-lg font-bold text-blue-700">L1 Quarterly Remarks & Percentage</h4>
           </div>
           
-          <% if l1_remarks_data.any? %>
-            <div class="space-y-4">
-              <% l1_remarks_data.each_with_index do |data, index| %>
-                <div class="bg-white border-l-4 border-blue-500 rounded-lg p-4 shadow-sm">
-                  <h5 class="text-sm font-bold text-blue-600 mb-2 uppercase">
-                    <%= data[:month].titleize %>
-                  </h5>
-                  <p class="text-xs text-gray-600 mb-3 font-medium">
-                    Activity: <%= data[:activity_name] || 'N/A' %>
-                  </p>
-                  
-                  <div class="mb-3">
-                    <p class="text-xs text-blue-600 font-semibold mb-1">L1 Remarks</p>
-                    <p class="text-gray-700 text-sm whitespace-pre-line bg-blue-50 p-2 rounded border">
-                      <%= data[:remarks].presence || "No Remarks" %>
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <p class="text-xs text-blue-600 font-semibold mb-1">L1 Percentage</p>
-                    <div class="bg-blue-100 p-2 rounded text-center border">
-                      <span class="text-blue-800 font-bold text-lg">
-                        <%= data[:percentage].present? ? "#{data[:percentage]}%" : "No Percentage" %>
-                      </span>
-                    </div>
-                  </div>
+          <% if quarterly_l1_remarks %>
+            <div class="bg-white border-l-4 border-blue-500 rounded-lg p-4 shadow-sm">
+              <h5 class="text-sm font-bold text-blue-600 mb-2 uppercase">
+                <%= params[:quarter] %> Quarter
+              </h5>
+              <p class="text-xs text-gray-600 mb-3 font-medium">
+                Activity: <%= activity_name || 'N/A' %>
+              </p>
+              
+              <div class="mb-3">
+                <p class="text-xs text-blue-600 font-semibold mb-1">L1 Quarterly Remarks</p>
+                <p class="text-gray-700 text-sm whitespace-pre-line bg-blue-50 p-2 rounded border">
+                  <%= quarterly_l1_remarks[:remarks].presence || "No Remarks" %>
+                </p>
+              </div>
+              
+              <div>
+                <p class="text-xs text-blue-600 font-semibold mb-1">L1 Quarterly Percentage</p>
+                <div class="bg-blue-100 p-2 rounded text-center border">
+                  <span class="text-blue-800 font-bold text-lg">
+                    <%= quarterly_l1_remarks[:percentage].present? ? "#{quarterly_l1_remarks[:percentage]}%" : "No Percentage" %>
+                  </span>
                 </div>
-              <% end %>
+              </div>
             </div>
           <% else %>
             <div class="flex items-center justify-center h-32 bg-white rounded-lg border-2 border-dashed border-blue-200">
-              <p class="text-blue-400 font-medium">No L1 Remarks Available</p>
+              <p class="text-blue-400 font-medium">No L1 Quarterly Remarks Available</p>
             </div>
           <% end %>
         </div>
@@ -475,41 +425,37 @@
         <div class="flex-1 bg-gradient-to-br from-emerald-50 to-teal-50 p-6">
           <div class="flex items-center gap-2 mb-4">
             <i class="fas fa-user-shield text-emerald-600 text-lg"></i>
-            <h4 class="text-lg font-bold text-emerald-700">L2 Remarks & Percentage</h4>
+            <h4 class="text-lg font-bold text-emerald-700">L2 Quarterly Remarks & Percentage</h4>
           </div>
           
-          <% if l2_remarks_data.any? %>
-            <div class="space-y-4">
-              <% l2_remarks_data.each_with_index do |data, index| %>
-                <div class="bg-white border-l-4 border-emerald-500 rounded-lg p-4 shadow-sm">
-                  <h5 class="text-sm font-bold text-emerald-600 mb-2 uppercase">
-                    <%= data[:month].titleize %>
-                  </h5>
-                  <p class="text-xs text-gray-600 mb-3 font-medium">
-                    Activity: <%= data[:activity_name] || 'N/A' %>
-                  </p>
-                  
-                  <div class="mb-3">
-                    <p class="text-xs text-emerald-600 font-semibold mb-1">L2 Remarks</p>
-                    <p class="text-gray-700 text-sm whitespace-pre-line bg-emerald-50 p-2 rounded border">
-                      <%= data[:remarks].presence || "No Remarks" %>
-                    </p>
-                  </div>
-                  
-                  <div>
-                    <p class="text-xs text-emerald-600 font-semibold mb-1">L2 Percentage</p>
-                    <div class="bg-emerald-100 p-2 rounded text-center border">
-                      <span class="text-emerald-800 font-bold text-lg">
-                        <%= data[:percentage].present? ? "#{data[:percentage]}%" : "No Percentage" %>
-                      </span>
-                    </div>
-                  </div>
+          <% if quarterly_l2_remarks %>
+            <div class="bg-white border-l-4 border-emerald-500 rounded-lg p-4 shadow-sm">
+              <h5 class="text-sm font-bold text-emerald-600 mb-2 uppercase">
+                <%= params[:quarter] %> Quarter
+              </h5>
+              <p class="text-xs text-gray-600 mb-3 font-medium">
+                Activity: <%= activity_name || 'N/A' %>
+              </p>
+              
+              <div class="mb-3">
+                <p class="text-xs text-emerald-600 font-semibold mb-1">L2 Quarterly Remarks</p>
+                <p class="text-gray-700 text-sm whitespace-pre-line bg-emerald-50 p-2 rounded border">
+                  <%= quarterly_l2_remarks[:remarks].presence || "No Remarks" %>
+                </p>
+              </div>
+              
+              <div>
+                <p class="text-xs text-emerald-600 font-semibold mb-1">L2 Quarterly Percentage</p>
+                <div class="bg-emerald-100 p-2 rounded text-center border">
+                  <span class="text-emerald-800 font-bold text-lg">
+                    <%= quarterly_l2_remarks[:percentage].present? ? "#{quarterly_l2_remarks[:percentage]}%" : "No Percentage" %>
+                  </span>
                 </div>
-              <% end %>
+              </div>
             </div>
           <% else %>
             <div class="flex items-center justify-center h-32 bg-white rounded-lg border-2 border-dashed border-emerald-200">
-              <p class="text-emerald-400 font-medium">No L2 Remarks Available</p>
+              <p class="text-emerald-400 font-medium">No L2 Quarterly Remarks Available</p>
             </div>
           <% end %>
         </div>
@@ -562,24 +508,6 @@
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.table input[type="text"] {
-  width: 200px;
-  padding: 10px 14px;
-  font-size: 16px;
-  border: 2px solid #d1d5db;
-  border-radius: 8px;
-  box-sizing: border-box;
-  transition: all 0.2s ease;
-  background-color: #f9fafb;
-}
-
-.table input[type="text"]:focus {
-  outline: none;
-  border-color: #6b7280;
-  background-color: white;
-  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
-}
-
 .main-content h2 {
   font-size: 2rem;
   font-weight: 700;
@@ -617,11 +545,6 @@ button:hover {
   animation: fadeIn 0.6s ease-out;
 }
 
-.inline-flex {
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-  border: 1px solid #d1d5db;
-}
-
 /* Emerald colors for L2 status */
 .bg-emerald-100 {
   background-color: #d1fae5;
@@ -635,16 +558,7 @@ button:hover {
   border-color: #6ee7b7;
 }
 
-/* Additional hover effects for L2 buttons */
-.bg-emerald-600:hover {
-  background-color: #059669;
-}
-
-.bg-orange-600:hover {
-  background-color: #ea580c;
-}
-
-/* Enhanced table styling for L2 view */
+/* Enhanced table styling for L2 quarterly view */
 .table tbody tr:nth-child(even) {
   background-color: #f9fafb;
 }
@@ -690,32 +604,6 @@ button:hover {
   letter-spacing: 0.025em;
 }
 
-/* Loading state styling (if needed) */
-.loading {
-  opacity: 0.6;
-  pointer-events: none;
-  position: relative;
-}
-
-.loading::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 20px;
-  height: 20px;
-  margin: -10px 0 0 -10px;
-  border: 2px solid #ffffff;
-  border-radius: 50%;
-  border-color: #ffffff transparent #ffffff transparent;
-  animation: spin 1.2s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
 /* Achievement badges */
 .bg-green-50 {
   background-color: #f0fdf4;
@@ -732,20 +620,11 @@ button:hover {
   background-color: #f9fafb;
 }
 
-.bg-green-50 {
-  background-color: #f0fdf4;
-}
-
 .bg-emerald-50 {
   background-color: #ecfdf5;
 }
 
-/* Improved spacing for remarks sections */
-.grid.gap-4 > div {
-  min-height: 200px;
-}
-
-/* Better visual separation for month cards */
+/* Better visual separation for quarterly cards */
 .border-l-4 {
   border-left-width: 4px;
 }
@@ -851,6 +730,48 @@ button:hover {
 
 .to-gray-200 {
   --tw-gradient-to: #e5e7eb;
+}
+
+/* Quarter-specific styling */
+.bg-blue-50 {
+  background-color: #eff6ff;
+}
+
+/* Loading state styling */
+.loading {
+  opacity: 0.6;
+  pointer-events: none;
+  position: relative;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  border-color: #ffffff transparent #ffffff transparent;
+  animation: spin 1.2s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Enhanced quarterly view styling */
+.quarterly-month-highlight {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border: 1px solid #93c5fd;
+}
+
+/* Quarterly status enhancement */
+.quarterly-status-badge {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 </style>
 
