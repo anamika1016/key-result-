@@ -383,6 +383,7 @@
 </script>
 
 <!-- Quarter-wise L1 & L2 Remarks Display - FIXED FOR QUARTERLY SUMMARY -->
+<!-- Quarter-wise L1 & L2 Remarks Display - FIXED FOR UNIQUE REMARKS -->
 <% if params[:quarter].present? %>
   <%
     quarter_months = case params[:quarter]
@@ -402,8 +403,10 @@
     quarter_l1_total = 0
     quarter_l2_total = 0
     quarter_achievement_count = 0
-    quarter_remarks_l1 = []
-    quarter_remarks_l2 = []
+    
+    # Use Sets to store unique remarks to avoid duplicates
+    quarter_remarks_l1 = Set.new
+    quarter_remarks_l2 = Set.new
     
     @user_details.each do |detail|
       quarter_achievements = detail.achievements.select { |a| quarter_months.include?(a.month) }
@@ -415,16 +418,20 @@
           if achievement.achievement_remark.l1_percentage.present?
             quarter_l1_total += achievement.achievement_remark.l1_percentage.to_f
           end
+          
+          # Add unique L1 remarks only
           if achievement.achievement_remark.l1_remarks.present?
-            quarter_remarks_l1 << "#{achievement.month.titleize}: #{achievement.achievement_remark.l1_remarks}"
+            quarter_remarks_l1.add(achievement.achievement_remark.l1_remarks)
           end
           
           # Collect L2 data
           if achievement.achievement_remark.l2_percentage.present?
             quarter_l2_total += achievement.achievement_remark.l2_percentage.to_f
           end
+          
+          # Add unique L2 remarks only
           if achievement.achievement_remark.l2_remarks.present?
-            quarter_remarks_l2 << "#{achievement.month.titleize}: #{achievement.achievement_remark.l2_remarks}"
+            quarter_remarks_l2.add(achievement.achievement_remark.l2_remarks)
           end
         end
       end
@@ -433,6 +440,10 @@
     # Calculate averages
     quarter_l1_average = quarter_achievement_count > 0 ? (quarter_l1_total / quarter_achievement_count).round(1) : 0.0
     quarter_l2_average = quarter_achievement_count > 0 ? (quarter_l2_total / quarter_achievement_count).round(1) : 0.0
+    
+    # Convert Sets to Arrays for display
+    quarter_remarks_l1_array = quarter_remarks_l1.to_a
+    quarter_remarks_l2_array = quarter_remarks_l2.to_a
   %>
   
   <% if quarter_achievement_count > 0 %>
@@ -455,11 +466,18 @@
 
         <!-- All L1 Remarks -->
         <div class="space-y-3">
-          <h4 class="text-blue-600 font-semibold text-sm">All Quarter Remarks:</h4>
-          <% if quarter_remarks_l1.any? %>
+          <h4 class="text-blue-600 font-semibold text-sm">Quarter Remarks:</h4>
+          <% if quarter_remarks_l1_array.any? %>
             <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto">
-              <% quarter_remarks_l1.each do |remark| %>
-                <p class="text-gray-700 text-sm mb-2 border-b border-gray-100 pb-2"><%= remark %></p>
+              <% quarter_remarks_l1_array.each_with_index do |remark, index| %>
+                <div class="text-gray-700 text-sm mb-3 pb-3 <%= 'border-b border-gray-100' unless index == quarter_remarks_l1_array.length - 1 %>">
+                  <div class="flex items-start gap-2">
+                    <span class="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                      Remark <%= index + 1 %>
+                    </span>
+                    <span class="text-gray-700"><%= remark %></span>
+                  </div>
+                </div>
               <% end %>
             </div>
           <% else %>
@@ -487,11 +505,18 @@
 
         <!-- All L2 Remarks -->
         <div class="space-y-3">
-          <h4 class="text-green-600 font-semibold text-sm">All Quarter Remarks:</h4>
-          <% if quarter_remarks_l2.any? %>
+          <h4 class="text-green-600 font-semibold text-sm">Quarter Remarks:</h4>
+          <% if quarter_remarks_l2_array.any? %>
             <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto">
-              <% quarter_remarks_l2.each do |remark| %>
-                <p class="text-gray-700 text-sm mb-2 border-b border-gray-100 pb-2"><%= remark %></p>
+              <% quarter_remarks_l2_array.each_with_index do |remark, index| %>
+                <div class="text-gray-700 text-sm mb-3 pb-3 <%= 'border-b border-gray-100' unless index == quarter_remarks_l2_array.length - 1 %>">
+                  <div class="flex items-start gap-2">
+                    <span class="bg-green-100 text-green-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                      Remark <%= index + 1 %>
+                    </span>
+                    <span class="text-gray-700"><%= remark %></span>
+                  </div>
+                </div>
               <% end %>
             </div>
           <% else %>
