@@ -79,3 +79,5 @@ gem 'caxlsx_rails'
 
 gem 'roo-xls'
 gem 'axlsx'
+# Gemfile
+gem "propshaft"

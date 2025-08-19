@@ -42,126 +42,335 @@
           <button id="showAll" class="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
             <i class="fas fa-list me-1"></i> Show All
           </button>
-          <button id="clearFilters" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
-            <i class="fas fa-times me-1"></i> Clear Filters
-          </button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- YOUR ORIGINAL CODE STARTS HERE - EXACTLY AS YOU WROTE IT -->
   <% if @user_details.any? %>
     <!-- ======================== FORM TO SUBMIT ACHIEVEMENTS ======================== -->
-<%= form_with url: submit_achievements_user_details_path, method: :post, local: true do %>
-  <div class="bg-white border border-gray-200 rounded-xl shadow-lg mt-4">
-    <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
-      <h2 class="text-3xl font-bold text-gray-800 flex items-center">
-        <i class="fas fa-users me-2 text-indigo-600"></i>
-        Monthly Activity Target Submit 
-      </h2>
-    </div>
+    <%= form_with url: submit_achievements_user_details_path, method: :post, local: true do %>
+      <div class="bg-white border border-gray-200 rounded-xl shadow-lg mt-4">
+        <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
+          <h2 class="text-3xl font-bold text-gray-800 flex items-center">
+            <i class="fas fa-users me-2 text-indigo-600"></i>
+            Monthly Activity Target Submit 
+          </h2>
+        </div>
 
-    <div class="p-6">
-      <div class="table-wrapper overflow-auto bg-white rounded-lg border border-gray-200 shadow-sm">
-        <table class="table table-hover w-full min-w-full">
-          <thead class="bg-gray-800">
-            <tr>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Department</th>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Name</th>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Activity</th>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Theme</th>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
-              <% ["April", "May", "June", "July", "August", "September", "October", "November", "December", "January", "February", "March"].each do |month| %>
-                <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700 month-header" data-month="<%= month.downcase %>"><%= month %></th>
-              <% end %>
-            </tr>
-            <tr class="bg-gray-700">
-              <% 12.times do %>
-                <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 month-subheader">Target</th>
-                <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 month-subheader">Achievement</th>
-                <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 month-subheader">Remarks</th>
-              <% end %>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <% @user_details.each_with_index do |detail, index| %>
-              <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200 activity-row" data-activity="<%= detail.activity.activity_name %>">
-                <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department.department_type %></td>
-                <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.department.theme_name.presence || 'No Theme' %></td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity.unit %></td>
+        <div class="p-6">
+          <div class="table-wrapper overflow-auto bg-white rounded-lg border border-gray-200 shadow-sm">
+            <table class="table table-hover w-full min-w-full" id="activityTable">
+              <thead class="bg-gray-800">
+                <tr>
+                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Department</th>
+                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Name</th>
+                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Activity</th>
+                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Theme</th>
+                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
+                  <% ["April", "May", "June", "July", "August", "September", "October", "November", "December", "January", "February", "March"].each do |month| %>
+                    <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700 month-header" data-month="<%= month.downcase %>"><%= month %></th>
+                  <% end %>
+                </tr>
+                <tr class="bg-gray-700">
+                  <% 12.times do %>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 month-subheader">Target</th>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 month-subheader">Achievement</th>
+                    <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 month-subheader">Remarks</th>
+                  <% end %>
+                </tr>
+              </thead>
+              <tbody class="bg-white divide-y divide-gray-200">
+                <% @user_details.each_with_index do |detail, index| %>
+                  <%
+                    # Create target data for JavaScript filtering
+                    months = [:april, :may, :june, :july, :august, :september, :october, :november, :december, :january, :february, :march]
+                    target_data = {}
+                    has_any_target = false
+                    
+                    months.each do |month|
+                      target_value = detail.send(month)
+                      # Consider a target valid if it's not nil, not empty, and not 0
+                      is_valid_target = target_value.present? && target_value.to_s != '0'
+                      target_data[month.to_s] = is_valid_target ? target_value.to_s : ''
+                      has_any_target = true if is_valid_target
+                    end
+                  %>
+                  
+                  <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200 activity-row" 
+                      data-activity="<%= detail.activity.activity_name %>" 
+                      data-targets='<%= target_data.to_json.html_safe %>'
+                      data-has-any-target="<%= has_any_target %>">
+                    
+                    <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department.department_type %></td>
+                    <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
+                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
+                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.department.theme_name.presence || 'No Theme' %></td>
+                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity.unit %></td>
 
-                <% [:april, :may, :june, :july, :august, :september, :october, :november, :december, :january, :february, :march].each do |month| %>
-                  <% target_value = detail.send(month) %>
-                  <td class="px-3 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-gray-50 month-cell" data-month="<%= month %>">
-                    <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
-                      <%= target_value.presence || '-' %>
-                    </span>
-                  </td>
-                  <td class="px-3 py-3 text-sm text-center border-r border-gray-200 month-cell" data-month="<%= month %>">
-                    <input 
-                      type="text" 
-                      name="achievement[<%= detail.id %>][<%= month %>][achievement]" 
-                      placeholder="Achievement" 
-                      class="achievement-input border border-gray-300 p-2 rounded-lg w-full bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 text-sm" 
-                    />
-                  </td>
-                  <td class="px-3 py-3 text-sm text-center border-r border-gray-200 month-cell" data-month="<%= month %>">
-                    <textarea 
-                      name="achievement[<%= detail.id %>][<%= month %>][employee_remarks]" 
-                      placeholder="Remarks" 
-                      rows="1"
-                      class="remarks-textarea border border-gray-300 p-1 rounded-lg w-full bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 text-xs resize-none"
-                    ></textarea>
-                  </td>
+                    <% months.each do |month| %>
+                      <% target_value = detail.send(month) %>
+                      <% has_target = target_value.present? && target_value.to_s != '0' %>
+                      
+                      <td class="px-3 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-gray-50 month-cell" data-month="<%= month %>" data-has-target="<%= has_target %>">
+                        <span class="<%= has_target ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
+                          <%= has_target ? target_value : '-' %>
+                        </span>
+                      </td>
+                      <td class="px-3 py-3 text-sm text-center border-r border-gray-200 month-cell" data-month="<%= month %>" data-has-target="<%= has_target %>">
+                        <input 
+                          type="text" 
+                          name="achievement[<%= detail.id %>][<%= month %>][achievement]" 
+                          placeholder="Achievement" 
+                          class="achievement-input border border-gray-300 p-2 rounded-lg w-full bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 text-sm"
+                          <%= 'disabled' unless has_target %>
+                        />
+                      </td>
+                      <td class="px-3 py-3 text-sm text-center border-r border-gray-200 month-cell" data-month="<%= month %>" data-has-target="<%= has_target %>">
+                        <textarea 
+                          name="achievement[<%= detail.id %>][<%= month %>][employee_remarks]" 
+                          placeholder="Remarks" 
+                          rows="1"
+                          class="remarks-textarea border border-gray-300 p-1 rounded-lg w-full bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 text-xs resize-none"
+                          <%= 'disabled' unless has_target %>
+                        ></textarea>
+                      </td>
+                    <% end %>
+                  </tr>
                 <% end %>
-              </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <div class="mt-6 flex justify-center">
-    <%= submit_tag "Submit Achievements", class: "inline-flex items-center px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" %>
-  </div>
-<% end %>
-<% else %>
-  <div class="flex justify-center mt-10">
-    <div class="w-full max-w-lg bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border border-indigo-100 rounded-3xl shadow-xl p-10 text-center">
-
-      <!-- Lottie Animation -->
-      <div class="mb-6 flex justify-center">
-        <lottie-player 
-          src="https://assets9.lottiefiles.com/packages/lf20_t24tpvcu.json" 
-          background="transparent"  
-          speed="1"  
-          style="width: 1000px !important;  height: 300px;"  
-          loop  
-          autoplay>
-        </lottie-player>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      <!-- Heading -->
-      <h2 class="text-3xl font-extrabold text-gray-800 mb-3">
-        No User Details Found
-      </h2>
+      <div class="mt-6 flex justify-center">
+        <%= submit_tag "Submit Achievements", class: "inline-flex items-center px-8 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg shadow-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2" %>
+      </div>
+    <% end %>
+  <% else %>
+    <div class="flex justify-center mt-10">
+      <div class="w-full max-w-lg bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border border-indigo-100 rounded-3xl shadow-xl p-10 text-center">
 
-      <!-- Sub-text -->
-      <p class="text-gray-600 text-base mb-6 leading-relaxed">
-        It looks like there are no user details available to submit achievements.<br>
-        Please check with your HOD or try again later.
-      </p>
+        <!-- Lottie Animation -->
+        <div class="mb-6 flex justify-center">
+          <lottie-player 
+            src="https://assets9.lottiefiles.com/packages/lf20_t24tpvcu.json" 
+            background="transparent"  
+            speed="1"  
+            style="width: 1000px !important;  height: 300px;"  
+            loop  
+            autoplay>
+          </lottie-player>
+        </div>
+
+        <!-- Heading -->
+        <h2 class="text-3xl font-extrabold text-gray-800 mb-3">
+          No User Details Found
+        </h2>
+
+        <!-- Sub-text -->
+        <p class="text-gray-600 text-base mb-6 leading-relaxed">
+          It looks like there are no user details available to submit achievements.<br>
+          Please check with your HOD or try again later.
+        </p>
+      </div>
     </div>
-  </div>
 
-  <!-- Lottie Script -->
-  <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
-<% end %>
+    <!-- Lottie Script -->
+    <script src="https://unpkg.com/@lottiefiles/lottie-player@latest/dist/lottie-player.js"></script>
+  <% end %>
 
+<style>
+  /* Hide rows that have no valid targets when filtering by month */
+  .activity-row[data-filtered-hidden="true"] {
+    display: none !important;
+  }
+  
+  /* Hide month columns when month filter is active */
+  .month-header[data-month-hidden="true"],
+  .month-subheader[data-month-hidden="true"] {
+    display: none !important;
+  }
+  
+  .month-cell[data-month-hidden="true"] {
+    display: none !important;
+  }
+  
+  /* Hide rows that have no valid targets at all */
+  .activity-row[data-has-any-target="false"] {
+    display: none !important;
+  }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const activityFilter = document.getElementById('activityFilter');
+    const monthFilter = document.getElementById('monthFilter');
+    const showSelectedBtn = document.getElementById('showSelected');
+    const showAllBtn = document.getElementById('showAll');
+    const activityRows = document.querySelectorAll('.activity-row');
+    const monthHeaders = document.querySelectorAll('.month-header');
+    const monthSubheaders = document.querySelectorAll('.month-subheader');
+    const monthCells = document.querySelectorAll('.month-cell');
+
+    // Populate activity filter dropdown
+    function populateActivityFilter() {
+        const activities = new Set();
+        activityRows.forEach(row => {
+            const activity = row.dataset.activity;
+            if (activity && row.dataset.hasAnyTarget === 'true') {
+                activities.add(activity);
+            }
+        });
+
+        // Clear existing options except "All Activities"
+        activityFilter.innerHTML = '<option value="">All Activities</option>';
+        
+        // Add unique activities
+        Array.from(activities).sort().forEach(activity => {
+            const option = document.createElement('option');
+            option.value = activity;
+            option.textContent = activity;
+            activityFilter.appendChild(option);
+        });
+    }
+
+    // Filter functions
+    function filterByActivity(selectedActivity) {
+        activityRows.forEach(row => {
+            if (!selectedActivity || row.dataset.activity === selectedActivity) {
+                row.removeAttribute('data-activity-hidden');
+            } else {
+                row.setAttribute('data-activity-hidden', 'true');
+            }
+        });
+    }
+
+    function filterByMonth(selectedMonth) {
+        const months = ['april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'january', 'february', 'march'];
+        
+        if (!selectedMonth) {
+            // Show all months
+            monthHeaders.forEach(header => header.removeAttribute('data-month-hidden'));
+            monthSubheaders.forEach(subheader => subheader.removeAttribute('data-month-hidden'));
+            monthCells.forEach(cell => cell.removeAttribute('data-month-hidden'));
+            
+            // Show all rows that have any valid target
+            activityRows.forEach(row => {
+                row.removeAttribute('data-filtered-hidden');
+            });
+        } else {
+            // Hide all months except selected
+            months.forEach(month => {
+                const shouldHide = month !== selectedMonth;
+                
+                monthHeaders.forEach(header => {
+                    if (header.dataset.month === month) {
+                        if (shouldHide) {
+                            header.setAttribute('data-month-hidden', 'true');
+                        } else {
+                            header.removeAttribute('data-month-hidden');
+                        }
+                    }
+                });
+                
+                monthSubheaders.forEach(subheader => {
+                    if (subheader.dataset && subheader.dataset.month === month) {
+                        if (shouldHide) {
+                            subheader.setAttribute('data-month-hidden', 'true');
+                        } else {
+                            subheader.removeAttribute('data-month-hidden');
+                        }
+                    }
+                });
+                
+                monthCells.forEach(cell => {
+                    if (cell.dataset.month === month) {
+                        if (shouldHide) {
+                            cell.setAttribute('data-month-hidden', 'true');
+                        } else {
+                            cell.removeAttribute('data-month-hidden');
+                        }
+                    }
+                });
+            });
+
+            // Filter rows based on selected month target
+            activityRows.forEach(row => {
+                try {
+                    const targets = JSON.parse(row.dataset.targets || '{}');
+                    const hasTargetForMonth = targets[selectedMonth] && targets[selectedMonth] !== '' && targets[selectedMonth] !== '0';
+                    
+                    if (hasTargetForMonth) {
+                        row.removeAttribute('data-filtered-hidden');
+                    } else {
+                        row.setAttribute('data-filtered-hidden', 'true');
+                    }
+                } catch (e) {
+                    console.error('Error parsing targets:', e);
+                    row.setAttribute('data-filtered-hidden', 'true');
+                }
+            });
+        }
+    }
+
+    function applyFilters() {
+        const selectedActivity = activityFilter.value;
+        const selectedMonth = monthFilter.value;
+
+        // Reset all filters first
+        activityRows.forEach(row => {
+            row.removeAttribute('data-activity-hidden');
+            row.removeAttribute('data-filtered-hidden');
+        });
+
+        monthHeaders.forEach(header => header.removeAttribute('data-month-hidden'));
+        monthSubheaders.forEach(subheader => subheader.removeAttribute('data-month-hidden'));
+        monthCells.forEach(cell => cell.removeAttribute('data-month-hidden'));
+
+        // Apply filters
+        filterByActivity(selectedActivity);
+        filterByMonth(selectedMonth);
+
+        // Update visibility
+        updateRowVisibility();
+    }
+
+    function updateRowVisibility() {
+        activityRows.forEach(row => {
+            const isActivityHidden = row.hasAttribute('data-activity-hidden');
+            const isFilteredHidden = row.hasAttribute('data-filtered-hidden');
+            const hasAnyTarget = row.dataset.hasAnyTarget === 'true';
+
+            if (!hasAnyTarget || isActivityHidden || isFilteredHidden) {
+                row.style.display = 'none';
+            } else {
+                row.style.display = '';
+            }
+        });
+    }
+
+    function showAll() {
+        activityFilter.value = '';
+        monthFilter.value = '';
+        applyFilters();
+    }
+
+    // Event listeners
+    showSelectedBtn.addEventListener('click', applyFilters);
+    showAllBtn.addEventListener('click', showAll);
+    
+    activityFilter.addEventListener('change', applyFilters);
+    monthFilter.addEventListener('change', applyFilters);
+
+    // Initialize
+    populateActivityFilter();
+    
+    // Initially hide rows with no targets
+    updateRowVisibility();
+});
+</script>
 
   <!-- ======================== READ-ONLY VIEW WITH ACTIVITY-WISE STATUS ======================== -->
 <% if @user_details.any? && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
