@@ -135,14 +135,6 @@ GEM
     erubi (1.13.1)
     et-orbi (1.2.11)
       tzinfo
-    ffi (1.17.2-aarch64-linux-gnu)
-    ffi (1.17.2-aarch64-linux-musl)
-    ffi (1.17.2-arm-linux-gnu)
-    ffi (1.17.2-arm-linux-musl)
-    ffi (1.17.2-x86_64-linux-gnu)
-    ffi (1.17.2-x86_64-linux-musl)
-    font-awesome-sass (6.1.2)
-      sassc (~> 2.0)
     fugit (1.11.1)
       et-orbi (~> 1, >= 1.2.11)
       raabro (~> 1.4)
@@ -351,8 +343,6 @@ GEM
     ruby-ole (1.2.13.1)
     ruby-progressbar (1.13.0)
     rubyzip (2.4.1)
-    sassc (2.4.0)
-      ffi (~> 1.9)
     securerandom (0.4.1)
     selenium-webdriver (4.34.0)
       base64 (~> 0.2)
@@ -451,7 +441,6 @@ DEPENDENCIES
   csv
   debug
   devise
-  font-awesome-sass (~> 6.1.1)
   importmap-rails
   jbuilder
   kamal

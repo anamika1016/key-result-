@@ -20,8 +20,10 @@ Rails.application.routes.draw do
       post :submit_achievements
       get :export
       post :import
-          get :download_template
-    post :bulk_upload
+      get :download_template
+      post :bulk_upload
+      get :quarterly_edit_all
+      patch :update_quarterly_achievements
 
     end
   end
