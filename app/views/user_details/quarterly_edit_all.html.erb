@@ -1,9 +1,9 @@
-<!-- Fixed Quarterly Edit Form -->
-<div class="container-fluid px-4 py-6 bg-gray-50 min-h-screen">
-  <div class="max-w-7xl mx-auto">
+<!-- Fixed Quarterly Edit Form - Dynamic with Sidebar Support -->
+<div class="min-h-screen bg-gray-50 content-wrapper">
+  <div class="w-full px-4 py-6">
     <!-- Header Section -->
     <div class="bg-white border border-gray-200 rounded-xl shadow-lg mb-8">
-      <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-4 rounded-t-xl">
+      <div class="bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-4 rounded-t-xl">
         <div class="flex justify-between items-center">
           <h1 class="text-3xl font-bold flex items-center">
             <i class="fas fa-edit me-3 text-2xl"></i>
@@ -24,7 +24,7 @@
         <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
           <div class="flex flex-wrap items-center gap-4">
             <label class="text-sm font-medium text-gray-700">Choose Quarter to Edit:</label>
-            <select id="quarterFilter" class="bg-white border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[200px]">
+            <select id="quarterFilter" class="bg-white border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent min-w-[200px]">
               <option value="">Select Quarter</option>
               <option value="Q1">Q1 (April, May, June)</option>
               <option value="Q2">Q2 (July, August, September)</option>
@@ -41,41 +41,41 @@
     </div>
 
     <!-- No Quarter Selected Message -->
-    <div id="selectQuarterMessage" class="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center mb-6">
-      <i class="fas fa-hand-point-up text-4xl text-blue-500 mb-4"></i>
-      <h3 class="text-lg font-semibold text-blue-800 mb-2">Please Select a Quarter</h3>
-      <p class="text-blue-600">Choose a quarter from the dropdown above to edit achievements and remarks for all activities.</p>
+    <div id="selectQuarterMessage" class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center mb-6">
+      <i class="fas fa-hand-point-up text-4xl text-gray-500 mb-4"></i>
+      <h3 class="text-lg font-semibold text-gray-800 mb-2">Please Select a Quarter</h3>
+      <p class="text-gray-600">Choose a quarter from the dropdown above to edit achievements and remarks for all activities.</p>
     </div>
 
     <!-- Quarterly Edit Form -->
     <% if @user_details.any? %>
-      <%= form_with url: update_quarterly_achievements_user_details_path, method: :patch, local: true, class: "quarterly-form hidden" do |form| %>
+      <%= form_with url: update_quarterly_achievements_user_details_path, method: :patch, local: true, class: "quarterly-form hidden w-full" do |form| %>
         <%= hidden_field_tag :selected_quarter, "", id: "selected_quarter_field" %>
         
         <!-- Quarter Header -->
         <div id="quarterHeader" class="bg-white border border-gray-200 rounded-xl shadow-lg mb-6 hidden">
-          <div id="quarterHeaderContent" class="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-4 rounded-t-xl">
+          <div id="quarterHeaderContent" class="bg-gradient-to-r from-gray-500 to-gray-600 text-white px-6 py-4 rounded-t-xl">
             <h2 class="text-2xl font-bold flex items-center">
               <i class="fas fa-calendar-alt me-3"></i>
               <span id="quarterTitle"></span>
             </h2>
-            <p class="text-green-100 mt-2">Edit achievements and remarks for all activities in this quarter</p>
+            <p class="text-gray-100 mt-2">Edit achievements and remarks for all activities in this quarter</p>
           </div>
           <div class="p-4">
-            <div id="monthHeaders" class="grid grid-cols-4 gap-4 text-center">
+            <div id="monthHeaders" class="grid grid-cols-1 lg:grid-cols-4 gap-4 text-center">
               <div class="font-semibold text-gray-600">Activity Details</div>
-              <div id="month1Header" class="bg-blue-100 text-blue-800 py-2 rounded font-semibold"></div>
-              <div id="month2Header" class="bg-green-100 text-green-800 py-2 rounded font-semibold"></div>
-              <div id="month3Header" class="bg-orange-100 text-orange-800 py-2 rounded font-semibold"></div>
+              <div id="month1Header" class="bg-gray-100 text-gray-800 py-2 rounded font-semibold"></div>
+              <div id="month2Header" class="bg-gray-200 text-gray-800 py-2 rounded font-semibold"></div>
+              <div id="month3Header" class="bg-gray-300 text-gray-800 py-2 rounded font-semibold"></div>
             </div>
           </div>
         </div>
 
         <!-- Activities List -->
-        <div id="activitiesList">
+        <div id="activitiesList" class="w-full space-y-4">
           <% @user_details.each_with_index do |detail, detail_index| %>
-            <div class="activity-row bg-white border border-gray-200 rounded-xl shadow-lg mb-4" data-activity-id="<%= detail.id %>">
-              <div class="grid grid-cols-4 gap-4 p-6">
+            <div class="activity-row bg-white border border-gray-200 rounded-xl shadow-lg" data-activity-id="<%= detail.id %>">
+              <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 p-6">
                 
                 <!-- Activity Details Column -->
                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
@@ -90,43 +90,48 @@
                   <div class="mb-2">
                     <p class="text-sm text-gray-600">Theme: <%= detail.department.theme_name.presence || 'No Theme' %></p>
                   </div>
-                  <span class="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-semibold">
+                  <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold">
                     Activity #<%= detail_index + 1 %>
                   </span>
                 </div>
 
                 <% 
-                  # Define all quarters and months - FIXED ORDER
+                  # Define quarters and months mapping
                   all_quarters = {
-                    'Q1' => ['april', 'may', 'june'],           # Q1: Apr-Jun
-                    'Q2' => ['july', 'august', 'september'],     # Q2: Jul-Sep  
-                    'Q3' => ['october', 'november', 'december'], # Q3: Oct-Dec
-                    'Q4' => ['january', 'february', 'march']     # Q4: Jan-Mar
+                    'Q1' => ['april', 'may', 'june'],
+                    'Q2' => ['july', 'august', 'september'], 
+                    'Q3' => ['october', 'november', 'december'],
+                    'Q4' => ['january', 'february', 'march']
                   }
                   
                   # Get existing achievements for this detail
-                  existing_achievements = detail.achievements.index_by(&:month)
+                  existing_achievements = {}
+                  if detail.achievements.present?
+                    existing_achievements = detail.achievements.index_by(&:month)
+                  end
                 %>
 
                 <% all_quarters.each do |quarter_name, months| %>
                   <% months.each_with_index do |month, month_index| %>
                     <% 
-                      target_value = detail.send(month.to_sym)
+                      target_value = detail.respond_to?(month.to_sym) ? detail.send(month.to_sym) : ""
                       existing_achievement = existing_achievements[month]
-                      # FIXED: Handle both text and numeric achievement values
                       achievement_value = existing_achievement&.achievement || ""
                       employee_remarks = existing_achievement&.employee_remarks || ""
                     %>
                     
                     <!-- Month Column -->
                     <div class="month-column <%= quarter_name.downcase %> hidden bg-gray-50 p-4 rounded-lg border border-gray-200" 
-                         data-quarter="<%= quarter_name %>" data-month="<%= month %>" data-month-index="<%= month_index %>">
+                         data-quarter="<%= quarter_name %>" 
+                         data-month="<%= month %>" 
+                         data-month-index="<%= month_index %>"
+                         data-detail-id="<%= detail.id %>">
                       
                       <!-- Target Display -->
                       <div class="mb-3">
                         <label class="block text-xs font-medium text-gray-600 mb-1">Target</label>
-                        <div class="bg-blue-50 border border-blue-200 rounded px-2 py-1 text-blue-800 font-semibold text-sm text-center">
-                          <%= target_value.presence || '0' %>
+                        <div class="bg-gray-50 border border-gray-200 rounded px-2 py-1 text-gray-800 font-semibold text-sm text-center">
+                          <%= target_value.present? ? target_value : '0' %>
                         </div>
                       </div>
 
@@ -135,7 +140,7 @@
                         <label class="block text-xs font-medium text-gray-700 mb-1">Achievement</label>
                         <%= text_field_tag "achievements[#{detail.id}][#{month}][achievement]", 
                                            achievement_value,
-                                           class: "achievement-input w-full border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                                           class: "achievement-input w-full border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent",
                                            placeholder: "Enter value",
                                            data: {
                                              target: target_value,
@@ -150,7 +155,7 @@
                         <label class="block text-xs font-medium text-gray-700 mb-1">Remarks</label>
                         <%= text_area_tag "achievements[#{detail.id}][#{month}][employee_remarks]", 
                                          employee_remarks,
-                                         class: "w-full border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+                                         class: "w-full border border-gray-300 rounded px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent",
                                          rows: 2,
                                          placeholder: "Add remarks..." %>
                       </div>
@@ -158,13 +163,12 @@
                       <!-- Achievement Status -->
                       <div class="text-center">
                         <div class="progress-indicator">
-                          <% if target_value.present? && achievement_value.present? && achievement_value != "" %>
+                          <% if target_value.present? && achievement_value.present? && achievement_value.to_s.strip != "" %>
                             <% 
-                              # FIXED: Handle both numeric and text achievements
                               begin
                                 numeric_target = target_value.to_f
                                 numeric_achievement = achievement_value.to_f
-                                if numeric_target > 0 && numeric_achievement > 0
+                                if numeric_target > 0 && numeric_achievement >= 0
                                   percentage = ((numeric_achievement / numeric_target) * 100).round(1)
                                 else
                                   percentage = nil
@@ -175,14 +179,14 @@
                             %>
                             <% if percentage %>
                               <span class="inline-block px-2 py-1 rounded text-xs font-semibold
-                                <%= percentage >= 100 ? 'bg-green-100 text-green-800' :
-                                    percentage >= 75 ? 'bg-blue-100 text-blue-800' :
-                                    percentage >= 50 ? 'bg-yellow-100 text-yellow-800' :
-                                    'bg-red-100 text-red-800' %>">
+                                <%= percentage >= 100 ? 'bg-gray-600 text-white' :
+                                    percentage >= 75 ? 'bg-gray-500 text-white' :
+                                    percentage >= 50 ? 'bg-gray-400 text-gray-800' :
+                                    'bg-gray-300 text-gray-800' %>">
                                 <%= percentage %>%
                               </span>
                             <% else %>
-                              <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800">
+                              <span class="inline-block px-2 py-1 rounded text-xs font-semibold bg-gray-500 text-white">
                                 Set
                               </span>
                             <% end %>
@@ -203,10 +207,10 @@
         </div>
 
         <!-- Submit Section -->
-        <div id="submitSection" class="bg-white border border-gray-200 rounded-xl shadow-lg p-6 hidden">
+        <div id="submitSection" class="bg-white border border-gray-200 rounded-xl shadow-lg p-6 hidden mt-6">
           <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <%= submit_tag "Update All Achievements", 
-                          class: "bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center transform hover:scale-105 shadow-lg",
+                          class: "bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800 text-white px-8 py-3 rounded-lg font-semibold transition-all duration-200 flex items-center transform hover:scale-105 shadow-lg",
                           id: "submitBtn" %>
             
             <%= link_to "Cancel", user_details_path, 
@@ -227,7 +231,7 @@
         <h3 class="text-xl font-semibold text-gray-800 mb-2">No Activities Found</h3>
         <p class="text-gray-600 mb-6">There are no user details available for quarterly editing.</p>
         <%= link_to "Go to User Details", user_details_path, 
-                    class: "bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg transition-colors duration-200" %>
+                    class: "bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-colors duration-200" %>
       </div>
     <% end %>
   </div>
@@ -252,6 +256,44 @@
     transform: scale(1.02);
     transition: transform 0.2s ease;
   }
+
+  /* Sidebar compatibility - Force content to right of sidebar */
+  body {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .content-wrapper {
+    margin-left: 250px !important;
+    min-height: 100vh;
+    width: calc(100vw - 250px) !important;
+    overflow-x: auto;
+  }
+  
+  @media (max-width: 768px) {
+    .content-wrapper {
+      margin-left: 0 !important;
+      width: 100vw !important;
+    }
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 1024px) {
+    .grid.lg\:grid-cols-4 {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+    
+    .month-column {
+      margin-bottom: 1rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .grid.lg\:grid-cols-4 {
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+    }
+  }
 </style>
 
 <script>
@@ -266,23 +308,19 @@
     const quarterData = {
       'Q1': {
         title: 'Q1 Quarter (April - May - June)',
-        months: ['April', 'May', 'June'],
-        colors: ['blue', 'green', 'orange']
+        months: ['April', 'May', 'June']
       },
       'Q2': {
         title: 'Q2 Quarter (July - August - September)',
-        months: ['July', 'August', 'September'],
-        colors: ['blue', 'green', 'orange']
+        months: ['July', 'August', 'September']
       },
       'Q3': {
         title: 'Q3 Quarter (October - November - December)',
-        months: ['October', 'November', 'December'],
-        colors: ['blue', 'green', 'orange']
+        months: ['October', 'November', 'December']
       },
       'Q4': {
         title: 'Q4 Quarter (January - February - March)',
-        months: ['January', 'February', 'March'],
-        colors: ['blue', 'green', 'orange']
+        months: ['January', 'February', 'March']
       }
     };
 
@@ -291,7 +329,6 @@
       const selectedQuarter = this.value;
       
       if (selectedQuarter === '') {
-        // Show select message, hide form
         selectQuarterMessage.classList.remove('hidden');
         quarterlyForm.classList.add('hidden');
         quarterHeader.classList.add('hidden');
@@ -300,24 +337,21 @@
         return;
       }
       
-      // Hide select message, show form
       selectQuarterMessage.classList.add('hidden');
       quarterlyForm.classList.remove('hidden');
       quarterHeader.classList.remove('hidden');
       submitSection.classList.remove('hidden');
       selectedQuarterField.value = selectedQuarter;
       
-      // Update header
       const quarterInfo = quarterData[selectedQuarter];
       document.getElementById('quarterTitle').textContent = quarterInfo.title;
       document.getElementById('submitInfo').textContent = `Fill achievements and remarks for ${quarterInfo.title}`;
       
-      // Update month headers
       document.getElementById('month1Header').textContent = quarterInfo.months[0];
       document.getElementById('month2Header').textContent = quarterInfo.months[1];
       document.getElementById('month3Header').textContent = quarterInfo.months[2];
       
-      // Hide all month columns
+      // Hide all month columns first
       document.querySelectorAll('.month-column').forEach(col => {
         col.classList.add('hidden');
       });
@@ -327,42 +361,40 @@
         col.classList.remove('hidden');
       });
       
-      // Update submit button text
       document.getElementById('submitBtn').value = `Update ${quarterInfo.title} Achievements`;
     });
 
     // Auto-calculate percentages when achievement values change
-    document.querySelectorAll('.achievement-input').forEach(input => {
-      input.addEventListener('input', function() {
-        const target = parseFloat(this.dataset.target) || 0;
-        const achievement = parseFloat(this.value) || 0;
-        const progressIndicator = this.closest('.month-column').querySelector('.progress-indicator span');
+    document.addEventListener('input', function(e) {
+      if (e.target.classList.contains('achievement-input')) {
+        const target = parseFloat(e.target.dataset.target) || 0;
+        const achievement = parseFloat(e.target.value) || 0;
+        const progressIndicator = e.target.closest('.month-column').querySelector('.progress-indicator span');
         
-        if (target > 0 && achievement > 0) {
+        if (target > 0 && achievement >= 0 && e.target.value.trim() !== '') {
           const percentage = Math.round((achievement / target) * 100 * 10) / 10;
           let colorClass = 'bg-gray-100 text-gray-600';
           
           if (percentage >= 100) {
-            colorClass = 'bg-green-100 text-green-800';
+            colorClass = 'bg-gray-600 text-white';
           } else if (percentage >= 75) {
-            colorClass = 'bg-blue-100 text-blue-800';
+            colorClass = 'bg-gray-500 text-white';
           } else if (percentage >= 50) {
-            colorClass = 'bg-yellow-100 text-yellow-800';
+            colorClass = 'bg-gray-400 text-gray-800';
           } else if (percentage > 0) {
-            colorClass = 'bg-red-100 text-red-800';
+            colorClass = 'bg-gray-300 text-gray-800';
           }
           
           progressIndicator.className = `inline-block px-2 py-1 rounded text-xs font-semibold ${colorClass}`;
           progressIndicator.textContent = `${percentage}%`;
-        } else if (this.value.trim() !== '') {
-          // If there's a value but it's not numeric, show "Set"
-          progressIndicator.className = 'inline-block px-2 py-1 rounded text-xs font-semibold bg-blue-100 text-blue-800';
+        } else if (e.target.value.trim() !== '') {
+          progressIndicator.className = 'inline-block px-2 py-1 rounded text-xs font-semibold bg-gray-500 text-white';
           progressIndicator.textContent = 'Set';
         } else {
           progressIndicator.className = 'inline-block px-2 py-1 rounded text-xs font-semibold bg-gray-100 text-gray-600';
           progressIndicator.textContent = 'Not Set';
         }
-      });
+      }
     });
 
     // Form validation
