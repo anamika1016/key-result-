@@ -238,29 +238,181 @@
 </div>
 
 <style>
+  /* Enhanced UI with Gray and White Theme */
   .month-column {
     transition: all 0.3s ease;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   }
   
   .month-column.hidden {
     display: none;
   }
   
-  .activity-row:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  .month-column:not(.hidden) {
+    animation: slideIn 0.4s ease-out;
+  }
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .activity-row {
     transition: all 0.3s ease;
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  
+  .activity-row:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
+    transition: all 0.3s ease;
+  }
+
+  .achievement-input {
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+    background: #f9fafb;
   }
 
   .achievement-input:focus {
     transform: scale(1.02);
-    transition: transform 0.2s ease;
+    transition: all 0.3s ease;
+    border-color: #6b7280;
+    background: white;
+    box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+  }
+
+  .achievement-input:hover {
+    border-color: #9ca3af;
+    background: white;
+  }
+
+  /* Enhanced form styling */
+  .quarterly-form {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    padding: 2rem;
+    border-radius: 20px;
+  }
+
+  /* Activity details column enhancement */
+  .activity-row .bg-gray-50 {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+  }
+
+  .activity-row:hover .bg-gray-50 {
+    background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+    border-color: #cbd5e1;
+  }
+
+  /* Month column styling */
+  .month-column:not(.hidden) {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .month-column:not(.hidden):hover {
+    background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+    border-color: #cbd5e1;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  /* Progress indicator enhancement */
+  .progress-indicator span {
+    transition: all 0.3s ease;
+    border-radius: 20px;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+  }
+
+  /* Header enhancement */
+  #quarterHeader {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+  }
+
+  #quarterHeaderContent {
+    background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  }
+
+  /* Month headers enhancement */
+  #monthHeaders > div {
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    transition: all 0.3s ease;
+  }
+
+  #monthHeaders > div:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Submit section enhancement */
+  #submitSection {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    border-radius: 16px;
+  }
+
+  /* Button enhancements */
+  input[type="submit"], a[href*="user_details_path"] {
+    transition: all 0.3s ease;
+    border-radius: 12px;
+    font-weight: 600;
+    letter-spacing: 0.025em;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  input[type="submit"]:hover, a[href*="user_details_path"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Filter section enhancement */
+  .bg-gray-50 {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+  }
+
+  /* Select dropdown enhancement */
+  #quarterFilter {
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    border: 2px solid #e5e7eb;
+    background: white;
+  }
+
+  #quarterFilter:focus {
+    border-color: #6b7280;
+    box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+    transform: scale(1.02);
+  }
+
+  #quarterFilter:hover {
+    border-color: #9ca3af;
   }
 
   /* Sidebar compatibility - Force content to right of sidebar */
   body {
     margin: 0;
     padding: 0;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   }
   
   .content-wrapper {
@@ -268,6 +420,7 @@
     min-height: 100vh;
     width: calc(100vw - 250px) !important;
     overflow-x: auto;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
   }
   
   @media (max-width: 768px) {
@@ -281,29 +434,73 @@
   @media (max-width: 1024px) {
     .grid.lg\:grid-cols-4 {
       grid-template-columns: 1fr;
-      gap: 1rem;
+      gap: 1.5rem;
     }
     
     .month-column {
-      margin-bottom: 1rem;
+      margin-bottom: 1.5rem;
     }
   }
 
   @media (min-width: 1024px) {
     .grid.lg\:grid-cols-4 {
       grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 1.5rem;
     }
+  }
+
+  /* Additional enhancements */
+  .bg-white {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+  }
+
+  .text-gray-600 {
+    color: #4b5563;
+  }
+
+  .text-gray-700 {
+    color: #374151;
+  }
+
+  .text-gray-800 {
+    color: #1f2937;
+  }
+
+  /* Smooth transitions for all elements */
+  * {
+    transition: all 0.2s ease;
+  }
+
+  /* Enhanced shadows and borders */
+  .shadow-lg {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  .border-gray-200 {
+    border-color: #e5e7eb;
+  }
+
+  .border-gray-300 {
+    border-color: #d1d5db;
   }
 </style>
 
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
+  // Enhanced quarterly editor functionality that works without page refresh
+  function initializeQuarterlyEditor() {
     const quarterFilter = document.getElementById('quarterFilter');
     const selectQuarterMessage = document.getElementById('selectQuarterMessage');
     const quarterlyForm = document.querySelector('.quarterly-form');
     const quarterHeader = document.getElementById('quarterHeader');
     const submitSection = document.getElementById('submitSection');
     const selectedQuarterField = document.getElementById('selected_quarter_field');
+    
+    if (!quarterFilter || !quarterlyForm) {
+      console.log('Quarterly editor elements not found, retrying...');
+      setTimeout(initializeQuarterlyEditor, 100);
+      return;
+    }
     
     const quarterData = {
       'Q1': {
@@ -324,11 +521,13 @@
       }
     };
 
-    // Handle quarter filter change
-    quarterFilter.addEventListener('change', function() {
-      const selectedQuarter = this.value;
+    // Enhanced quarter filter change handler
+    function handleQuarterChange() {
+      const selectedQuarter = quarterFilter.value;
+      console.log('Quarter selected:', selectedQuarter);
       
       if (selectedQuarter === '') {
+        // Hide everything when no quarter is selected
         selectQuarterMessage.classList.remove('hidden');
         quarterlyForm.classList.add('hidden');
         quarterHeader.classList.add('hidden');
@@ -337,6 +536,7 @@
         return;
       }
       
+      // Show the edit form immediately
       selectQuarterMessage.classList.add('hidden');
       quarterlyForm.classList.remove('hidden');
       quarterHeader.classList.remove('hidden');
@@ -344,32 +544,62 @@
       selectedQuarterField.value = selectedQuarter;
       
       const quarterInfo = quarterData[selectedQuarter];
-      document.getElementById('quarterTitle').textContent = quarterInfo.title;
-      document.getElementById('submitInfo').textContent = `Fill achievements and remarks for ${quarterInfo.title}`;
       
-      document.getElementById('month1Header').textContent = quarterInfo.months[0];
-      document.getElementById('month2Header').textContent = quarterInfo.months[1];
-      document.getElementById('month3Header').textContent = quarterInfo.months[2];
+      // Update header information
+      const quarterTitleElement = document.getElementById('quarterTitle');
+      const submitInfoElement = document.getElementById('submitInfo');
+      const month1HeaderElement = document.getElementById('month1Header');
+      const month2HeaderElement = document.getElementById('month2Header');
+      const month3HeaderElement = document.getElementById('month3Header');
+      const submitBtnElement = document.getElementById('submitBtn');
+      
+      if (quarterTitleElement) quarterTitleElement.textContent = quarterInfo.title;
+      if (submitInfoElement) submitInfoElement.textContent = `Fill achievements and remarks for ${quarterInfo.title}`;
+      if (month1HeaderElement) month1HeaderElement.textContent = quarterInfo.months[0];
+      if (month2HeaderElement) month2HeaderElement.textContent = quarterInfo.months[1];
+      if (month3HeaderElement) month3HeaderElement.textContent = quarterInfo.months[2];
+      if (submitBtnElement) submitBtnElement.value = `Update ${quarterInfo.title} Achievements`;
       
       // Hide all month columns first
       document.querySelectorAll('.month-column').forEach(col => {
         col.classList.add('hidden');
       });
       
-      // Show only selected quarter columns
-      document.querySelectorAll(`.month-column[data-quarter="${selectedQuarter}"]`).forEach(col => {
+      // Show only selected quarter columns with animation
+      const selectedColumns = document.querySelectorAll(`.month-column[data-quarter="${selectedQuarter}"]`);
+      selectedColumns.forEach((col, index) => {
         col.classList.remove('hidden');
+        // Add a small delay for smooth animation
+        setTimeout(() => {
+          col.style.opacity = '0';
+          col.style.transform = 'translateY(10px)';
+          col.style.transition = 'all 0.3s ease';
+          
+          setTimeout(() => {
+            col.style.opacity = '1';
+            col.style.transform = 'translateY(0)';
+          }, 50);
+        }, index * 100);
       });
       
-      document.getElementById('submitBtn').value = `Update ${quarterInfo.title} Achievements`;
-    });
+      console.log('Quarter form displayed successfully');
+    }
+
+    // Remove existing event listeners to prevent duplicates
+    quarterFilter.removeEventListener('change', quarterFilter.changeHandler);
+    
+    // Create new change handler
+    quarterFilter.changeHandler = handleQuarterChange;
+    quarterFilter.addEventListener('change', quarterFilter.changeHandler);
 
     // Auto-calculate percentages when achievement values change
-    document.addEventListener('input', function(e) {
+    function handleAchievementInput(e) {
       if (e.target.classList.contains('achievement-input')) {
         const target = parseFloat(e.target.dataset.target) || 0;
         const achievement = parseFloat(e.target.value) || 0;
         const progressIndicator = e.target.closest('.month-column').querySelector('.progress-indicator span');
+        
+        if (!progressIndicator) return;
         
         if (target > 0 && achievement >= 0 && e.target.value.trim() !== '') {
           const percentage = Math.round((achievement / target) * 100 * 10) / 10;
@@ -395,10 +625,17 @@
           progressIndicator.textContent = 'Not Set';
         }
       }
-    });
+    }
 
-    // Form validation
-    document.querySelector('.quarterly-form')?.addEventListener('submit', function(e) {
+    // Remove existing input event listeners
+    document.removeEventListener('input', document.achievementInputHandler);
+    
+    // Create new input handler
+    document.achievementInputHandler = handleAchievementInput;
+    document.addEventListener('input', document.achievementInputHandler);
+
+    // Enhanced form validation
+    function handleFormSubmit(e) {
       const selectedQuarter = quarterFilter.value;
       if (!selectedQuarter) {
         e.preventDefault();
@@ -422,6 +659,28 @@
       }
       
       return confirm(`Are you sure you want to update all achievements for ${quarterData[selectedQuarter].title}?`);
-    });
-  });
+    }
+
+    // Remove existing form submit listeners
+    const form = document.querySelector('.quarterly-form');
+    if (form) {
+      form.removeEventListener('submit', form.submitHandler);
+      form.submitHandler = handleFormSubmit;
+      form.addEventListener('submit', form.submitHandler);
+    }
+
+    console.log('Quarterly editor initialized successfully');
+  }
+
+  // Initialize on multiple events to ensure it works
+  document.addEventListener('DOMContentLoaded', initializeQuarterlyEditor);
+  document.addEventListener('turbo:load', initializeQuarterlyEditor);
+  document.addEventListener('turbo:render', initializeQuarterlyEditor);
+  
+  // Also initialize when the page is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeQuarterlyEditor);
+  } else {
+    initializeQuarterlyEditor();
+  }
 </script>
