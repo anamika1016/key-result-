@@ -72,6 +72,22 @@ Rails.application.configure do
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).
   config.i18n.fallbacks = true
+  config.action_mailer.default_url_options = { host: "kra.ploughmanagro.com", protocol: "https" }
+  config.action_mailer.delivery_method = :smtp
+  config.action_mailer.smtp_settings = {
+    address: "smtp.ploughmanagro.com", # agar aapka hosting provider kuch aur deta hai to yaha update karo
+    port: 587,
+    user_name: "notification@ploughmanagro.com",
+    password: "qtxqykbyjuyinwri",
+    authentication: :plain,
+    enable_starttls_auto: true
+  }
+  config.action_mailer.perform_deliveries = true
+  config.action_mailer.raise_delivery_errors = true
+
+  # allow your domain
+  config.hosts << "kra.ploughmanagro.com"
+
 
   # Do not dump schema after migrations.
   config.active_record.dump_schema_after_migration = false
