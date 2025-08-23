@@ -310,9 +310,9 @@ end
 
   def employee_detail_params
     params.require(:employee_detail).permit(
-      :employee_id, :employee_name, :employee_email, :employee_code,
-      :l1_code, :l1_employer_name, :l2_code, :l2_employer_name, :post, :department, 
-      :l1_remarks, :l1_percentage, :l2_remarks, :l2_percentage
+      :employee_id, :employee_name, :employee_email, :employee_code, :mobile_number,
+      :l1_code, :l1_employer_name, :l2_code, :l2_employer_name, 
+      :post, :department, :l1_remarks, :l1_percentage, :l2_remarks, :l2_percentage
     )
   end
 

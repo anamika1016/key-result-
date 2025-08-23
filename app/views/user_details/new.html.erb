@@ -27,6 +27,7 @@
         <div class="card-header bg-gray text-white px-4 py-3">
           <h5 class="mb-0"><i class="fas fa-building me-2"></i>Select Department & Employee</h5>
         </div>
+
         <div class="card-body p-4">
           <%= form_with url: new_user_detail_path, method: :get, local: true do |form| %>
             <table class="table table-bordered table-hover w-full text-sm text-gray-700 border border-gray-300">
@@ -40,39 +41,38 @@
               </thead>
               <tbody>
                 <tr>
+                  <!-- Department Dropdown -->
                   <td class="px-4 py-3">
                     <%= form.select :department_id,
                         options_from_collection_for_select(@departments, :id, :department_type, params[:department_id]),
                         { prompt: "-- Select Department --" },
-                        class: "form-select form-select-sm w-full border-gray-300 rounded" , onchange: "this.form.submit();" %>
+                        class: "form-select form-select-sm w-full border-gray-300 rounded",
+                        onchange: "this.form.submit();" %>
                   </td>
 
+                  <!-- Employee Dropdown -->
                   <td class="px-4 py-3">
                     <%= form.select :employee_detail_id,
                         options_from_collection_for_select(@employee_details, :id, :employee_name, params[:employee_detail_id]),
                         { prompt: "-- Select Employee --" },
-                        class: "form-select form-select-sm w-full border-gray-300 rounded", onchange: "this.form.submit();" %>
+                        class: "form-select form-select-sm w-full border-gray-300 rounded",
+                        onchange: "this.form.submit();" %>
                   </td>
 
+                  <!-- L1 Employer -->
                   <td class="px-4 py-3">
-                    <% if params[:employee_detail_id].present? %>
-                      <% selected_employee = @employee_details.find { |emp| emp.id == params[:employee_detail_id].to_i } %>
-                      <% if selected_employee %>
-                        <input type="text" class="form-control form-control-sm w-full border-gray-300 rounded" readonly value="<%= selected_employee.l1_employer_name %>">
-                      <% else %>
-                        <input type="text" class="form-control form-control-sm w-full border-gray-300 rounded" readonly placeholder="Select Employee First">
-                      <% end %>
-                    <% else %>
-                      <input type="text" class="form-control form-control-sm w-full border-gray-300 rounded" readonly placeholder="Select Employee First">
-                    <% end %>
+                    <input type="text"
+                          class="form-control form-control-sm w-full border-gray-300 rounded"
+                          readonly
+                          value="<%= @selected_employee&.l1_employer_name || 'Select Employee First' %>">
                   </td>
 
+                  <!-- L2 Employer -->
                   <td class="px-4 py-3">
-                    <% if params[:employee_detail_id].present? && selected_employee %>
-                      <input type="text" class="form-control form-control-sm w-full border-gray-300 rounded" readonly value="<%= selected_employee.l2_employer_name %>">
-                    <% else %>
-                      <input type="text" class="form-control form-control-sm w-full border-gray-300 rounded" readonly placeholder="Select Employee First">
-                    <% end %>
+                    <input type="text"
+                          class="form-control form-control-sm w-full border-gray-300 rounded"
+                          readonly
+                          value="<%= @selected_employee&.l2_employer_name || 'Select Employee First' %>">
                   </td>
                 </tr>
               </tbody>
@@ -82,7 +82,7 @@
       </div>
 
       <!-- Activities and Monthly Data Table -->
-      <% if params[:department_id].present? && params[:employee_detail_id].present? %>
+<% if params[:department_id].present? && params[:employee_detail_id].present? %>
         <div class="card">
           <div class="card-header bg-gray text-white">
             <h5 class="mb-0"><i class="fas fa-table me-2"></i>Activities & Monthly Data</h5>
@@ -91,7 +91,6 @@
             <% 
               selected_department = @departments.find { |dept| dept.id == params[:department_id].to_i }
               activities = selected_department&.activities || []
-              department_theme = selected_department&.theme_name || 'No Theme'
             %>
             
             <% if activities.any? %>
@@ -138,7 +137,7 @@
                             <%= form.hidden_field "user_details[#{activity.id}][activity_id]", value: activity.id %>
                           </td>
                           <td class="sticky-col theme-col">
-                            <span class="badge bg-light text-dark border"><%= department_theme %></span>
+                            <span class="badge bg-light text-dark border"><%= activity.theme_name.present? ? activity.theme_name : 'No Theme' %></span>
                           </td>
                           <td class="sticky-col unit-col">
                             <span class="badge bg-gray"><%= activity.unit %></span>
@@ -183,7 +182,7 @@
       <% end %>
 
       <!-- Existing Data Display - Only show when filters are applied and limited results -->
-      <% if @user_details.any? && (params[:department_id].present? || params[:employee_detail_id].present?) %>
+      <% if @user_details.any? && params[:department_id].present? && params[:employee_detail_id].present? %>
         <div class="card mt-4">
           <div class="card-header bg-gray text-white d-flex justify-content-between align-items-center">
             <h5 class="mb-0"><i class="fas fa-database me-2"></i>Existing Data (Limited to 100 records)</h5>
@@ -191,6 +190,9 @@
               <i class="fas fa-eye" id="toggle-icon"></i> Toggle View
             </button>
           </div>
+          
+
+          
           <div class="card-body" id="existing-data-body" style="display: none;">
             <div class="table-responsive">
               <table class="table table-bordered table-sm">
@@ -222,7 +224,7 @@
                       <td><%= detail.department.department_type %></td>
                       <td><%= detail.employee_detail ? detail.employee_detail.employee_name : 'N/A' %></td>
                       <td><%= detail.activity.activity_name %></td>
-                      <td><%= detail.department.theme_name.present? ? detail.department.theme_name : 'No Theme' %></td>
+                      <td><%= detail.activity.theme_name.present? ? detail.activity.theme_name : 'No Theme' %></td>
                       <td><%= detail.activity.unit %></td>
                       <td><%= detail.april.present? ? detail.april : '-' %></td>
                       <td><%= detail.may.present? ? detail.may : '-' %></td>

@@ -78,22 +78,11 @@
               <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 p-6">
                 
                 <!-- Activity Details Column -->
-                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <div class="mb-2">
-                    <h3 class="text-lg font-semibold text-gray-800"><%= detail.employee_detail&.employee_name || 'N/A' %></h3>
-                    <p class="text-sm text-gray-600"><%= detail.department.department_type %></p>
+                  <div class="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <div class="mb-2">
+                      <h4 class="text-md font-semibold text-gray-800"><%= detail.activity.activity_name %></h4>
+                    </div>
                   </div>
-                  <div class="mb-2">
-                    <h4 class="text-md font-medium text-gray-800"><%= detail.activity.activity_name %></h4>
-                    <p class="text-sm text-gray-600">Unit: <%= detail.activity.unit %></p>
-                  </div>
-                  <div class="mb-2">
-                    <p class="text-sm text-gray-600">Theme: <%= detail.department.theme_name.presence || 'No Theme' %></p>
-                  </div>
-                  <span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-semibold">
-                    Activity #<%= detail_index + 1 %>
-                  </span>
-                </div>
 
                 <% 
                   # Define quarters and months mapping

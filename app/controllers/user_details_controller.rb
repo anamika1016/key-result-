@@ -19,14 +19,32 @@ class UserDetailsController < ApplicationController
     end
   end
 
-  def new
+    def new
     @user_detail = UserDetail.new
-    @departments = Department.select(:id, :department_type, :theme_name)
-    @employee_details = EmployeeDetail.select(:id, :employee_name, :l1_employer_name, :l2_employer_name, :department)
+
+    # Load unique departments
+    @departments = Department.select('DISTINCT ON (department_type) id, department_type')
+
+    # Filter employees based on selected department
+    if params[:department_id].present?
+      dept_type = Department.find(params[:department_id]).department_type
+      @employee_details = EmployeeDetail.where(department: dept_type)
+                                        .select(:id, :employee_name, :l1_employer_name, :l2_employer_name, :department)
+                                        .order(:employee_name)
+    else
+      @employee_details = EmployeeDetail.none
+    end
+
+    # Find selected employee to show L1/L2
+    if params[:employee_detail_id].present?
+      @selected_employee = EmployeeDetail.find_by(id: params[:employee_detail_id])
+    end
+
     @users = User.select(:id, :email, :role) if params[:show_users]
-    
-    # Only load existing data when specific filters are applied
-    @user_details = if params[:department_id].present? || params[:employee_detail_id].present?
+
+    # FIXED: Only load user_details when BOTH department and employee are selected
+    # This prevents showing all data when only one filter is applied
+    @user_details = if params[:department_id].present? && params[:employee_detail_id].present?
       UserDetail.includes(:department, :activity, :employee_detail)
                 .where(filter_conditions)
                 .limit(100)
@@ -48,7 +66,7 @@ class UserDetailsController < ApplicationController
   
   def edit
     @departments = Department.select(:id, :department_type)
-    @activities = Activity.select(:id, :activity_name, :unit)
+    @activities = Activity.select(:id, :activity_name, :unit, :theme_name)
                          .where(department_id: @user_detail.department_id)
   end
   
@@ -57,7 +75,7 @@ class UserDetailsController < ApplicationController
       redirect_to new_user_detail_path, notice: 'User detail was successfully updated.'
     else
       @departments = Department.select(:id, :department_type)
-      @activities = Activity.select(:id, :activity_name, :unit)
+      @activities = Activity.select(:id, :activity_name, :unit, :theme_name)
                            .where(department_id: @user_detail.department_id)
       render :edit
     end
@@ -315,7 +333,7 @@ end
     department_id = params[:department_id]
     
     if department_id.present?
-      activities = Activity.select(:id, :activity_name, :unit, :weight)
+      activities = Activity.select(:id, :activity_name, :unit, :weight, :theme_name)
                           .where(department_id: department_id)
       
       activities_data = activities.map do |activity|
@@ -323,7 +341,8 @@ end
           id: activity.id,
           activity_name: activity.activity_name,
           unit: activity.unit,
-          weight: activity.weight
+          weight: activity.weight,
+          theme_name: activity.theme_name
         }
       end
       
@@ -480,13 +499,15 @@ end
     file = params[:file]
 
     unless file && [".xlsx", ".xls"].include?(File.extname(file.original_filename))
-      redirect_to user_details_path, alert: "Please upload a valid .xlsx or .xls file."
+      redirect_to new_user_detail_path, alert: "Please upload a valid .xlsx or .xls file."
       return
     end
 
     begin
       spreadsheet = Roo::Excelx.new(file.tempfile.path)
       header = spreadsheet.row(1)
+      
+
 
       errors = []
       success_count = 0
@@ -504,17 +525,27 @@ end
               row[key] = row_data[index]
             end
 
+
+
             employee_name = row["employee_name"]
             employee_email = row["employee_email"]
             employee_code = row["employee_code"]
+            
+            # FIXED: Better mobile number extraction with more column name variations
+            mobile_number = row["mobile_no"] || row["mobile_number"] || row["mobile"] || 
+                           row["mobile_no."] || row["mobile_number."] || row["mobile."] ||
+                           row["mobile_no_"] || row["mobile_number_"] || row["mobile_"]
+            
             l1_code = row["l1_code"]
             l1_employer_name = row["l1_employer_name"]
             l2_code = row["l2_code"]
             l2_employer_name = row["l2_employer_name"]
             department_type = row["department"]
             activity_name = row["activity_name"]
-            theme_name = row["theme"]
+            activity_theme_name = row["theme"] || row["activity_theme"]
             unit = row["unit"] || "Count"
+
+
 
             months = {
               april: normalize_percentage(row["april"]),
@@ -531,6 +562,8 @@ end
               march: normalize_percentage(row["march"])
             }
 
+
+
             if employee_name.blank?
               errors << "Row #{i}: Employee name is missing"
               next
@@ -546,14 +579,9 @@ end
               next
             end
 
-            department = Department.find_or_create_by!(department_type: department_type) do |d|
-              d.theme_name = theme_name
-            end
+            department = Department.find_or_create_by!(department_type: department_type)
 
-            if department.theme_name.blank? && theme_name.present?
-              department.update(theme_name: theme_name)
-            end
-
+            # FIXED: Better employee creation/update logic
             employee = EmployeeDetail.find_or_create_by!(
               employee_name: employee_name.strip,
               department: department_type.strip
@@ -561,11 +589,19 @@ end
               e.employee_id = SecureRandom.uuid
               e.employee_email = employee_email.to_s.strip
               e.employee_code = employee_code.to_s.strip
+              e.mobile_number = mobile_number.to_s.strip if mobile_number.present?
               e.l1_code = l1_code.to_s.strip
               e.l2_code = l2_code.to_s.strip
               e.l1_employer_name = l1_employer_name.to_s.strip
               e.l2_employer_name = l2_employer_name.to_s.strip
               e.post = "Imported"
+            end
+
+            # FIXED: Always update mobile number if provided in Excel
+            if mobile_number.present?
+              if employee.mobile_number != mobile_number.to_s.strip
+                employee.update!(mobile_number: mobile_number.to_s.strip)
+              end
             end
 
             activity = Activity.find_or_create_by!(
@@ -574,6 +610,12 @@ end
             ) do |a|
               a.unit = unit
               a.weight = 1.0
+              a.theme_name = activity_theme_name.to_s.strip if activity_theme_name.present?
+            end
+
+            # Update theme_name if provided and different
+            if activity_theme_name.present? && activity.theme_name != activity_theme_name.strip
+              activity.update(theme_name: activity_theme_name.strip)
             end
 
             begin
@@ -593,19 +635,21 @@ end
 
       if errors.any?
         if success_count > 0
-          redirect_to user_details_path, alert: "Partially imported: #{success_count} records saved, but #{errors.count} errors:\n#{errors.first(10).join("\n")}"
+          redirect_to new_user_detail_path, alert: "Partially imported: #{success_count} records saved, but #{errors.count} errors:\n#{errors.first(10).join("\n")}"
         else
-          redirect_to user_details_path, alert: "Import failed. Errors:\n#{errors.first(10).join("\n")}"
+          redirect_to new_user_detail_path, alert: "Import failed. Errors:\n#{errors.first(10).join("\n")}"
         end
       else
-        redirect_to user_details_path, notice: "Excel file imported successfully! #{success_count} records processed."
+        redirect_to new_user_detail_path, notice: "Excel file imported successfully! #{success_count} records processed."
       end
 
     rescue => e
       Rails.logger.error "Import error: #{e.message}\n#{e.backtrace.join("\n")}"
-      redirect_to user_details_path, alert: "Error reading Excel file: #{e.message}"
+      redirect_to new_user_detail_path, alert: "Error reading Excel file: #{e.message}"
     end
   end
+
+
 
   private
   
@@ -635,28 +679,56 @@ end
 
   def normalize_percentage(value)
     return nil if value.nil?
-
+    
+    # FIXED: Don't convert values to percentages automatically
+    # Only convert if explicitly marked as percentage
     if value.is_a?(String)
-      return value.gsub('%', '').to_f
-    elsif value.is_a?(Numeric) && value <= 1
-      return (value * 100).round(2)
-    else
+      # Remove any whitespace
+      cleaned_value = value.strip
+      return nil if cleaned_value.blank?
+      
+      # Handle percentage values (only if they contain % symbol)
+      if cleaned_value.include?('%')
+        return cleaned_value.gsub('%', '').to_f
+      end
+      
+      # Handle numeric strings - return as is, don't convert to percentage
+      if cleaned_value.match?(/^\d+\.?\d*$/)
+        return cleaned_value.to_f
+      end
+      
+      # Return the original string if it's not numeric
+      return cleaned_value
+    elsif value.is_a?(Numeric)
+      # FIXED: Don't automatically convert numbers to percentages
+      # Only convert if the value is explicitly a decimal percentage (0.0 to 1.0)
+      # AND it's marked as a percentage in the original data
       return value
+    else
+      # For other types, try to convert to string and then process
+      return normalize_percentage(value.to_s)
     end
   end
 
   def load_form_data
-    @departments = Department.select(:id, :department_type, :theme_name)
+    @departments = Department.select(:id, :department_type)
     @activities = @user_detail.department_id.present? ? 
-                  Activity.select(:id, :activity_name, :unit)
+                  Activity.select(:id, :activity_name, :unit, :theme_name)
                          .where(department_id: @user_detail.department_id) : []
     @user_details = UserDetail.includes(:department, :activity).limit(100)
   end
 
   def filter_conditions
     conditions = {}
-    conditions[:department_id] = params[:department_id] if params[:department_id].present?
-    conditions[:employee_detail_id] = params[:employee_detail_id] if params[:employee_detail_id].present?
+    
+    if params[:department_id].present?
+      conditions[:department_id] = params[:department_id]
+    end
+    
+    if params[:employee_detail_id].present?
+      conditions[:employee_detail_id] = params[:employee_detail_id]
+    end
+    
     conditions
   end
 end

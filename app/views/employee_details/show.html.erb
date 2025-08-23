@@ -8,6 +8,72 @@
     </h2>
   </div>
 
+  <!-- Basic Employee Information -->
+  <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-8">
+    <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
+      <h3 class="text-xl font-bold text-gray-800 flex items-center">
+        <i class="fas fa-info-circle mr-3 text-gray-600"></i>
+        Basic Information
+      </h3>
+    </div>
+    <div class="p-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Employee Name</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.employee_name %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Employee ID</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.employee_id %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Employee Code</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.employee_code %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Email</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.employee_email %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Mobile Number</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.employee_mobile || 'Not provided' %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Department</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.department %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">Designation/Post</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.post %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">L1 Code</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.l1_code %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">L1 Name</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.l1_employer_name %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">L1 Mobile</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.l1_mobile || 'Not provided' %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">L2 Code</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.l2_code %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">L2 Name</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.l2_employer_name %></p>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">L2 Mobile</label>
+          <p class="text-gray-900 font-medium"><%= @employee_detail.l2_mobile || 'Not provided' %></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <% if @user_details.any? && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm mt-8">
       <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">

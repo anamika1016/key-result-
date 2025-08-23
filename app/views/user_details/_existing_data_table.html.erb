@@ -47,7 +47,7 @@
                   <tr>
                     <td><%= detail.department&.department_type %></td>
                     <td><%= detail.activity&.activity_name %></td>
-                    <td><%= detail.department&.theme_name.presence || 'No Theme' %></td>
+                    <td><%= detail.activity&.theme_name.presence || 'No Theme' %></td>
                     <td><%= detail.activity&.unit %></td>
                     <td><%= detail.april.presence || '-' %></td>
                     <td><%= detail.may.presence || '-' %></td>

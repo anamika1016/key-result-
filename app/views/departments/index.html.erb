@@ -5,7 +5,7 @@
         <div class="bg-white p-6 rounded-lg shadow-md mb-6">
           <h2 class="text-2xl font-bold text-gray-800 mb-6">Department Management</h2>
           
-          <div id="success-container" class="bg-gray-100 border border-gray-400 text-gray-700 px-4 py-3 rounded mb-4 hidden">
+          <div id="success-container" class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4 hidden">
             <div id="success-message"></div>
           </div>
    
@@ -14,6 +14,7 @@
             <ul id="error-list"></ul>
           </div>
 
+          <!-- Bulk Upload Section -->
           <div class="bg-white p-6 rounded-lg shadow-md mb-6">
             <div class="mb-8">
               <h2 class="text-2xl font-semibold text-gray-800 mb-4">Bulk Upload Departments & Activities</h2>
@@ -21,41 +22,64 @@
               <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6 w-full">
                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                   
-                  <form action="/import_departments" method="post" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
-                    <input type="file" name="file" required class="border border-gray-300 p-2 rounded-md w-full sm:w-auto">
-                    <input type="submit" value="Upload" class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-6 rounded shadow">
+                  <form action="/departments/import" method="post" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                    <input type="file" name="file" accept=".xlsx,.xls,.csv" required class="border border-gray-300 p-2 rounded-md w-full sm:w-auto">
+                    <input type="submit" value="Upload" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded shadow cursor-pointer">
                   </form>
 
-                  <a href="/export_departments.xlsx" class="bg-gray-500 hover:bg-gray-600 text-white px-5 py-2 rounded shadow">Export Departments</a>
+                  <a href="/departments/export.xlsx" class="bg-green-500 hover:bg-green-600 text-white px-5 py-2 rounded shadow">Export Departments</a>
                 </div>
 
                 <p class="text-sm text-gray-500 mt-4 italic">
-                  * Excel must have columns: <strong>Department Type</strong>, <strong>Theme Name</strong>, <strong>Activity ID</strong>, <strong>Activity Name</strong>, <strong>Unit</strong>, <strong>Weight</strong>
+                  * Excel must have columns: <strong>Department</strong>, <strong>Employee Name</strong>, <strong>Theme Name</strong>, <strong>Activity Name</strong>, <strong>Unit</strong>, <strong>Weight</strong>
                 </p>
               </div>
             </div>
             
+            <!-- Form Section -->
             <form id="department-form" method="POST" action="/departments">
               <input type="hidden" name="authenticity_token" value="">
               <input type="hidden" name="_method" value="POST" id="form-method">
               
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Department Dropdown -->
                 <div>
-                  <label for="department_department_type" class="block text-sm font-medium text-gray-700">Department / Region</label>
-                  <select id="department_department_type" name="department[department_type]" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent" required>
+                  <label for="department_department_type" class="block text-sm font-medium text-gray-700">
+                    Department / Region
+                  </label>
+                  <select id="department_department_type" name="department[department_type]" 
+                    class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm 
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
                     <option value="">Select Department / Region</option>
+                    <% @employee_departments.each do |dept| %>
+                      <option value="<%= dept %>"><%= dept %></option>
+                    <% end %>
                   </select>
                 </div>
+
+                <!-- Employee Dropdown -->
                 <div>
-                  <label for="department_theme_name" class="block text-sm font-medium text-gray-700">Theme Name</label>
-                  <input type="text" id="department_theme_name" name="department[theme_name]" class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent" placeholder="Enter theme name" required>
+                  <label for="department_employee_reference" class="block text-sm font-medium text-gray-700">
+                    Employee Name
+                  </label>
+                  <select id="department_employee_reference" name="department[employee_reference]" 
+                    class="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm 
+                          focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                    <option value="">Select Employee</option>
+                    <% @employees.each do |employee| %>
+                      <option value="<%= employee.employee_id %>" data-department="<%= employee.department %>">
+                        <%= employee.employee_name %> (<%= employee.employee_id %>)
+                      </option>
+                    <% end %>
+                  </select>
                 </div>
               </div>
 
+              <!-- Activities Section -->
               <div class="mb-6">
                 <div class="flex items-center justify-between mb-4">
                   <h3 class="text-lg font-semibold text-gray-800">Activities</h3>
-                  <button type="button" id="add-activity" class="inline-flex items-center px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                  <button type="button" id="add-activity" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                     </svg>
@@ -72,13 +96,14 @@
                   Cancel
                 </button>
                 
-                <button type="submit" id="submit-button" class="inline-flex items-center px-6 py-2 bg-gray-600 text-white text-sm font-medium rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                <button type="submit" id="submit-button" class="inline-flex items-center px-6 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
                   Save Department
                 </button>
               </div>
             </form>
           </div>
 
+          <!-- Departments List -->
           <div class="bg-white rounded-lg shadow-md">
             <div class="p-6 border-b border-gray-200">
               <div class="flex items-center justify-between">
@@ -90,7 +115,7 @@
                 </div>
                 <div class="flex items-center gap-4">
                   <div class="relative">
-                    <input type="text" id="search-input" placeholder="Search departments..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent">
+                    <input type="text" id="search-input" placeholder="Search departments..." class="pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     <svg class="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
@@ -105,7 +130,7 @@
                   <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Department</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Theme Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee Name</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activities</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
@@ -136,16 +161,54 @@ class DepartmentManager {
     this.isEditing = false;
     this.editingId = null;
     this.departments = [];
+    this.employeeDepartments = [];
+    this.employees = [];
     this.init();
   }
 
-  init() {
+  async init() {
     this.bindEvents();
     this.addDefaultActivity();
-    this.loadDepartments();
+    await this.loadEmployeeData();
+    await this.loadDepartments();
+  }
+
+  async loadEmployeeData() {
+    try {
+      // For now, we'll use the data embedded in the page
+      // since the dropdowns should be populated from ERB
+      console.log('Employee departments:', window.employeeDepartments);
+      console.log('Employees:', window.employees);
+      
+      if (window.employeeDepartments) {
+        this.employeeDepartments = window.employeeDepartments;
+      }
+
+      if (window.employees) {
+        this.employees = window.employees;
+      }
+    } catch (error) {
+      console.error('Error loading employee data:', error);
+    }
+  }
+
+  populateDropdownsFromPageData() {
+    // This method is no longer needed since we populate directly in ERB
+    console.log('Using ERB-populated dropdowns');
+  }
+
+  populateDepartmentDropdown() {
+    // Department dropdown is now populated directly in ERB
+    console.log('Department dropdown populated via ERB');
+  }
+
+  populateEmployeeDropdown() {
+    // Employee dropdown is now populated directly in ERB
+    console.log('Employee dropdown populated via ERB');
   }
 
   bindEvents() {
+    // Existing event bindings
     document.getElementById('add-activity')?.addEventListener('click', (e) => {
       e.preventDefault();
       this.addActivity();
@@ -163,6 +226,11 @@ class DepartmentManager {
 
     document.getElementById('search-input')?.addEventListener('input', (e) => {
       this.handleSearch(e.target.value);
+    });
+
+    // Department change event to filter employees
+    document.getElementById('department_department_type')?.addEventListener('change', (e) => {
+      this.filterEmployeesByDepartment(e.target.value);
     });
 
     document.addEventListener('click', (e) => {
@@ -183,6 +251,29 @@ class DepartmentManager {
     });
   }
 
+  filterEmployeesByDepartment(selectedDept) {
+    const employeeSelect = document.getElementById('department_employee_reference');
+    if (!employeeSelect || !selectedDept) {
+      // Show all employees if no department selected
+      const options = employeeSelect.querySelectorAll('option[data-department]');
+      options.forEach(option => option.style.display = '');
+      return;
+    }
+
+    // Hide/show options based on department
+    const options = employeeSelect.querySelectorAll('option[data-department]');
+    options.forEach(option => {
+      if (option.getAttribute('data-department') === selectedDept) {
+        option.style.display = '';
+      } else {
+        option.style.display = 'none';
+      }
+    });
+
+    // Reset employee selection
+    employeeSelect.value = '';
+  }
+
   addActivity() {
     const container = document.getElementById('activities-container');
     const activityHtml = this.getActivityTemplate(this.activityIndex);
@@ -201,6 +292,10 @@ class DepartmentManager {
     return `
       <div class="activity-fields border border-gray-200 rounded-md p-4 mb-4 bg-gray-50">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Theme Name</label>
+            <input type="text" name="department[activities_attributes][${index}][theme_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter theme name" required>
+          </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Activity Name</label>
             <input type="text" name="department[activities_attributes][${index}][activity_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter activity name" required>
@@ -255,21 +350,25 @@ class DepartmentManager {
 
     try {
       const response = await fetch(form.action, {
-        method: form.method,
+        method: this.isEditing ? 'PATCH' : 'POST',
         body: formData,
         headers: {
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
         }
       });
 
-      if (response.ok) {
+      const result = await response.json();
+
+      if (response.ok && result.success !== false) {
         this.showSuccess(this.isEditing ? 'Department updated successfully!' : 'Department created successfully!');
         this.resetForm();
-        this.loadDepartments();
+        await this.loadDepartments();
       } else {
-        this.showError('Error saving department. Please check your input.');
+        const errors = result.errors || ['Error saving department. Please check your input.'];
+        this.showError(errors.join(', '));
       }
     } catch (error) {
+      console.error('Form submission error:', error);
       this.showError('Network error. Please try again.');
     }
   }
@@ -300,7 +399,15 @@ class DepartmentManager {
 
   populateForm(department) {
     document.getElementById('department_department_type').value = department.department_type || '';
-    document.getElementById('department_theme_name').value = department.theme_name || '';
+    
+    // First filter employees by department, then set the employee
+    if (department.department_type) {
+      this.filterEmployeesByDepartment(department.department_type);
+      // Wait a bit for the dropdown to be populated
+      setTimeout(() => {
+        document.getElementById('department_employee_reference').value = department.employee_reference || '';
+      }, 100);
+    }
 
     const form = document.getElementById('department-form');
     form.action = `/departments/${department.id}`;
@@ -318,6 +425,7 @@ class DepartmentManager {
 
         const currentActivity = container.lastElementChild;
         
+        currentActivity.querySelector('input[name*="[theme_name]"]').value = activity.theme_name || '';
         currentActivity.querySelector('input[name*="[activity_name]"]').value = activity.activity_name || '';
         currentActivity.querySelector('input[name*="[unit]"]').value = activity.unit || '';
         currentActivity.querySelector('input[name*="[weight]"]').value = activity.weight || '';
@@ -343,13 +451,13 @@ class DepartmentManager {
       const response = await fetch(`/departments/${departmentId}`, {
         method: 'DELETE',
         headers: {
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content
+          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
         }
       });
 
       if (response.ok) {
         this.showSuccess('Department deleted successfully!');
-        this.loadDepartments();
+        await this.loadDepartments();
       } else {
         this.showError('Error deleting department');
       }
@@ -373,6 +481,10 @@ class DepartmentManager {
     this.editingId = null;
     document.getElementById('submit-button').textContent = 'Save Department';
 
+    // Reset employee dropdown to show all employees
+    const options = document.querySelectorAll('#department_employee_reference option[data-department]');
+    options.forEach(option => option.style.display = '');
+
     this.hideError();
     this.hideSuccess();
   }
@@ -387,21 +499,34 @@ class DepartmentManager {
     } else {
       emptyState?.classList.add('hidden');
       this.departments.forEach(dept => {
+        // Use the employee_display_name from backend if available, otherwise fallback to manual lookup
+        let employeeDisplay = dept.employee_display_name || 'N/A';
+        
+        // Fallback: if backend doesn't provide employee_display_name, construct it manually
+        if (employeeDisplay === 'N/A' && dept.employee_reference) {
+          const employee = this.employees.find(emp => emp.employee_id === dept.employee_reference);
+          if (employee) {
+            employeeDisplay = `${employee.employee_name} (${employee.employee_code || dept.employee_reference})`;
+          } else {
+            employeeDisplay = `N/A (${dept.employee_reference})`;
+          }
+        }
+
         const row = document.createElement('tr');
         row.className = 'hover:bg-gray-50';
         row.dataset.departmentId = dept.id;
 
         row.innerHTML = `
           <td class="px-6 py-4 text-sm font-medium text-gray-900">DEPT${dept.id}</td>
-          <td class="px-6 py-4 text-sm text-gray-900">${dept.department_type}</td>
-          <td class="px-6 py-4 text-sm text-gray-900">${dept.theme_name}</td>
+          <td class="px-6 py-4 text-sm text-gray-900">${dept.department_type || 'N/A'}</td>
+          <td class="px-6 py-4 text-sm text-gray-900">${employeeDisplay}</td>
           <td class="px-6 py-4 text-sm text-gray-900">
-            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-              ${dept.activities.length} ${dept.activities.length === 1 ? 'activity' : 'activities'}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              ${dept.activities ? dept.activities.length : 0} ${dept.activities && dept.activities.length === 1 ? 'activity' : 'activities'}
             </span>
           </td>
           <td class="px-6 py-4 text-sm font-medium">
-            <button type="button" class="edit-btn text-gray-600 hover:text-gray-900 mr-4" data-department-id="${dept.id}">Edit</button>
+            <button type="button" class="edit-btn text-blue-600 hover:text-blue-900 mr-4" data-department-id="${dept.id}">Edit</button>
             <button type="button" class="delete-btn text-red-600 hover:text-red-900" data-department-id="${dept.id}">Delete</button>
           </td>
         `;
@@ -426,7 +551,7 @@ class DepartmentManager {
     const messageSpan = document.getElementById('success-message');
     messageSpan.textContent = message;
     container.classList.remove('hidden');
-    setTimeout(() => this.hideSuccess(), 3000);
+    setTimeout(() => this.hideSuccess(), 5000);
   }
 
   hideSuccess() {
@@ -445,8 +570,51 @@ class DepartmentManager {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => new DepartmentManager());
-document.addEventListener('turbo:load', () => new DepartmentManager());
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  // Debug: Check if data is available
+  console.log('DOM loaded, checking data...');
+  
+  // Embed employee data in page for JavaScript access
+  <% if @employee_departments %>
+    window.employeeDepartments = <%= raw @employee_departments.to_json %>;
+    console.log('Employee departments loaded:', window.employeeDepartments);
+  <% else %>
+    window.employeeDepartments = [];
+    console.log('No employee departments found');
+  <% end %>
+  
+  <% if @employees %>
+    window.employees = <%= raw @employees.map { |emp| { employee_name: emp.employee_name, employee_id: emp.employee_id, department: emp.department } }.to_json %>;
+    console.log('Employees loaded:', window.employees);
+  <% else %>
+    window.employees = [];
+    console.log('No employees found');
+  <% end %>
+  
+  // Check if dropdowns are populated
+  const deptSelect = document.getElementById('department_department_type');
+  const empSelect = document.getElementById('department_employee_reference');
+  
+  console.log('Department dropdown options:', deptSelect ? deptSelect.options.length : 'not found');
+  console.log('Employee dropdown options:', empSelect ? empSelect.options.length : 'not found');
+  
+  new DepartmentManager();
+});
+
+document.addEventListener('turbo:load', () => {
+  window.employeeDepartments = <%= raw @employee_departments.to_json %>;
+  window.employees = <%= raw @employees.map { |emp| { employee_name: emp.employee_name, employee_id: emp.employee_id, department: emp.department } }.to_json %>;
+  
+  new DepartmentManager();
+});
+
+document.addEventListener('turbo:render', () => {
+  window.employeeDepartments = <%= raw @employee_departments.to_json %>;
+  window.employees = <%= raw @employees.map { |emp| { employee_name: emp.employee_name, employee_id: emp.employee_id, department: emp.department } }.to_json %>;
+  
+  new DepartmentManager();
+});
 </script>
 
 <style>

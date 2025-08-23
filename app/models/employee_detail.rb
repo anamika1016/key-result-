@@ -5,6 +5,8 @@ class EmployeeDetail < ApplicationRecord
   after_initialize :set_default_status, if: :new_record?
   # belongs_to :department  # only if you have a departments table and department_id column
 
+  # Mobile number validation removed as requested
+
   def name
     employee_name
   end
@@ -15,6 +17,7 @@ class EmployeeDetail < ApplicationRecord
       employee_name
       employee_email
       employee_code
+      mobile_number
       l1_code
       l1_employer_name
       l2_code
