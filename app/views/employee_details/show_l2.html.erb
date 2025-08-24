@@ -214,12 +214,12 @@
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <!-- L2 Approve Button for quarterly activity -->
         <button onclick="openModal('l2_approve')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          L2 Approve <%= params[:quarter] %> Quarter - All Activities
+          L2 Approve  Quarter 
         </button>
 
         <!-- L2 Reject Button for quarterly activity -->
         <button onclick="openModal('l2_reject')" class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          L2 Return <%= params[:quarter] %> Quarter - All Activities
+          L2 Return  Quarter 
         </button>
       </div>
     </div>
@@ -227,7 +227,7 @@
     <div class="mt-8 pt-6 border-t border-gray-https://claude.ai/login?selectAccount=true&returnTo=%2Fchat%2F29c82b8b-b283-49bf-86b3-4c6e0d77b883%3F200">
       <div class="text-center">
         <p class="text-gray-600 font-medium">
-          This <%= params[:quarter] %> Quarter activities cannot be modified by L2.
+          This  Quarter activities cannot be modified by L2.
         </p>
       </div>
     </div>
@@ -338,7 +338,7 @@
       <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
         <h3 class="text-xl font-bold text-white flex items-center gap-2">
           <i class="fas fa-comments"></i>
-          Quarterly Remarks & Percentage - All Activities (<%= params[:quarter] %>)
+          Quarterly Remarks & Percentage - All Activities 
         </h3>
       </div>
 
@@ -354,7 +354,7 @@
           <% if quarterly_l1_remarks %>
             <div class="bg-white border-l-4 border-blue-500 rounded-lg p-4 shadow-sm">
               <h5 class="text-sm font-bold text-blue-600 mb-2 uppercase">
-                <%= params[:quarter] %> Quarter - All Activities
+                Quarter - All Activities
               </h5>
               
               <div class="mb-3">
@@ -394,7 +394,7 @@
           <% if quarterly_l2_remarks %>
             <div class="bg-white border-l-4 border-emerald-500 rounded-lg p-4 shadow-sm">
               <h5 class="text-sm font-bold text-emerald-600 mb-2 uppercase">
-                <%= params[:quarter] %> Quarter - All Activities
+               Quarter - All Activities
               </h5>
               
               <div class="mb-3">
