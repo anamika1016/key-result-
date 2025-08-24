@@ -164,7 +164,7 @@
                     <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department.department_type %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
-                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.department.theme_name.presence || 'No Theme' %></td>
+                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.theme_name.presence || 'No Theme' %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity.unit %></td>
 
                     <% months.each do |month| %>
@@ -531,7 +531,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department.department_type %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
-                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.department.theme_name.presence || 'No Theme' %></td>
+                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.theme_name.presence || 'No Theme' %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity.unit %></td>
 
                     <!-- Q1 (APR-JUN) -->
