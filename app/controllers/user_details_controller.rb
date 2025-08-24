@@ -82,161 +82,172 @@ class UserDetailsController < ApplicationController
   end
 
 
-def update_quarterly_achievements
-  # Get the correct parameters
-  selected_quarter = params[:selected_quarter]
-  achievement_data = params[:achievements] || {}
-  success_count = 0
-  errors = []
-  updated_activities = []
+  def update_quarterly_achievements
+    # Get the correct parameters
+    selected_quarter = params[:selected_quarter]
+    achievement_data = params[:achievements] || {}
+    success_count = 0
+    errors = []
+    updated_activities = []
 
-  Rails.logger.debug "QUARTERLY UPDATE DEBUG:"
-  Rails.logger.debug "Selected Quarter: #{selected_quarter}"
-  Rails.logger.debug "Achievement Data: #{achievement_data.inspect}"
+    Rails.logger.debug "QUARTERLY UPDATE DEBUG:"
+    Rails.logger.debug "Selected Quarter: #{selected_quarter}"
+    Rails.logger.debug "Achievement Data: #{achievement_data.inspect}"
 
-  if achievement_data.empty?
-    flash[:alert] = "No achievement data received. Please try again."
-    redirect_to quarterly_edit_all_user_details_path
-    return
-  end
-
-  # Define quarter months to limit updates to selected quarter only
-  quarter_months = case selected_quarter
-  when 'Q1'
-    ['april', 'may', 'june']
-  when 'Q2'
-    ['july', 'august', 'september']
-  when 'Q3'
-    ['october', 'november', 'december']
-  when 'Q4'
-    ['january', 'february', 'march']
-  else
-    []
-  end
-
-  Rails.logger.debug "Quarter Months: #{quarter_months}"
-
-  # Track which employee_details had changes to reset their entire quarter
-  employee_details_with_changes = Set.new
-
-  ActiveRecord::Base.transaction do
-    achievement_data.each do |user_detail_id, monthly_data|
-      user_detail = UserDetail.find_by(id: user_detail_id)
-      next unless user_detail
-
-      Rails.logger.debug "Processing UserDetail #{user_detail_id}: #{user_detail.activity.activity_name}"
-
-      activity_updated = false
-      
-      monthly_data.each do |month, values|
-        # IMPORTANT: Only process months that belong to the selected quarter
-        next unless quarter_months.include?(month)
-        
-        achievement_value = values[:achievement]
-        employee_remarks = values[:employee_remarks]
-
-        Rails.logger.debug "Month: #{month}, Achievement: #{achievement_value}, Remarks: #{employee_remarks}"
-
-        # Skip if both achievement and remarks are blank
-        next if achievement_value.blank? && employee_remarks.blank?
-
-        # Find or initialize achievement
-        achievement = Achievement.find_or_initialize_by(
-          user_detail: user_detail, 
-          month: month
-        )
-        
-        # Store old values for comparison
-        old_achievement = achievement.achievement
-        old_remarks = achievement.employee_remarks
-        
-        # Update values
-        achievement.achievement = achievement_value.present? ? achievement_value : nil
-        achievement.employee_remarks = employee_remarks.present? ? employee_remarks : nil
-        
-        Rails.logger.debug "Old Achievement: #{old_achievement}, New: #{achievement.achievement}"
-        
-        # Save if there are changes
-        if achievement.achievement != old_achievement || achievement.employee_remarks != old_remarks
-          if achievement.save
-            success_count += 1
-            activity_updated = true
-            # Mark this employee_detail as having changes for quarterly status update
-            employee_details_with_changes.add(user_detail.employee_detail_id)
-            Rails.logger.debug "Successfully saved achievement for #{month}"
-          else
-            error_msg = "Failed to save #{month.capitalize} for #{user_detail.activity.activity_name}: #{achievement.errors.full_messages.join(', ')}"
-            errors << error_msg
-            Rails.logger.error error_msg
-          end
-        else
-          Rails.logger.debug "No changes detected for #{month}"
-        end
-      end
-      
-      if activity_updated
-        activity_name = "#{user_detail.employee_detail&.employee_name} - #{user_detail.activity.activity_name}"
-        updated_activities << activity_name
-        Rails.logger.debug "Activity updated: #{activity_name}"
-      end
+    if achievement_data.empty?
+      flash[:alert] = "No achievement data received. Please try again."
+      redirect_to quarterly_edit_all_user_details_path
+      return
     end
 
-    # FIXED: After all individual updates, set entire quarter to pending for employees who had changes
-    employee_details_with_changes.each do |employee_detail_id|
-      Rails.logger.debug "Setting entire quarter to pending for employee_detail_id: #{employee_detail_id}"
-      
-      # Find all user_details for this employee in current quarter
-      employee_user_details = UserDetail.where(employee_detail_id: employee_detail_id)
-      
-      employee_user_details.each do |user_detail|
-        # Set all achievements for this quarter to pending
-        user_detail.achievements.where(month: quarter_months).where.not(achievement: [nil, '']).each do |quarter_achievement|
-          old_status = quarter_achievement.status
-          quarter_achievement.update(status: 'pending')
-          Rails.logger.debug "Updated #{user_detail.activity.activity_name} #{quarter_achievement.month} from #{old_status} to pending"
-          
-          # Reset approval remarks for quarterly approval
-          if quarter_achievement.achievement_remark
-            quarter_achievement.achievement_remark.update(
-              l1_remarks: nil,
-              l1_percentage: nil,
-              l2_remarks: nil,
-              l2_percentage: nil
-            )
-            Rails.logger.debug "Reset approval remarks for quarterly re-approval"
-          end
-        end
-      end
-    end
-  end
-
-  # FIXED: Handle response messages
-  if errors.empty?
-    if success_count > 0
-      flash[:notice] = "✅ Successfully updated #{success_count} achievement records across #{updated_activities.count} activities!"
-      if updated_activities.any?
-        if updated_activities.count <= 3
-          flash[:notice] += " Updated activities: #{updated_activities.join(', ')}"
-        else
-          flash[:notice] += " Updated activities: #{updated_activities.first(3).join(', ')} and #{updated_activities.count - 3} more..."
-        end
-      end
-      flash[:notice] += " All updated achievements are now in 'pending' status and need L1/L2 approval."
+    # Define quarter months to limit updates to selected quarter only
+    quarter_months = case selected_quarter
+    when 'Q1'
+      ['april', 'may', 'june']
+    when 'Q2'
+      ['july', 'august', 'september']
+    when 'Q3'
+      ['october', 'november', 'december']
+    when 'Q4'
+      ['january', 'february', 'march']
     else
-      flash[:notice] = "No changes were made to the achievements."
+      []
     end
-  else
-    flash[:alert] = "⚠️ Some updates failed: #{errors.first(2).join('; ')}"
-    flash[:alert] += " and #{errors.count - 2} more errors..." if errors.count > 2
+
+    Rails.logger.debug "Quarter Months: #{quarter_months}"
+
+    # Track which employee_details had changes to reset their entire quarter
+    employee_details_with_changes = Set.new
+
+    ActiveRecord::Base.transaction do
+      achievement_data.each do |user_detail_id, monthly_data|
+        user_detail = UserDetail.find_by(id: user_detail_id)
+        next unless user_detail
+
+        Rails.logger.debug "Processing UserDetail #{user_detail_id}: #{user_detail.activity.activity_name}"
+
+        activity_updated = false
+        
+        monthly_data.each do |month, values|
+          # IMPORTANT: Only process months that belong to the selected quarter
+          next unless quarter_months.include?(month)
+          
+          achievement_value = values[:achievement]
+          employee_remarks = values[:employee_remarks]
+
+          Rails.logger.debug "Month: #{month}, Achievement: #{achievement_value}, Remarks: #{employee_remarks}"
+
+          # Skip if both achievement and remarks are blank
+          next if achievement_value.blank? && employee_remarks.blank?
+
+          # Find or initialize achievement
+          achievement = Achievement.find_or_initialize_by(
+            user_detail: user_detail, 
+            month: month
+          )
+          
+          # Store old values for comparison
+          old_achievement = achievement.achievement
+          old_remarks = achievement.employee_remarks
+          
+          # Update values
+          achievement.achievement = achievement_value.present? ? achievement_value : nil
+          achievement.employee_remarks = employee_remarks.present? ? employee_remarks : nil
+          
+          Rails.logger.debug "Old Achievement: #{old_achievement}, New: #{achievement.achievement}"
+          
+          # Save if there are changes
+          if achievement.achievement != old_achievement || achievement.employee_remarks != old_remarks
+            if achievement.save
+              success_count += 1
+              activity_updated = true
+              # Mark this employee_detail as having changes for quarterly status update
+              employee_details_with_changes.add(user_detail.employee_detail_id)
+              Rails.logger.debug "Successfully saved achievement for #{month}"
+            else
+              error_msg = "Failed to save #{month.capitalize} for #{user_detail.activity.activity_name}: #{achievement.errors.full_messages.join(', ')}"
+              errors << error_msg
+              Rails.logger.error error_msg
+            end
+          else
+            Rails.logger.debug "No changes detected for #{month}"
+          end
+        end
+        
+        if activity_updated
+          activity_name = "#{user_detail.employee_detail&.employee_name} - #{user_detail.activity.activity_name}"
+          updated_activities << activity_name
+          Rails.logger.debug "Activity updated: #{activity_name}"
+        end
+      end
+
+      # FIXED: After all individual updates, set ENTIRE quarter to pending for employees who had changes
+      employee_details_with_changes.each do |employee_detail_id|
+        Rails.logger.debug "Setting entire quarter to pending for employee_detail_id: #{employee_detail_id}"
+        
+        # Find all user_details for this employee in current quarter
+        employee_user_details = UserDetail.where(employee_detail_id: employee_detail_id)
+        
+        employee_user_details.each do |user_detail|
+          # FIXED: Set ALL achievements for this quarter to pending, regardless of whether they have values
+          quarter_months.each do |month|
+            # Find or create achievement for each month in the quarter
+            achievement = Achievement.find_or_initialize_by(
+              user_detail: user_detail,
+              month: month
+            )
+            
+            # Only update status if the achievement exists or we're creating it with some data
+            if achievement.persisted? || achievement.achievement.present? || achievement.employee_remarks.present?
+              old_status = achievement.status
+              achievement.status = 'pending'
+              achievement.save!
+              
+              Rails.logger.debug "Updated #{user_detail.activity.activity_name} #{month} from #{old_status} to pending"
+              
+              # Reset approval remarks for quarterly approval
+              if achievement.achievement_remark
+                achievement.achievement_remark.update(
+                  l1_remarks: nil,
+                  l1_percentage: nil,
+                  l2_remarks: nil,
+                  l2_percentage: nil
+                )
+                Rails.logger.debug "Reset approval remarks for quarterly re-approval"
+              end
+            end
+          end
+        end
+      end
+    end
+
+    # FIXED: Handle response messages
+    if errors.empty?
+      if success_count > 0
+        flash[:notice] = "✅ Successfully updated #{success_count} achievement records across #{updated_activities.count} activities!"
+        if updated_activities.any?
+          if updated_activities.count <= 3
+            flash[:notice] += " Updated activities: #{updated_activities.join(', ')}"
+          else
+            flash[:notice] += " Updated activities: #{updated_activities.first(3).join(', ')} and #{updated_activities.count - 3} more..."
+          end
+        end
+        flash[:notice] += " All achievements for the entire quarter are now in 'pending' status and need L1/L2 approval."
+      else
+        flash[:notice] = "No changes were made to the achievements."
+      end
+    else
+      flash[:alert] = "⚠️ Some updates failed: #{errors.first(2).join('; ')}"
+      flash[:alert] += " and #{errors.count - 2} more errors..." if errors.count > 2
+    end
+    
+    redirect_to quarterly_edit_all_user_details_path
+    
+  rescue => e
+    Rails.logger.error "Quarterly update error: #{e.message}\n#{e.backtrace.join("\n")}"
+    flash[:alert] = "❌ An error occurred while updating achievements: #{e.message}"
+    redirect_to quarterly_edit_all_user_details_path
   end
-  
-  redirect_to quarterly_edit_all_user_details_path
-  
-rescue => e
-  Rails.logger.error "Quarterly update error: #{e.message}\n#{e.backtrace.join("\n")}"
-  flash[:alert] = "❌ An error occurred while updating achievements: #{e.message}"
-  redirect_to quarterly_edit_all_user_details_path
-end
 
 # FIXED: Quarterly edit all method
 def quarterly_edit_all
@@ -268,11 +279,41 @@ def quarterly_edit_all
     { name: "Q4", months: ["january", "february", "march"], label: "Q4 (Jan-Mar)" }
   ]
 end
+
   
   def destroy
-    @user_detail = UserDetail.find(params[:id])
+    @user_detail = UserDetail.find_by(params[:id])
     @user_detail.destroy
     redirect_to new_user_detail_path, notice: "User detail was successfully deleted."
+  end
+
+  def test_sms
+    # Test SMS functionality directly
+    begin
+      # Create a test employee detail object
+      test_employee = OpenStruct.new(
+        mobile_number: "8109417150", # Using the mobile number from your working API
+        employee_code: "TEST001",
+        employee_name: "Test Employee"
+      )
+      
+      # Test with Q1 quarter
+      result = send_sms_to_l1(test_employee, "Q1 (APR-JUN)", nil)
+      
+      if result[:success]
+        flash[:notice] = "✅ Test SMS sent successfully! Message ID: #{result[:message_id]}"
+        Rails.logger.info "Test SMS successful: #{result.inspect}"
+      else
+        flash[:alert] = "❌ Test SMS failed: #{result[:error]}"
+        Rails.logger.error "Test SMS failed: #{result.inspect}"
+      end
+      
+    rescue => e
+      flash[:alert] = "❌ Test SMS error: #{e.message}"
+      Rails.logger.error "Test SMS error: #{e.message}\n#{e.backtrace.first(5).join("\n")}"
+    end
+    
+    redirect_to get_user_detail_user_details_path
   end
 
   def get_user_detail
@@ -297,11 +338,15 @@ end
   def submit_achievements
     achievement_data = params[:achievement] || {}
     success_count = 0
+    sms_results = []
 
     ActiveRecord::Base.transaction do
       achievement_data.each do |user_detail_id, monthly_data|
         user_detail = UserDetail.find_by(id: user_detail_id)
         next unless user_detail
+        
+        employee_detail = user_detail.employee_detail
+        next unless employee_detail&.mobile_number.present?
 
         monthly_data.each do |month, values|
           achievement_value = values[:achievement]
@@ -321,12 +366,53 @@ end
           
           if achievement.save
             success_count += 1
+            
+            # Check if this month belongs to a quarter and send SMS immediately
+            quarter = determine_quarter(month)
+            if quarter.present?
+              # Check if SMS was already sent for this quarter using database tracking
+              # Use employee_detail_id instead of user_detail_id to track per employee
+              sms_already_sent = check_sms_already_sent(employee_detail.id, quarter)
+              
+              unless sms_already_sent
+                # Send SMS immediately for this quarter
+                sms_result = send_sms_to_l1(employee_detail, quarter, user_detail)
+                sms_results << {
+                  quarter: quarter,
+                  employee: employee_detail.employee_name,
+                  month: month,
+                  success: sms_result[:success],
+                  message: sms_result[:success] ? "SMS sent successfully" : sms_result[:error]
+                }
+                
+                # Mark this quarter as SMS sent in database using employee_detail_id
+                mark_sms_as_sent(employee_detail.id, quarter)
+                
+                Rails.logger.info "SMS sent for #{quarter} when #{month} was filled for employee #{employee_detail.employee_name}"
+              else
+                Rails.logger.info "SMS already sent for #{quarter} for employee #{employee_detail.employee_name}, skipping duplicate"
+              end
+            end
           end
         end
       end
     end
 
-    render json: { success: true, count: success_count }
+    # Prepare response message
+    response_message = "Achievements submitted successfully. #{success_count} records updated."
+    if sms_results.any?
+      successful_sms = sms_results.select { |r| r[:success] }
+      if successful_sms.any?
+        response_message += " 📱 SMS notifications sent for #{successful_sms.count} quarter(s)."
+      end
+    end
+
+    render json: { 
+      success: true, 
+      count: success_count, 
+      sms_results: sms_results,
+      message: response_message
+    }
   end
 
   def get_activities
@@ -753,5 +839,131 @@ end
     end
     
     conditions
+  end
+
+  # SMS functionality for quarterly notifications
+  def send_sms_to_l1(employee_detail, quarter, user_detail)
+    begin
+      # Get L1 employer mobile number
+      l1_mobile = employee_detail.mobile_number
+      return { success: false, error: "L1 mobile number not found" } unless l1_mobile.present?
+      
+      # Clean and validate mobile number
+      l1_mobile = l1_mobile.to_s.strip.gsub(/\D/, '')
+      return { success: false, error: "Invalid mobile number format" } if l1_mobile.length < 10
+      
+      # Prepare the message exactly as per the working API example
+      message = "Emp-Code: #{employee_detail.employee_code}, Emp-Name: #{employee_detail.employee_name} has submitted his #{quarter} Qtr KRA MIS. Please review and approve in the system. Ploughman Agro Private Limited"
+      
+      # Prepare API parameters using the exact working API
+      params = {
+        authkey: "37317061706c39353312",
+        mobiles: l1_mobile,
+        message: message,
+        sender: "PLOAPL",
+        route: "2",
+        country: "0",
+        DLT_TE_ID: "1707175594432371766",
+        unicode: "1"
+      }
+      
+      # Build the API URL
+      api_url = "https://sms.yoursmsbox.com/api/sendhttp.php"
+      
+      # Log the API call for debugging
+      Rails.logger.info "Sending SMS to #{l1_mobile} for employee #{employee_detail.employee_code}"
+      Rails.logger.info "SMS API URL: #{api_url}"
+      Rails.logger.info "SMS Parameters: #{params.inspect}"
+      
+      # Send SMS using HTTParty (which is already in Gemfile)
+      require 'httparty'
+      response = HTTParty.get(api_url, query: params)
+      
+      # Log the response for debugging
+      Rails.logger.info "SMS API Response Code: #{response.code}"
+      Rails.logger.info "SMS API Response Body: #{response.body}"
+      
+      if response.success?
+        # Parse the JSON response to check if SMS was actually sent
+        begin
+          response_data = JSON.parse(response.body)
+          if response_data["Status"] == "Success" && response_data["Code"] == "000"
+            Rails.logger.info "SMS sent successfully to L1 employer #{l1_mobile} for employee #{employee_detail.employee_code}"
+            Rails.logger.info "Message ID: #{response_data['Message-Id']}"
+            return { 
+              success: true, 
+              message: "SMS sent successfully", 
+              message_id: response_data['Message-Id'],
+              response: response_data
+            }
+          else
+            Rails.logger.error "SMS API returned error: #{response_data}"
+            return { 
+              success: false, 
+              error: "SMS API error: #{response_data['Description'] || response_data['Status']}" 
+            }
+          end
+        rescue JSON::ParserError => e
+          Rails.logger.error "Failed to parse SMS API response: #{e.message}"
+          return { success: false, error: "Invalid SMS API response format" }
+        end
+      else
+        Rails.logger.error "SMS API HTTP error: #{response.code} - #{response.body}"
+        return { success: false, error: "SMS API HTTP error: #{response.code}" }
+      end
+      
+    rescue => e
+      Rails.logger.error "SMS service error: #{e.message}"
+      Rails.logger.error "Backtrace: #{e.backtrace.first(5).join("\n")}"
+      return { success: false, error: "SMS service error: #{e.message}" }
+    end
+  end
+
+  def determine_quarter(month)
+    case month.to_s.downcase
+    when 'april', 'may', 'june'
+      'Q1 (APR-JUN)'
+    when 'july', 'august', 'september'
+      'Q2 (JUL-SEP)'
+    when 'october', 'november', 'december'
+      'Q3 (OCT-DEC)'
+    when 'january', 'february', 'march'
+      'Q4 (JAN-MAR)'
+    else
+      nil
+    end
+  end
+
+  def clear_sms_tracking
+    # Clear SMS tracking for a fresh start
+    # Clear all SMS logs since we're tracking per employee
+    SmsLog.destroy_all
+    flash[:notice] = "SMS tracking cleared. New SMS will be sent for each quarter."
+    redirect_to get_user_detail_user_details_path
+  end
+
+  def view_sms_logs
+    # View SMS logs to see which SMS have been sent
+    @sms_logs = SmsLog.includes(:employee_detail).order(created_at: :desc).limit(50)
+    render :view_sms_logs
+  end
+
+  def check_sms_already_sent(employee_detail_id, quarter)
+    # Check if SMS was already sent for this quarter using database
+    # Use employee_detail_id to track per employee, not per activity
+    SmsLog.exists?(employee_detail_id: employee_detail_id, quarter: quarter, sent: true)
+  end
+
+  def mark_sms_as_sent(employee_detail_id, quarter)
+    # Mark SMS as sent in database to prevent duplicates
+    # Use employee_detail_id to track per employee, not per activity
+    SmsLog.create!(
+      employee_detail_id: employee_detail_id,
+      quarter: quarter,
+      sent: true,
+      sent_at: Time.current
+    )
+  rescue => e
+    Rails.logger.error "Failed to mark SMS as sent: #{e.message}"
   end
 end

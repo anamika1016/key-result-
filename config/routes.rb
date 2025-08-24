@@ -24,6 +24,9 @@ Rails.application.routes.draw do
       post :bulk_upload
       get :quarterly_edit_all
       patch :update_quarterly_achievements
+      get :test_sms
+      get :clear_sms_tracking
+      get :view_sms_logs
 
     end
   end

@@ -1,17 +1,17 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  activity: one
-  month: MyString
+  achievement_id: 1
   l1_remarks: MyText
   l1_percentage: 1.5
   l2_remarks: MyText
   l2_percentage: 1.5
+  employee_remarks: MyText
 
 two:
-  activity: two
-  month: MyString
+  achievement_id: 2
   l1_remarks: MyText
   l1_percentage: 1.5
   l2_remarks: MyText
   l2_percentage: 1.5
+  employee_remarks: MyText

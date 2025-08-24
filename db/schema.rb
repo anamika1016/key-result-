@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_01_174000) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_23_113438) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -49,6 +49,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_01_174000) do
     t.float "weight"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "theme_name"
     t.index ["department_id"], name: "index_activities_on_department_id"
   end
 
@@ -58,6 +59,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_01_174000) do
     t.string "theme_name"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.string "employee_reference"
   end
 
   create_table "employee_details", force: :cascade do |t|
@@ -79,10 +81,24 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_01_174000) do
     t.float "l1_percentage"
     t.text "l2_remarks"
     t.float "l2_percentage"
+    t.string "mobile_number"
     t.index ["user_id"], name: "index_employee_details_on_user_id"
   end
 
-  
+  create_table "target_submissions", force: :cascade do |t|
+    t.bigint "user_detail_id", null: false
+    t.bigint "user_id", null: false
+    t.bigint "employee_detail_id", null: false
+    t.string "month"
+    t.string "target"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employee_detail_id"], name: "index_target_submissions_on_employee_detail_id"
+    t.index ["user_detail_id"], name: "index_target_submissions_on_user_detail_id"
+    t.index ["user_id"], name: "index_target_submissions_on_user_id"
+  end
+
   create_table "user_details", force: :cascade do |t|
     t.bigint "department_id", null: false
     t.bigint "activity_id", null: false
@@ -107,21 +123,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_01_174000) do
     t.index ["employee_detail_id"], name: "index_user_details_on_employee_detail_id"
     t.index ["user_id"], name: "index_user_details_on_user_id"
   end
-  
-  create_table "target_submissions", force: :cascade do |t|
-    t.bigint "user_detail_id", null: false
-    t.bigint "user_id", null: false
-    t.bigint "employee_detail_id", null: false
-    t.string "month"
-    t.string "target"
-    t.string "status"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["employee_detail_id"], name: "index_target_submissions_on_employee_detail_id"
-    t.index ["user_detail_id"], name: "index_target_submissions_on_user_detail_id"
-    t.index ["user_id"], name: "index_target_submissions_on_user_id"
-  end
-  
+
   create_table "users", force: :cascade do |t|
     t.string "email", default: "", null: false
     t.string "encrypted_password", default: "", null: false

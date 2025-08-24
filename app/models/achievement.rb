@@ -11,5 +11,6 @@ class Achievement < ApplicationRecord
       l2_returned: "l2_returned"
     }
 
-  validates :achievement, presence: true
+  # Remove the presence validation since we're creating achievements without achievement values during approval
+  # validates :achievement, presence: true
 end

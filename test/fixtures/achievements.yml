@@ -1,11 +1,15 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  user_detail: one
+  user_detail_id: 1
   month: MyString
   achievement: MyString
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
 
 two:
-  user_detail: two
+  user_detail_id: 2
   month: MyString
   achievement: MyString
+  created_at: <%= Time.current %>
+  updated_at: <%= Time.current %>
