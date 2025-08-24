@@ -40,7 +40,7 @@ Rails.application.routes.draw do
   end
   # This makes the employee list the home page.
 
-resources :employee_details do
+  resources :employee_details do
     collection do
       get :export_xlsx
       post :import
@@ -60,8 +60,6 @@ resources :employee_details do
     sessions: 'users/sessions',
     registrations: 'users/registrations',
     passwords: "users/passwords"
-
-
   }  
   # Add a specific route for the dashboard
   root to: 'home#dashboard'  # 👈 now root goes to dashboard

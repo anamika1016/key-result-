@@ -135,12 +135,19 @@
                           <td class="sticky-col activity-col">
                             <div class="fw-bold text-dark"><%= activity.activity_name %></div>
                             <%= form.hidden_field "user_details[#{activity.id}][activity_id]", value: activity.id %>
+                            <%= form.hidden_field "user_details[#{activity.id}][activity_name]", value: activity.activity_name %>
                           </td>
                           <td class="sticky-col theme-col">
-                            <span class="badge bg-light text-dark border"><%= activity.theme_name.present? ? activity.theme_name : 'No Theme' %></span>
+                            <%= form.text_field "user_details[#{activity.id}][theme_name]", 
+                                value: activity.theme_name.present? ? activity.theme_name : "",
+                                class: "form-control form-control-sm text-center", 
+                                placeholder: "Theme Name" %>
                           </td>
                           <td class="sticky-col unit-col">
-                            <span class="badge bg-gray"><%= activity.unit %></span>
+                            <%= form.text_field "user_details[#{activity.id}][unit]", 
+                                value: (activity.unit.present? && activity.unit != "Count") ? activity.unit : "",
+                                class: "form-control form-control-sm text-center", 
+                                placeholder: "Unit" %>
                           </td>
                           
                           <% %w[april may june july august september october november december january february march].each do |month| %>
@@ -225,7 +232,7 @@
                       <td><%= detail.employee_detail ? detail.employee_detail.employee_name : 'N/A' %></td>
                       <td><%= detail.activity.activity_name %></td>
                       <td><%= detail.activity.theme_name.present? ? detail.activity.theme_name : 'No Theme' %></td>
-                      <td><%= detail.activity.unit %></td>
+                      <td><%= (detail.activity.unit.present? && detail.activity.unit != "Count") ? detail.activity.unit : "" %></td>
                       <td><%= detail.april.present? ? detail.april : '-' %></td>
                       <td><%= detail.may.present? ? detail.may : '-' %></td>
                       <td><%= detail.june.present? ? detail.june : '-' %></td>
@@ -283,6 +290,8 @@
       });
     }
 
+
+
     // Lazy load existing data table
     const existingDataBody = document.getElementById("existing-data-body");
     if (existingDataBody) {
@@ -310,6 +319,8 @@
       icon.className = "fas fa-eye";
     }
   }
+
+
 
   // Performance optimization: Debounce input changes
   function debounce(func, wait) {
@@ -511,6 +522,8 @@
     min-width: 120px;
     max-width: 140px;
   }
+
+
 
   .month-header {
     min-width: 180px;
@@ -766,6 +779,8 @@
     .unit-col {
       min-width: 90px;
     }
+
+
     
     .month-header {
       min-width: 140px;

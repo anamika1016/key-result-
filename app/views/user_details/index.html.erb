@@ -38,8 +38,8 @@
                   <td class="px-5 py-4 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department.department_type %></td>
                   <td class="px-5 py-4 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
                   <td class="px-5 py-4 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
-                  <td class="px-5 py-4 text-sm text-gray-800 border-r border-gray-200"><%= detail.department.theme_name.presence || 'No Theme' %></td>
-                  <td class="px-5 py-4 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity.unit %></td>
+                  <td class="px-5 py-4 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.theme_name.present? ? detail.activity.theme_name : 'No Theme' %></td>
+                  <td class="px-5 py-4 text-sm text-gray-800 border-r border-gray-200 text-center"><%= (detail.activity.unit.present? && detail.activity.unit != "Count") ? detail.activity.unit : "" %></td>
                   <td class="px-5 py-4 text-sm text-center border-r border-gray-200">
                     <span class="<%= detail.april.presence ? 'text-indigo-700 font-semibold bg-indigo-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
                       <%= detail.april.presence || '-' %>

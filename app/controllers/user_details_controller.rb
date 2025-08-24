@@ -410,6 +410,7 @@ end
             next
           end
 
+          # Extract monthly data
           month_data = {
             april: extract_month_value(details, 'april'),
             may: extract_month_value(details, 'may'),
@@ -425,7 +426,29 @@ end
             march: extract_month_value(details, 'march')
           }
 
+          # Extract activity metadata (unit and theme_name)
+          # Handle blank values properly - convert empty strings to nil for database
+          unit_value = details['unit'] || details[:unit]
+          theme_value = details['theme_name'] || details[:theme_name]
+          
+          activity_metadata = {
+            unit: unit_value.present? ? unit_value : nil,
+            theme_name: theme_value.present? ? theme_value : nil
+          }
+
           existing_record = existing_records[activity_id.to_i]
+
+          # Update Activity metadata (always update to handle clearing values)
+          activity = Activity.find(activity_id)
+          activity_update_data = {}
+          
+          # Always include unit and theme_name in update (nil values will clear the fields)
+          activity_update_data[:unit] = activity_metadata[:unit]
+          activity_update_data[:theme_name] = activity_metadata[:theme_name]
+          
+          unless activity.update(activity_update_data)
+            errors << "Failed to update activity metadata for activity #{activity_id}: #{activity.errors.full_messages.join(', ')}"
+          end
 
           if existing_record
             if existing_record.update(month_data)
