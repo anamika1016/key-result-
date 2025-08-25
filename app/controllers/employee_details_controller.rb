@@ -26,6 +26,10 @@ class EmployeeDetailsController < ApplicationController
   end
 
   def update
+    Rails.logger.info "UPDATE ACTION CALLED with params: #{params.inspect}"
+    Rails.logger.info "Request method: #{request.method}"
+    Rails.logger.info "Request path: #{request.path}"
+    
     if @employee_detail.update(employee_detail_params)
       redirect_to employee_details_path, notice: 'Employee updated successfully.'
     else
@@ -129,7 +133,13 @@ class EmployeeDetailsController < ApplicationController
 
   # Show employee details with quarterly view
   def show    
-    @employee_detail = EmployeeDetail.find(params[:id])
+    begin
+      @employee_detail = EmployeeDetail.find(params[:id])
+    rescue ActiveRecord::RecordNotFound
+      redirect_to employee_details_path, alert: "❌ Employee detail not found. The record may have been deleted."
+      return
+    end
+    
     authorize! :read, @employee_detail
     
     @user_detail_id = params[:user_detail_id]
@@ -151,7 +161,20 @@ class EmployeeDetailsController < ApplicationController
 
   # Quarterly approval - approve all activities for a quarter
   def approve
-    @employee_detail = EmployeeDetail.find(params[:id])
+    Rails.logger.info "APPROVE ACTION CALLED with params: #{params.inspect}"
+    Rails.logger.info "Request method: #{request.method}"
+    Rails.logger.info "Request path: #{request.path}"
+    
+    begin
+      @employee_detail = EmployeeDetail.find(params[:id])
+    rescue ActiveRecord::RecordNotFound
+      if request.xhr?
+        render json: { success: false, message: "❌ Employee detail not found. The record may have been deleted." }, status: :not_found
+      else
+        redirect_to employee_details_path, alert: "❌ Employee detail not found. The record may have been deleted."
+      end
+      return
+    end
 
     if can_act_as_l1?(@employee_detail)
       Rails.logger.debug "PROCESSING L1 QUARTERLY APPROVAL"
@@ -214,7 +237,16 @@ class EmployeeDetailsController < ApplicationController
 
   # Quarterly return - return all activities for a quarter
   def return
-    @employee_detail = EmployeeDetail.find(params[:id])
+    begin
+      @employee_detail = EmployeeDetail.find(params[:id])
+    rescue ActiveRecord::RecordNotFound
+      if request.xhr?
+        render json: { success: false, message: "❌ Employee detail not found. The record may have been deleted." }, status: :not_found
+      else
+        redirect_to employee_details_path, alert: "❌ Employee detail not found. The record may have been deleted."
+      end
+      return
+    end
     
     if can_act_as_l1?(@employee_detail)
       Rails.logger.debug "PROCESSING L1 QUARTERLY RETURN"
@@ -291,7 +323,12 @@ class EmployeeDetailsController < ApplicationController
   end
 
   def show_l2
-    @employee_detail = EmployeeDetail.find(params[:id])
+    begin
+      @employee_detail = EmployeeDetail.find(params[:id])
+    rescue ActiveRecord::RecordNotFound
+      redirect_to employee_details_path, alert: "❌ Employee detail not found. The record may have been deleted."
+      return
+    end
     
     unless current_user.hod? || can_act_as_l2?(@employee_detail)
       redirect_to root_path, alert: "❌ You are not authorized to access this page."
@@ -317,7 +354,16 @@ class EmployeeDetailsController < ApplicationController
   end
 
   def l2_approve
-    @employee_detail = EmployeeDetail.find(params[:id])
+    begin
+      @employee_detail = EmployeeDetail.find(params[:id])
+    rescue ActiveRecord::RecordNotFound
+      if request.xhr?
+        render json: { success: false, message: "❌ Employee detail not found. The record may have been deleted." }, status: :not_found
+      else
+        redirect_to employee_details_path, alert: "❌ Employee detail not found. The record may have been deleted."
+      end
+      return
+    end
     
     unless current_user.hod? || can_act_as_l2?(@employee_detail)
       if request.xhr? || params[:action_type].present?
@@ -355,7 +401,16 @@ class EmployeeDetailsController < ApplicationController
   end
 
   def l2_return
-    @employee_detail = EmployeeDetail.find(params[:id])
+    begin
+      @employee_detail = EmployeeDetail.find(params[:id])
+    rescue ActiveRecord::RecordNotFound
+      if request.xhr?
+        render json: { success: false, message: "❌ Employee detail not found. The record may have been deleted." }, status: :not_found
+      else
+        redirect_to employee_details_path, alert: "❌ Employee detail not found. The record may have been deleted."
+      end
+      return
+    end
 
     unless current_user.hod? || can_act_as_l2?(@employee_detail)
       if request.xhr? || params[:action_type].present?

@@ -1,4 +1,16 @@
 <!-- Employee Detail show l1 View - Quarterly Support with FIXED Modal -->
+<% if @employee_detail.nil? %>
+  <div class="main-content bg-gray-50 min-h-screen">
+    <div class="p-8 bg-white rounded-xl shadow-lg border border-gray-200 mx-4">
+      <div class="text-center py-12">
+        <i class="fas fa-exclamation-triangle text-6xl text-red-500 mb-4"></i>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Employee Detail Not Found</h2>
+        <p class="text-gray-600 mb-6">The employee detail you're looking for may have been deleted or doesn't exist.</p>
+        <%= link_to "← Back to Employee List", employee_details_path, class: "inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200" %>
+      </div>
+    </div>
+  </div>
+<% else %>
 <div class="main-content bg-gray-50 min-h-screen">
 <div class="p-8 bg-white rounded-xl shadow-lg border border-gray-200 mx-4">
   <div class="border-b border-gray-200 pb-6 mb-8">
@@ -514,9 +526,11 @@
     if (actionType === "approve") {
       currentActionUrl = "<%= approve_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "Approve with Remarks";
+      console.log('Approve URL set to:', currentActionUrl);
     } else {
       currentActionUrl = "<%= return_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "Return with Remarks";
+      console.log('Return URL set to:', currentActionUrl);
     }
 
     // Clear form
@@ -613,6 +627,11 @@
     // Add action_type to indicate this is an AJAX request
     formData.append('action_type', currentActionType);
     
+    // Debug logging
+    console.log('Submitting to URL:', currentActionUrl);
+    console.log('Action type:', currentActionType);
+    console.log('Form data:', Object.fromEntries(formData));
+    
     // Show loading state
     modalLoading.classList.remove('hidden');
     
@@ -625,8 +644,25 @@
         'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
       }
     })
-    .then(response => response.json())
+    .then(response => {
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Handle 404 - employee detail not found
+          showStatusMessage('❌ Employee detail not found. The record may have been deleted. Please refresh the page.', false);
+          closeModal();
+          // Redirect to employee list after a delay
+          setTimeout(() => {
+            window.location.href = '<%= employee_details_path %>';
+          }, 3000);
+          return;
+        }
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
     .then(data => {
+      if (!data) return; // Skip if we already handled the error
+      
       modalLoading.classList.add('hidden');
       
       if (data.success) {
@@ -1029,4 +1065,5 @@ body.modal-open {
   <meta name="csrf-token" content="<%= form_authenticity_token if respond_to?(:form_authenticity_token) %>">
 </div>
 
+<% end %>
 </div>

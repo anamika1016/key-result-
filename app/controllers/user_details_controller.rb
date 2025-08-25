@@ -270,12 +270,32 @@ end
   def test_sms
     # Test SMS functionality directly
     begin
-      # Create a test employee detail object
-      test_employee = OpenStruct.new(
-        mobile_number: "8109417150", # Using the mobile number from your working API
-        employee_code: "TEST001",
-        employee_name: "Test Employee"
-      )
+      # Find a real employee detail record that has L1 code and mobile number
+      test_employee = EmployeeDetail.joins(:user_detail)
+                                   .where.not(l1_code: [nil, ''])
+                                   .where.not(mobile_number: [nil, ''])
+                                   .first
+      
+      if test_employee.nil?
+        flash[:alert] = "❌ No employee found with L1 code and mobile number for testing"
+        redirect_to get_user_detail_user_details_path
+        return
+      end
+      
+      # Find the L1 manager
+      l1_manager = EmployeeDetail.find_by('employee_code LIKE ?', test_employee.l1_code.strip + '%')
+      
+      if l1_manager.nil?
+        flash[:alert] = "❌ L1 manager not found with code: #{test_employee.l1_code}"
+        redirect_to get_user_detail_user_details_path
+        return
+      end
+      
+      if l1_manager.mobile_number.blank?
+        flash[:alert] = "❌ L1 manager #{l1_manager.employee_name} has no mobile number"
+        redirect_to get_user_detail_user_details_path
+        return
+      end
       
       # Test with Q1 quarter
       result = send_sms_to_l1(test_employee, "Q1 (APR-JUN)", nil)
