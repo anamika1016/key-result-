@@ -9,6 +9,9 @@
     </h2>
   </div>
 
+  <!-- Status Message Container -->
+  <div id="statusMessage" class="hidden mb-4 p-4 rounded-lg"></div>
+
   <% if @user_details.any? && params[:quarter].present? %>
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm mt-8">
       <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
@@ -210,7 +213,7 @@
   
   <% if can_take_l2_action %>
     <!-- L2 Buttons for quarterly activity -->
-    <div class="mt-8 pt-6 border-t border-gray-200">
+    <div class="mt-8 pt-6 border-t border-gray-200" id="actionButtons">
       <div class="flex flex-col sm:flex-row gap-4 justify-center">
         <!-- L2 Approve Button for quarterly activity -->
         <button onclick="openModal('l2_approve')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
@@ -224,69 +227,247 @@
       </div>
     </div>
   <% else %>
-    <div class="mt-8 pt-6 border-t border-gray-https://claude.ai/login?selectAccount=true&returnTo=%2Fchat%2F29c82b8b-b283-49bf-86b3-4c6e0d77b883%3F200">
+    <div class="mt-8 pt-6 border-t border-gray-200">
       <div class="text-center">
         <p class="text-gray-600 font-medium">
-          This  Quarter activities cannot be modified by L2.
+          This Quarter activities cannot be modified by L2.
         </p>
       </div>
     </div>
   <% end %>
 <% end %>
 
-<!-- Modal for L2 Actions -->
+<!-- FIXED Modal with AJAX for L2 Actions -->
 <div id="decisionModal" class="hidden fixed inset-0 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md">
+  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative">
+    <!-- Loading overlay -->
+    <div id="modalLoading" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
+      <div class="flex items-center space-x-2">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-emerald-600"></div>
+        <span class="text-gray-600">Processing...</span>
+      </div>
+    </div>
+
     <h2 class="text-xl font-bold mb-4" id="modalTitle">L2 Decision - All Activities</h2>
 
-    <%= form_with url: '', method: :patch, id: 'modalForm', local: true do |f| %>
+    <form id="modalForm" onsubmit="submitDecision(event)">
       <div class="mb-4">
-        <%= f.label :l2_remarks, "L2 Quarterly Remarks (All Activities)", class: "block font-semibold mb-1" %>
-        <%= f.text_area :l2_remarks, rows: 3, class: "w-full border border-gray-300 rounded-md", placeholder: "Enter remarks for all activities in this quarter" %>
+        <label for="l2_remarks" class="block font-semibold mb-1">L2 Quarterly Remarks (All Activities)</label>
+        <textarea id="l2_remarks" name="l2_remarks" rows="3" class="w-full border border-gray-300 rounded-md p-2" placeholder="Enter remarks for all activities in this quarter" required></textarea>
       </div>
       <div class="mb-4">
-        <%= f.label :l2_percentage, "L2 Quarterly Percentage (All Activities)", class: "block font-semibold mb-1" %>
-        <%= f.number_field :l2_percentage, step: 0.1, class: "w-full border border-gray-300 rounded-md", placeholder: "Enter percentage for all activities" %>
+        <label for="l2_percentage" class="block font-semibold mb-1">L2 Quarterly Percentage (All Activities)</label>
+        <input type="number" id="l2_percentage" name="l2_percentage" step="0.1" min="0" max="100" class="w-full border border-gray-300 rounded-md p-2" placeholder="Enter percentage for all activities" required>
       </div>
       
       <!-- Hidden fields for quarterly tracking -->
       <% if params[:user_detail_id].present? %>
-        <%= f.hidden_field :user_detail_id, value: params[:user_detail_id] %>
+        <input type="hidden" name="user_detail_id" value="<%= params[:user_detail_id] %>">
       <% end %>
       <% if params[:quarter].present? %>
-        <%= f.hidden_field :selected_quarter, value: params[:quarter] %>
+        <input type="hidden" name="selected_quarter" value="<%= params[:quarter] %>">
       <% end %>
-      <%= f.hidden_field :apply_to_all_activities, value: true %>
+      <input type="hidden" name="apply_to_all_activities" value="true">
       
       <div class="flex justify-end gap-2">
         <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
-        <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Apply to All Activities</button>
+        <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">Apply to All Activities</button>
       </div>
-    <% end %>
+    </form>
   </div>
 </div>
 
-<!-- JavaScript for L2 Actions -->
+<!-- FIXED JavaScript with AJAX for L2 Actions -->
 <script>
+  let currentActionType = '';
+  let currentActionUrl = '';
+
   function openModal(actionType) {
     const modal = document.getElementById("decisionModal");
-    const form = document.getElementById("modalForm");
     const modalTitle = document.getElementById("modalTitle");
-
+    
+    currentActionType = actionType;
+    
     modal.classList.remove("hidden");
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
 
     if (actionType === "l2_approve") {
-      form.action = "<%= l2_approve_employee_detail_path(@employee_detail) %>";
+      currentActionUrl = "<%= l2_approve_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "L2 Approve All Quarterly Activities";
     } else if (actionType === "l2_reject") {
-      form.action = "<%= l2_return_employee_detail_path(@employee_detail) %>";
+      currentActionUrl = "<%= l2_return_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "L2 Return All Quarterly Activities";
     }
+
+    // Clear form
+    document.getElementById('l2_remarks').value = '';
+    document.getElementById('l2_percentage').value = '';
   }
 
   function closeModal() {
     document.getElementById("decisionModal").classList.add("hidden");
+    document.body.style.overflow = 'auto'; // Restore background scroll
+    currentActionType = '';
+    currentActionUrl = '';
   }
+
+  function showStatusMessage(message, isSuccess) {
+    const statusDiv = document.getElementById('statusMessage');
+    statusDiv.className = `mb-4 p-4 rounded-lg ${isSuccess ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`;
+    statusDiv.textContent = message;
+    statusDiv.classList.remove('hidden');
+    
+    // Auto hide after 5 seconds
+    setTimeout(() => {
+      statusDiv.classList.add('hidden');
+    }, 5000);
+  }
+
+  function updateQuarterlyStatus(newStatus) {
+    // Find the status badge and update it
+    const statusBadge = document.querySelector('.inline-flex.items-center');
+    if (!statusBadge) return;
+
+    let statusConfig = {};
+    
+    switch(newStatus) {
+      case 'l2_approved':
+        statusConfig = {
+          color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+          text: 'L2 Approved',
+          icon: 'fas fa-check-double'
+        };
+        break;
+      case 'l2_returned':
+        statusConfig = {
+          color: 'bg-orange-100 text-orange-800 border-orange-300',
+          text: 'L2 Returned',
+          icon: 'fas fa-exclamation-triangle'
+        };
+        break;
+      case 'l1_approved':
+        statusConfig = {
+          color: 'bg-green-100 text-green-800 border-green-300',
+          text: 'L1 Approved',
+          icon: 'fas fa-check-circle'
+        };
+        break;
+      case 'l1_returned':
+        statusConfig = {
+          color: 'bg-red-100 text-red-800 border-red-300',
+          text: 'L1 Returned',
+          icon: 'fas fa-exclamation-triangle'
+        };
+        break;
+      case 'submitted':
+        statusConfig = {
+          color: 'bg-blue-100 text-blue-800 border-blue-300',
+          text: 'Submitted',
+          icon: 'fas fa-paper-plane'
+        };
+        break;
+      default:
+        statusConfig = {
+          color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+          text: 'Pending',
+          icon: 'fas fa-clock'
+        };
+    }
+
+    statusBadge.className = `inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${statusConfig.color}`;
+    statusBadge.innerHTML = `<i class="${statusConfig.icon} mr-2"></i>${statusConfig.text}`;
+  }
+
+  function hideActionButtons() {
+    const actionButtons = document.getElementById('actionButtons');
+    if (actionButtons) {
+      actionButtons.style.display = 'none';
+      
+      // Add processed message
+      const processedMessage = document.createElement('div');
+      processedMessage.className = 'mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium';
+      processedMessage.textContent = 'This Quarter has been processed and cannot be modified.';
+      actionButtons.parentNode.appendChild(processedMessage);
+    }
+  }
+
+  function submitDecision(event) {
+    event.preventDefault();
+    
+    const modalLoading = document.getElementById('modalLoading');
+    const form = document.getElementById('modalForm');
+    const formData = new FormData(form);
+    
+    // Add action_type to indicate this is an AJAX request
+    formData.append('action_type', currentActionType);
+    
+    // Show loading state
+    modalLoading.classList.remove('hidden');
+    
+    // Make AJAX request
+    fetch(currentActionUrl, {
+      method: 'PATCH',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      modalLoading.classList.add('hidden');
+      
+      if (data.success) {
+        // Close modal immediately
+        closeModal();
+        
+        // Show success message
+        showStatusMessage(data.message, true);
+        
+        // Update UI with real data from server if provided
+        if (data.updated_status) {
+          updateQuarterlyStatus(data.updated_status);
+          hideActionButtons();
+        }
+        
+        // If no status data provided, reload after short delay
+        if (!data.updated_status) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        }
+        
+        // Scroll to status message
+        document.getElementById('statusMessage').scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        
+      } else {
+        // Show error message but keep modal open
+        showStatusMessage(data.message || 'An error occurred', false);
+      }
+    })
+    .catch(error => {
+      modalLoading.classList.add('hidden');
+      console.error('Error:', error);
+      showStatusMessage('Network error occurred. Please try again.', false);
+    });
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('decisionModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeModal();
+    }
+  });
+
+  // Close modal with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeModal();
+    }
+  });
 </script>
 
 <!-- Single Quarterly L1 and L2 Remarks Section -->
@@ -745,5 +926,8 @@ button:hover {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 </style>
+
+<!-- CSRF token meta tag for AJAX requests -->
+<meta name="csrf-token" content="<%= form_authenticity_token if respond_to?(:form_authenticity_token) %>">
 
 </div>

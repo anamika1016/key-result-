@@ -1,4 +1,4 @@
-<!-- Employee Detail show l1 View - Quarterly Support -->
+<!-- Employee Detail show l1 View - Quarterly Support with FIXED Modal -->
 <div class="main-content bg-gray-50 min-h-screen">
 <div class="p-8 bg-white rounded-xl shadow-lg border border-gray-200 mx-4">
   <div class="border-b border-gray-200 pb-6 mb-8">
@@ -8,63 +8,8 @@
     </h2>
   </div>
 
-  <!-- Basic Employee Information -->
-  <div class="bg-white border border-gray-200 rounded-xl shadow-sm mb-8">
-    <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
-      <h3 class="text-xl font-bold text-gray-800 flex items-center">
-        <i class="fas fa-info-circle mr-3 text-gray-600"></i>
-        Basic Information
-      </h3>
-    </div>
-    <div class="p-6">
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">Employee Name</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.employee_name %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">Employee ID</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.employee_id %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">Employee Code</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.employee_code %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">Email</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.employee_email %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">Mobile Number</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.mobile_number || 'Not provided' %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">Department</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.department %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">Designation/Post</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.post %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">L1 Code</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.l1_code %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">L1 Name</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.l1_employer_name %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">L2 Code</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.l2_code %></p>
-        </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">L2 Name</label>
-          <p class="text-gray-900 font-medium"><%= @employee_detail.l2_employer_name %></p>
-        </div>
-      </div>
-    </div>
-  </div>
+  <!-- Status Message Container -->
+  <div id="statusMessage" class="hidden mb-4 p-4 rounded-lg"></div>
 
   <% if @user_details.any? && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm mt-8">
@@ -289,7 +234,7 @@
         <h3 class="text-xl font-bold text-gray-800 mb-4">
            Quarter Overall Status
         </h3>
-        <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border <%= status_config[:color] %>">
+        <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border <%= status_config[:color] %>" id="quarterStatusBadge">
           <i class="<%= status_config[:icon] %> mr-2"></i>
           <%= status_config[:text] %>
         </span>
@@ -321,12 +266,12 @@
     %>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-      
+
       <!-- L1 Quarterly Summary - SINGLE DISPLAY -->
       <div class="bg-gradient-to-r from-blue-50 via-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-md">
         <h3 class="text-xl font-bold text-blue-700 mb-6 flex items-center gap-2">
           <i class="fas fa-user-check text-blue-500"></i>
-          L1 <%= params[:quarter] %> Quarter Summary
+          L1 Quarter Summary
         </h3>
 
         <!-- SINGLE Quarter Average Percentage -->
@@ -365,7 +310,7 @@
       <div class="bg-gradient-to-r from-green-50 via-green-50 to-green-100 border border-green-200 rounded-xl p-6 shadow-md">
         <h3 class="text-xl font-bold text-green-700 mb-6 flex items-center gap-2">
           <i class="fas fa-user-shield text-green-500"></i>
-          L2 <%= params[:quarter] %> Quarter Summary
+          L2 Quarter Summary
         </h3>
 
         <!-- SINGLE Quarter Average Percentage -->
@@ -435,18 +380,18 @@
   
   <% if can_take_action %>
     <div class="mt-8 pt-6 border-t border-gray-200">
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <div class="flex flex-col sm:flex-row gap-4 justify-center" id="actionButtons">
         <button onclick="openModal('approve')" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          Approve <%= params[:quarter] %> Quarter
+          Approve Quarter
         </button>
         <button onclick="openModal('reject')" class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          Return <%= params[:quarter] %> Quarter
+          Return  Quarter
         </button>
       </div>
     </div>
   <% else %>
     <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium">
-      This <%= params[:quarter] %> Quarter has been processed and cannot be modified.
+      This  Quarter has been processed and cannot be modified.
     </div>
   <% end %>
 
@@ -466,7 +411,7 @@
 
   <% if can_take_bulk_action %>
     <div class="mt-8 pt-6 border-t border-gray-200">
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+      <div class="flex flex-col sm:flex-row gap-4 justify-center" id="actionButtons">
         <button onclick="openModal('approve')" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
           Approve All Activities
         </button>
@@ -482,57 +427,227 @@
   <% end %>
 <% end %>
 
-<!-- Modal -->
+<!-- FIXED Modal with AJAX -->
 <div id="decisionModal" class="hidden fixed inset-0 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md">
+  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative">
+    <!-- Loading overlay -->
+    <div id="modalLoading" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
+      <div class="flex items-center space-x-2">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+        <span class="text-gray-600">Processing...</span>
+      </div>
+    </div>
+
     <h2 class="text-xl font-bold mb-4" id="modalTitle">Decision</h2>
 
-    <%= form_with url: '', method: :patch, id: 'modalForm', local: true do |f| %>
+    <form id="modalForm" onsubmit="submitDecision(event)">
       <div class="mb-4">
-        <%= f.label :remarks, "Remarks", class: "block font-semibold mb-1" %>
-        <%= f.text_area :remarks, rows: 3, class: "w-full border border-gray-300 rounded-md" %>
+        <label for="remarks" class="block font-semibold mb-1">Remarks</label>
+        <textarea id="remarks" name="remarks" rows="3" class="w-full border border-gray-300 rounded-md p-2" required></textarea>
       </div>
       <div class="mb-4">
-        <%= f.label :percentage, "Percentage", class: "block font-semibold mb-1" %>
-        <%= f.number_field :percentage, step: 0.1, class: "w-full border border-gray-300 rounded-md" %>
+        <label for="percentage" class="block font-semibold mb-1">Percentage</label>
+        <input type="number" id="percentage" name="percentage" step="0.1" min="0" max="100" class="w-full border border-gray-300 rounded-md p-2" required>
       </div>
 
       <% if params[:user_detail_id].present? %>
-        <%= f.hidden_field :user_detail_id, value: params[:user_detail_id] %>
+        <input type="hidden" name="user_detail_id" value="<%= params[:user_detail_id] %>">
       <% end %>
       <% if params[:quarter].present? %>
-        <%= f.hidden_field :selected_quarter, value: params[:quarter] %>
+        <input type="hidden" name="selected_quarter" value="<%= params[:quarter] %>">
       <% end %>
 
       <div class="flex justify-end gap-2">
         <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
         <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Submit</button>
       </div>
-    <% end %>
+    </form>
   </div>
 </div>
 
-<!-- JS -->
+<!-- FIXED JavaScript with AJAX -->
 <script>
+  let currentActionType = '';
+  let currentActionUrl = '';
+
   function openModal(actionType) {
     const modal = document.getElementById("decisionModal");
-    const form = document.getElementById("modalForm");
     const modalTitle = document.getElementById("modalTitle");
-
+    
+    currentActionType = actionType;
+    
     modal.classList.remove("hidden");
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
 
     if (actionType === "approve") {
-      form.action = "<%= approve_employee_detail_path(@employee_detail) %>";
+      currentActionUrl = "<%= approve_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "Approve with Remarks";
     } else {
-      form.action = "<%= return_employee_detail_path(@employee_detail) %>";
+      currentActionUrl = "<%= return_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "Return with Remarks";
     }
+
+    // Clear form
+    document.getElementById('remarks').value = '';
+    document.getElementById('percentage').value = '';
   }
 
   function closeModal() {
     document.getElementById("decisionModal").classList.add("hidden");
+    document.body.style.overflow = 'auto'; // Restore background scroll
+    currentActionType = '';
+    currentActionUrl = '';
   }
+
+  function showStatusMessage(message, isSuccess) {
+    const statusDiv = document.getElementById('statusMessage');
+    statusDiv.className = `mb-4 p-4 rounded-lg ${isSuccess ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`;
+    statusDiv.textContent = message;
+    statusDiv.classList.remove('hidden');
+    
+    // Auto hide after 5 seconds
+    setTimeout(() => {
+      statusDiv.classList.add('hidden');
+    }, 5000);
+  }
+
+  function updateStatusBadge(newStatus) {
+    const statusBadge = document.getElementById('quarterStatusBadge');
+    if (!statusBadge) return;
+
+    let statusConfig = {};
+    
+    switch(newStatus) {
+      case 'l1_approved':
+        statusConfig = {
+          color: 'bg-green-100 text-green-800 border-green-300',
+          text: 'L1 Approved',
+          icon: 'fas fa-check-circle'
+        };
+        break;
+      case 'l1_returned':
+        statusConfig = {
+          color: 'bg-red-100 text-red-800 border-red-300',
+          text: 'L1 Returned',
+          icon: 'fas fa-exclamation-triangle'
+        };
+        break;
+      case 'l2_approved':
+        statusConfig = {
+          color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+          text: 'L2 Approved',
+          icon: 'fas fa-check-double'
+        };
+        break;
+      case 'l2_returned':
+        statusConfig = {
+          color: 'bg-orange-100 text-orange-800 border-orange-300',
+          text: 'L2 Returned',
+          icon: 'fas fa-exclamation-triangle'
+        };
+        break;
+      default:
+        statusConfig = {
+          color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+          text: 'Pending',
+          icon: 'fas fa-clock'
+        };
+    }
+
+    statusBadge.className = `inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${statusConfig.color}`;
+    statusBadge.innerHTML = `<i class="${statusConfig.icon} mr-2"></i>${statusConfig.text}`;
+  }
+
+  function hideActionButtons() {
+    const actionButtons = document.getElementById('actionButtons');
+    if (actionButtons) {
+      actionButtons.style.display = 'none';
+      
+      // Add processed message
+      const processedMessage = document.createElement('div');
+      processedMessage.className = 'mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium';
+      processedMessage.textContent = 'This Quarter has been processed and cannot be modified.';
+      actionButtons.parentNode.appendChild(processedMessage);
+    }
+  }
+
+  function submitDecision(event) {
+    event.preventDefault();
+    
+    const modalLoading = document.getElementById('modalLoading');
+    const form = document.getElementById('modalForm');
+    const formData = new FormData(form);
+    
+    // Add action_type to indicate this is an AJAX request
+    formData.append('action_type', currentActionType);
+    
+    // Show loading state
+    modalLoading.classList.remove('hidden');
+    
+    // Make AJAX request
+    fetch(currentActionUrl, {
+      method: 'PATCH',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      modalLoading.classList.add('hidden');
+      
+      if (data.success) {
+        // Close modal immediately
+        closeModal();
+        
+        // Show success message
+        showStatusMessage(data.message, true);
+        
+        // Update UI with real data from server if provided
+        if (data.updated_status) {
+          updateStatusBadge(data.updated_status);
+          hideActionButtons();
+        }
+        
+        // If no status data provided, reload after short delay
+        if (!data.updated_status) {
+          setTimeout(() => {
+            window.location.reload();
+          }, 1500);
+        }
+        
+        // Scroll to status message
+        document.getElementById('statusMessage').scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        
+      } else {
+        // Show error message but keep modal open
+        showStatusMessage(data.message || 'An error occurred', false);
+      }
+    })
+    .catch(error => {
+      modalLoading.classList.add('hidden');
+      console.error('Error:', error);
+      showStatusMessage('Network error occurred. Please try again.', false);
+    });
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('decisionModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeModal();
+    }
+  });
+
+  // Close modal with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeModal();
+    }
+  });
 </script>
 
 <!-- Keep existing styles -->
@@ -616,6 +731,66 @@ button:hover {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
+/* Enhanced modal styles */
+#decisionModal {
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+}
+
+#decisionModal .bg-white {
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Loading animation */
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Form validation styles */
+input:invalid, textarea:invalid {
+  border-color: #ef4444;
+}
+
+input:valid, textarea:valid {
+  border-color: #10b981;
+}
+
+/* Status message animation */
+#statusMessage {
+  animation: slideInFromTop 0.5s ease-out;
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Remarks column specific styling */
 .max-w-xs {
   max-width: 200px;
@@ -663,6 +838,11 @@ button:hover {
   
   .md\:grid-cols-2 {
     grid-template-columns: 1fr;
+  }
+  
+  #decisionModal .bg-white {
+    margin: 1rem;
+    width: calc(100% - 2rem);
   }
 }
 
@@ -735,6 +915,86 @@ button:hover {
 .bg-blue-200, .bg-green-200 {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
+/* Status transition animations */
+.quarterly-status-badge {
+  transition: all 0.3s ease-in-out;
+}
+
+.status-message {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Success and error message styling */
+.text-green-600 {
+  color: #059669;
+}
+
+.text-red-600 {
+  color: #dc2626;
+}
+
+/* Button hide animation */
+button[onclick*="openModal"] {
+  transition: all 0.3s ease-in-out;
+}
+
+button[onclick*="openModal"]:hover {
+  transform: translateY(-2px);
+}
+
+/* Loading state for modal */
+.loading {
+  position: relative;
+}
+
+.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+}
+
+/* Error field styling */
+.error {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1) !important;
+}
+
+.field-error {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+}
+
+/* Button disabled state */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+/* Status badge smooth transition */
+#quarterStatusBadge {
+  transition: all 0.5s ease-in-out;
+}
+
+/* Hide scrollbar when modal is open */
+body.modal-open {
+  overflow: hidden;
+}
 </style>
+
+<div style="display: none;">
+  <!-- CSRF token meta tag (add this to your layout if not already present) -->
+  <meta name="csrf-token" content="<%= form_authenticity_token if respond_to?(:form_authenticity_token) %>">
+</div>
 
 </div>

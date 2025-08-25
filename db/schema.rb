@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_23_113438) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_24_184557) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -85,6 +85,16 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_23_113438) do
     t.index ["user_id"], name: "index_employee_details_on_user_id"
   end
 
+  create_table "sms_logs", force: :cascade do |t|
+    t.string "quarter"
+    t.boolean "sent"
+    t.datetime "sent_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "employee_detail_id", null: false
+    t.index ["employee_detail_id"], name: "index_sms_logs_on_employee_detail_id"
+  end
+
   create_table "target_submissions", force: :cascade do |t|
     t.bigint "user_detail_id", null: false
     t.bigint "user_id", null: false
@@ -142,6 +152,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_23_113438) do
   add_foreign_key "achievements", "user_details"
   add_foreign_key "activities", "departments"
   add_foreign_key "employee_details", "users"
+  add_foreign_key "sms_logs", "employee_details"
   add_foreign_key "target_submissions", "employee_details"
   add_foreign_key "target_submissions", "user_details"
   add_foreign_key "target_submissions", "users"
