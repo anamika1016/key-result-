@@ -159,6 +159,9 @@
       quarter_achievements.each do |achievement|
         quarterly_statuses << (achievement.status || "pending")
         
+        # DEBUG: Log each achievement's status
+        Rails.logger.debug "Achievement #{achievement.id} for #{achievement.month}: status=#{achievement.status || 'pending'}"
+        
         if achievement.achievement_remark.present?
           quarter_achievement_count += 1
           
@@ -188,19 +191,46 @@
     # Determine overall quarter status (single status for entire quarter)
     overall_quarter_status = "pending"
     if quarterly_statuses.any?
+      # FIXED: Quarter status logic - check for actual approval data, not just status strings
+      
+      # DEBUG: Log what statuses we're working with
+      Rails.logger.debug "Quarter status calculation - Statuses: #{quarterly_statuses}"
+      Rails.logger.debug "L1 Total: #{quarter_l1_total}, L1 Remarks: #{quarter_remarks_l1.any?}"
+      Rails.logger.debug "Has L1 Returned: #{quarterly_statuses.any? { |s| s == "l1_returned" }}"
+      Rails.logger.debug "Has L2 Returned: #{quarterly_statuses.any? { |s| s == "l2_returned" }}"
+      
+      # Check if L2 has approved the entire quarter
       if quarterly_statuses.all? { |s| s == "l2_approved" }
         overall_quarter_status = "l2_approved"
-      elsif quarterly_statuses.any? { |s| s == "l2_approved" }
-        overall_quarter_status = "l2_approved"
-      elsif quarterly_statuses.any? { |s| s == "l1_approved" }
+        Rails.logger.debug "Setting status to: l2_approved (all months are l2_approved)"
+      # Check if L1 has approved the entire quarter (all months are l1_approved)
+      elsif quarterly_statuses.all? { |s| s == "l1_approved" }
         overall_quarter_status = "l1_approved"
+        Rails.logger.debug "Setting status to: l1_approved (all months are l1_approved)"
+      # Check for returned statuses FIRST (these override approval data)
       elsif quarterly_statuses.any? { |s| s == "l2_returned" }
         overall_quarter_status = "l2_returned"
+        Rails.logger.debug "Setting status to: l2_returned (some months are l2_returned)"
       elsif quarterly_statuses.any? { |s| s == "l1_returned" }
         overall_quarter_status = "l1_returned"
+        Rails.logger.debug "Setting status to: l1_returned (some months are l1_returned)"
+      # Check if L1 has approved the quarter (has percentage and remarks) even if some months are pending
+      # BUT only if no months are returned
+      elsif quarter_l1_total > 0 && quarter_remarks_l1.any? && !quarterly_statuses.any? { |s| ["l1_returned", "l2_returned"].include?(s) }
+        overall_quarter_status = "l1_approved"
+        Rails.logger.debug "Setting status to: l1_approved (has L1 data and no returns)"
+      # Check for submitted status
       elsif quarterly_statuses.any? { |s| s == "submitted" }
         overall_quarter_status = "submitted"
+        Rails.logger.debug "Setting status to: submitted (some months are submitted)"
+      # If any month is pending, the quarter is pending
+      elsif quarterly_statuses.any? { |s| s == "pending" }
+        # FIXED: If ANY month is pending, the entire quarter is pending
+        overall_quarter_status = "pending"
+        Rails.logger.debug "Setting status to: pending (some months are pending)"
       end
+      
+      Rails.logger.debug "Final quarter status: #{overall_quarter_status}"
     end
 
     status_config = case overall_quarter_status

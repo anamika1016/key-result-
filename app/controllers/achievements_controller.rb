@@ -13,6 +13,8 @@ class AchievementsController < ApplicationController
 
       a = @user_detail.achievements.find_or_initialize_by(month: month)
       a.achievement = achievement
+      # FIXED: Ensure status is set to pending for quarterly consistency
+      a.status = 'pending'
       a.save
     end
 

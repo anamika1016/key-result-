@@ -92,10 +92,6 @@ def update_quarterly_achievements
   errors = []
   updated_activities = []
 
-  Rails.logger.debug "QUARTERLY UPDATE DEBUG:"
-  Rails.logger.debug "Selected Quarter: #{selected_quarter}"
-  Rails.logger.debug "Achievement Data: #{achievement_data.inspect}"
-
   if achievement_data.empty?
     flash[:alert] = "No achievement data received. Please try again."
     redirect_to quarterly_edit_all_user_details_path
@@ -116,8 +112,6 @@ def update_quarterly_achievements
     []
   end
 
-  Rails.logger.debug "Quarter Months: #{quarter_months}"
-
   # Track which employee_details had changes to reset their entire quarter
   employee_details_with_changes = Set.new
 
@@ -125,8 +119,6 @@ def update_quarterly_achievements
     achievement_data.each do |user_detail_id, monthly_data|
       user_detail = UserDetail.find_by(id: user_detail_id)
       next unless user_detail
-
-      Rails.logger.debug "Processing UserDetail #{user_detail_id}: #{user_detail.activity.activity_name}"
 
       activity_updated = false
       
@@ -136,8 +128,6 @@ def update_quarterly_achievements
         
         achievement_value = values[:achievement]
         employee_remarks = values[:employee_remarks]
-
-        Rails.logger.debug "Month: #{month}, Achievement: #{achievement_value}, Remarks: #{employee_remarks}"
 
         # Skip if both achievement and remarks are blank
         next if achievement_value.blank? && employee_remarks.blank?
@@ -156,8 +146,6 @@ def update_quarterly_achievements
         achievement.achievement = achievement_value.present? ? achievement_value : nil
         achievement.employee_remarks = employee_remarks.present? ? employee_remarks : nil
         
-        Rails.logger.debug "Old Achievement: #{old_achievement}, New: #{achievement.achievement}"
-        
         # Save if there are changes
         if achievement.achievement != old_achievement || achievement.employee_remarks != old_remarks
           if achievement.save
@@ -165,65 +153,55 @@ def update_quarterly_achievements
             activity_updated = true
             # Mark this employee_detail as having changes for quarterly status update
             employee_details_with_changes.add(user_detail.employee_detail_id)
-            Rails.logger.debug "Successfully saved achievement for #{month}"
           else
             error_msg = "Failed to save #{month.capitalize} for #{user_detail.activity.activity_name}: #{achievement.errors.full_messages.join(', ')}"
             errors << error_msg
-            Rails.logger.error error_msg
           end
-        else
-          Rails.logger.debug "No changes detected for #{month}"
         end
       end
       
       if activity_updated
         activity_name = "#{user_detail.employee_detail&.employee_name} - #{user_detail.activity.activity_name}"
         updated_activities << activity_name
-        Rails.logger.debug "Activity updated: #{activity_name}"
       end
     end
 
-      # FIXED: After all individual updates, set ENTIRE quarter to pending for employees who had changes
+    # After all individual updates, set ENTIRE quarter to pending for employees who had changes
     employee_details_with_changes.each do |employee_detail_id|
-      Rails.logger.debug "Setting entire quarter to pending for employee_detail_id: #{employee_detail_id}"
-      
       # Find all user_details for this employee in current quarter
       employee_user_details = UserDetail.where(employee_detail_id: employee_detail_id)
       
       employee_user_details.each do |user_detail|
-          # FIXED: Set ALL achievements for this quarter to pending, regardless of whether they have values
-          quarter_months.each do |month|
-            # Find or create achievement for each month in the quarter
-            achievement = Achievement.find_or_initialize_by(
-              user_detail: user_detail,
-              month: month
-            )
-            
-            # Only update status if the achievement exists or we're creating it with some data
-            if achievement.persisted? || achievement.achievement.present? || achievement.employee_remarks.present?
-              old_status = achievement.status
-              achievement.status = 'pending'
-              achievement.save!
-              
-              Rails.logger.debug "Updated #{user_detail.activity.activity_name} #{month} from #{old_status} to pending"
+        # Set ALL achievements for this quarter to pending, regardless of whether they have values
+        quarter_months.each do |month|
+          # Find or create achievement for each month in the quarter
+          achievement = Achievement.find_or_initialize_by(
+            user_detail: user_detail,
+            month: month
+          )
           
-          # Reset approval remarks for quarterly approval
-              if achievement.achievement_remark
-                achievement.achievement_remark.update(
-              l1_remarks: nil,
-              l1_percentage: nil,
-              l2_remarks: nil,
-              l2_percentage: nil
-            )
-            Rails.logger.debug "Reset approval remarks for quarterly re-approval"
-              end
+          # Always update status to pending for the entire quarter when any month is edited
+          old_status = achievement.status
+          achievement.status = 'pending'
+          
+          # Save the achievement
+          if achievement.save
+            # Reset approval remarks for quarterly approval
+            if achievement.achievement_remark
+              achievement.achievement_remark.update(
+                l1_remarks: nil,
+                l1_percentage: nil,
+                l2_remarks: nil,
+                l2_percentage: nil
+              )
+            end
           end
         end
       end
     end
   end
 
-  # FIXED: Handle response messages
+  # Handle response messages
   if errors.empty?
     if success_count > 0
       flash[:notice] = "✅ Successfully updated #{success_count} achievement records across #{updated_activities.count} activities!"
@@ -251,36 +229,36 @@ rescue => e
   redirect_to quarterly_edit_all_user_details_path
 end
 
-# FIXED: Quarterly edit all method
-def quarterly_edit_all
-  Rails.logger.debug "QUARTERLY EDIT ALL - User Role: #{current_user.role}"
-  
-  if current_user.role == "employee" || current_user.role == "l1_employer" || current_user.role == "l2_employer"
-    employee_detail = EmployeeDetail.find_by(employee_email: current_user.email)
-    @user_details = if employee_detail
-      UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
+  # FIXED: Quarterly edit all method
+  def quarterly_edit_all
+    Rails.logger.debug "QUARTERLY EDIT ALL - User Role: #{current_user.role}"
+    
+    if current_user.role == "employee" || current_user.role == "l1_employer" || current_user.role == "l2_employer"
+      employee_detail = EmployeeDetail.find_by(employee_email: current_user.email)
+      @user_details = if employee_detail
+        UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
                 .where(employee_detail_id: employee_detail.id)
                 .order('departments.department_type, activities.activity_name')
-    else
-      UserDetail.none
-    end
-  elsif current_user.role == "hod"
-    @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
+      else
+        UserDetail.none
+      end
+    elsif current_user.role == "hod"
+      @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
                               .order('departments.department_type, employee_details.employee_name, activities.activity_name')
-  else
-    @user_details = UserDetail.none
+    else
+      @user_details = UserDetail.none
+    end
+
+    Rails.logger.debug "Found #{@user_details.count} user details for quarterly editing"
+
+    # FIXED: Correct quarter definitions to match the system
+    @quarters = [
+      { name: "Q1", months: ["april", "may", "june"], label: "Q1 (Apr-Jun)" },
+      { name: "Q2", months: ["july", "august", "september"], label: "Q2 (Jul-Sep)" },
+      { name: "Q3", months: ["october", "november", "december"], label: "Q3 (Oct-Dec)" },
+      { name: "Q4", months: ["january", "february", "march"], label: "Q4 (Jan-Mar)" }
+    ]
   end
-
-  Rails.logger.debug "Found #{@user_details.count} user details for quarterly editing"
-
-  # FIXED: Correct quarter definitions to match the system
-  @quarters = [
-    { name: "Q1", months: ["april", "may", "june"], label: "Q1 (Apr-Jun)" },
-    { name: "Q2", months: ["july", "august", "september"], label: "Q2 (Jul-Sep)" },
-    { name: "Q3", months: ["october", "november", "december"], label: "Q3 (Oct-Dec)" },
-    { name: "Q4", months: ["january", "february", "march"], label: "Q4 (Jan-Mar)" }
-  ]
-end
 
   
   def destroy
@@ -366,6 +344,8 @@ end
           
           achievement.achievement = achievement_value
           achievement.employee_remarks = employee_remarks
+          # FIXED: Ensure status is set to pending for quarterly consistency
+          achievement.status = 'pending'
           
           if achievement.save
             success_count += 1

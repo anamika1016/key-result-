@@ -675,31 +675,62 @@ class EmployeeDetailsController < ApplicationController
     new_status = is_approval ? 'l1_approved' : 'l1_returned'
     
     if params[:selected_quarter].present?
-      # Approve/Return specific quarter
+      # FIXED: Approve/Return specific quarter as a single unit
       quarter_months = get_quarter_months(params[:selected_quarter])
+      Rails.logger.info "Processing L1 #{action_type} for quarter: #{params[:selected_quarter]}, months: #{quarter_months}"
       
       @employee_detail.user_details.each do |detail|
+        Rails.logger.info "Processing user_detail: #{detail.id} for activity: #{detail.activity.activity_name}"
+        Rails.logger.info "Total achievements for this user_detail: #{detail.achievements.count}"
+        Rails.logger.info "Achievements by month: #{detail.achievements.map { |a| "#{a.month}:#{a.status}" }.join(', ')}"
+        
+        # FIXED: Process the entire quarter as one unit, not month by month
+        quarter_achievements = []
+        
+        # First, collect all achievements for this quarter
         quarter_months.each do |month|
-          # Check if there's a target for this month
-          target_value = get_target_for_month(detail, month)
-          next unless target_value.present? && target_value.to_s != '0'
+          # FIXED: Process ALL months in the quarter, not just those with targets
+          # This ensures the entire quarter gets approved when L1 approves
+          
+          Rails.logger.info "Looking for achievement for month: #{month}"
           
           # Find or create achievement for this month
           achievement = detail.achievements.find_or_create_by(month: month)
           
+          Rails.logger.info "Found/created achievement: #{achievement.inspect}, status: #{achievement.status}"
+          
           # Ensure achievement is saved and has an ID
           achievement.save! if achievement.new_record?
           
-          # Update achievement status
-          achievement.update!(status: new_status)
+          # Add to quarter achievements list
+          quarter_achievements << achievement
+        end
+        
+        # FIXED: Now process the entire quarter as one unit
+        if quarter_achievements.any?
+          Rails.logger.info "Processing #{quarter_achievements.count} achievements for quarter #{params[:selected_quarter]}"
+          Rails.logger.info "Achievements to process: #{quarter_achievements.map { |a| "#{a.month}:#{a.status}" }.join(', ')}"
+          Rails.logger.info "Action type: #{action_type}, New status: #{new_status}"
           
-          # Create or update achievement remark with COMMON remarks for quarter
-          remark = achievement.achievement_remark || achievement.build_achievement_remark
-          remark.l1_remarks = params[:remarks] if params[:remarks].present?
-          remark.l1_percentage = params[:percentage] if params[:percentage].present?
-          remark.save!
+          # FIXED: Update ALL achievements in the quarter to the same status
+          quarter_achievements.each do |achievement|
+            old_status = achievement.status
+            achievement.update!(status: new_status)
+            Rails.logger.info "Updated #{achievement.month} from #{old_status} to #{new_status}"
+            
+            # Create or update achievement remark with COMMON remarks for quarter
+            remark = achievement.achievement_remark || achievement.build_achievement_remark
+            remark.l1_remarks = params[:remarks] if params[:remarks].present?
+            remark.l1_percentage = params[:percentage] if params[:percentage].present?
+            remark.save!
+            
+            approved_count += 1
+          end
           
-          approved_count += 1
+          Rails.logger.info "Successfully processed quarter #{params[:selected_quarter]} for activity #{detail.activity.activity_name}"
+          Rails.logger.info "All #{quarter_achievements.count} months in quarter #{params[:selected_quarter]} now have status: #{new_status}"
+        else
+          Rails.logger.warn "No achievements found for quarter #{params[:selected_quarter]} in activity #{detail.activity.activity_name}"
         end
       end
     else
@@ -709,9 +740,8 @@ class EmployeeDetailsController < ApplicationController
           quarter_months = get_quarter_months(quarter)
           
           quarter_months.each do |month|
-            # Check if there's a target for this month
-            target_value = get_target_for_month(detail, month)
-            next unless target_value.present? && target_value.to_s != '0'
+            # FIXED: Process ALL months in the quarter, not just those with targets
+            # This ensures the entire quarter gets approved when processing all quarters
             
             # Find or create achievement for this month
             achievement = detail.achievements.find_or_create_by(month: month)
@@ -760,44 +790,83 @@ def process_quarterly_l2_approval
   Rails.logger.info "Selected quarter: #{params[:selected_quarter]}"
   
   if params[:selected_quarter].present?
-    # Approve/Return specific quarter
+    # FIXED: Approve/Return specific quarter as a single unit
     quarter_months = get_quarter_months(params[:selected_quarter])
-    Rails.logger.info "Quarter months: #{quarter_months}"
+    Rails.logger.info "Processing L2 #{action_type} for quarter: #{params[:selected_quarter]}, months: #{quarter_months}"
     
     @employee_detail.user_details.each do |detail|
-      Rails.logger.info "Processing user_detail: #{detail.id}"
+      Rails.logger.info "Processing user_detail: #{detail.id} for activity: #{detail.activity.activity_name}"
+      Rails.logger.info "Total achievements for this user_detail: #{detail.achievements.count}"
+      Rails.logger.info "Achievements by month: #{detail.achievements.map { |a| "#{a.month}:#{a.status}" }.join(', ')}"
+      
+      # FIXED: Process the entire quarter as one unit, not month by month
+      quarter_achievements = []
+      
+      # First, collect all achievements for this quarter
       quarter_months.each do |month|
-        # Check if there's a target for this month
-        target_value = get_target_for_month(detail, month)
-        next unless target_value.present? && target_value.to_s != '0'
+        # FIXED: Process ALL months in the quarter, not just those with targets
+        # This ensures the entire quarter gets approved when L2 approves
+        
+        Rails.logger.info "Looking for achievement for month: #{month}"
         
         # Find or create achievement for this month
         achievement = detail.achievements.find_or_create_by(month: month)
-        Rails.logger.info "Achievement for #{month}: #{achievement.inspect}, status: #{achievement.status}"
+        Rails.logger.info "Found/created achievement: #{achievement.inspect}, status: #{achievement.status}"
         
         # Ensure achievement is saved and has an ID
         achievement.save! if achievement.new_record?
         
-        # For L2 return, we should be able to return L1 approved achievements
-        # For L2 approve, we need L1 approved or L2 returned achievements
-        eligible_statuses = is_approval ? ['l1_approved', 'l2_returned'] : ['l1_approved']
+        # Add to quarter achievements list
+        quarter_achievements << achievement
+      end
+      
+      # FIXED: Now process the entire quarter as one unit
+      if quarter_achievements.any?
+        Rails.logger.info "Processing #{quarter_achievements.count} achievements for quarter #{params[:selected_quarter]}"
+        Rails.logger.info "Achievements to process: #{quarter_achievements.map { |a| "#{a.month}:#{a.status}" }.join(', ')}"
         
-        if eligible_statuses.include?(achievement.status)
-          Rails.logger.info "Processing achievement #{achievement.id} for #{month}"
-          # Update achievement status
-          achievement.update!(status: new_status)
-          
-          # Create or update achievement remark with COMMON remarks for quarter
-          remark = achievement.achievement_remark || achievement.build_achievement_remark
-          remark.l2_remarks = params[:l2_remarks] || params[:remarks] if (params[:l2_remarks].present? || params[:remarks].present?)
-          remark.l2_percentage = params[:l2_percentage] || params[:percentage] if (params[:l2_percentage].present? || params[:percentage].present?)
-          remark.save!
-          
-          approved_count += 1
-          Rails.logger.info "Successfully processed achievement #{achievement.id}"
-        else
-          Rails.logger.info "Skipping achievement #{achievement.id} for #{month} - status #{achievement.status} not eligible for #{action_type}"
+        # Update ALL achievements in the quarter to the same status
+        quarter_achievements.each do |achievement|
+          # For L2 return, we should be able to return L1 approved achievements
+          # For L2 approve, we need L1 approved or L2 returned achievements
+          if is_approval
+            # For approval, check eligibility
+            eligible_statuses = ['l1_approved', 'l2_returned']
+            if eligible_statuses.include?(achievement.status)
+              old_status = achievement.status
+              achievement.update!(status: new_status)
+              Rails.logger.info "Updated #{achievement.month} from #{old_status} to #{new_status}"
+              
+              # Create or update achievement remark with COMMON remarks for quarter
+              remark = achievement.achievement_remark || achievement.build_achievement_remark
+              remark.l2_remarks = params[:l2_remarks] || params[:remarks] if (params[:l2_remarks].present? || params[:remarks].present?)
+              remark.l2_percentage = params[:l2_percentage] || params[:percentage] if (params[:l2_percentage].present? || params[:percentage].present?)
+              remark.save!
+              
+              approved_count += 1
+            else
+              Rails.logger.info "Skipping #{achievement.month} - status #{achievement.status} not eligible for approval"
+            end
+          else
+            # For return, process ALL achievements regardless of current status
+            old_status = achievement.status
+            achievement.update!(status: new_status)
+            Rails.logger.info "Updated #{achievement.month} from #{old_status} to #{new_status} (return)"
+            
+            # Create or update achievement remark with COMMON remarks for quarter
+            remark = achievement.achievement_remark || achievement.build_achievement_remark
+            remark.l2_remarks = params[:l2_remarks] || params[:remarks] if (params[:l2_remarks].present? || params[:remarks].present?)
+            remark.l2_percentage = params[:l2_percentage] || params[:percentage] if (params[:l2_percentage].present? || params[:percentage].present?)
+            remark.save!
+            
+            approved_count += 1
+          end
         end
+        
+        Rails.logger.info "Successfully processed quarter #{params[:selected_quarter]} for activity #{detail.activity.activity_name}"
+        Rails.logger.info "All eligible months in quarter #{params[:selected_quarter]} now have status: #{new_status}"
+      else
+        Rails.logger.warn "No achievements found for quarter #{params[:selected_quarter]} in activity #{detail.activity.activity_name}"
       end
     end
   else
@@ -807,9 +876,8 @@ def process_quarterly_l2_approval
         quarter_months = get_quarter_months(quarter)
         
         quarter_months.each do |month|
-          # Check if there's a target for this month
-          target_value = get_target_for_month(detail, month)
-          next unless target_value.present? && target_value.to_s != '0'
+          # FIXED: Process ALL months in the quarter, not just those with targets
+          # This ensures the entire quarter gets approved when processing all quarters
           
           # Find or create achievement for this month
           achievement = detail.achievements.find_or_create_by(month: month)
