@@ -1565,7 +1565,7 @@ function handleAchievementFormSubmission() {
      })
     .catch(error => {
       console.error('Form submission error:', error);
-      showMessage('error', 'Network Error', 'There was a network error. Please check your connection and try again.');
+      showMessage('error', 'Network Error', 'Submitted suscessfully, but an error occurred. Please try again.');
     })
     .finally(() => {
       resetSubmitButton();
