@@ -94,8 +94,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_074634) do
     t.datetime "sent_at"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.bigint "employee_detail_id", null: false
-    t.index ["employee_detail_id"], name: "index_sms_logs_on_employee_detail_id"
   end
 
   create_table "target_submissions", force: :cascade do |t|
@@ -155,7 +153,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_074634) do
   add_foreign_key "achievements", "user_details"
   add_foreign_key "activities", "departments"
   add_foreign_key "employee_details", "users"
-  add_foreign_key "sms_logs", "employee_details"
   add_foreign_key "target_submissions", "employee_details"
   add_foreign_key "target_submissions", "user_details"
   add_foreign_key "target_submissions", "users"
