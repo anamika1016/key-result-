@@ -190,7 +190,9 @@
     if quarterly_statuses.any?
       if quarterly_statuses.all? { |s| s == "l2_approved" }
         overall_quarter_status = "l2_approved"
-      elsif quarterly_statuses.all? { |s| s == "l1_approved" }
+      elsif quarterly_statuses.any? { |s| s == "l2_approved" }
+        overall_quarter_status = "l2_approved"
+      elsif quarterly_statuses.any? { |s| s == "l1_approved" }
         overall_quarter_status = "l1_approved"
       elsif quarterly_statuses.any? { |s| s == "l2_returned" }
         overall_quarter_status = "l2_returned"

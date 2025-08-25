@@ -166,7 +166,7 @@
                 { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status", icon: "fas fa-question-circle" }
               end
             %>
-            <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border <%= status_config[:color] %>">
+            <span id="quarterlyStatusBadge" class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border <%= status_config[:color] %>">
               <i class="<%= status_config[:icon] %> mr-2"></i>
               <%= status_config[:text] %>
             </span>
@@ -264,9 +264,7 @@
       <% if params[:user_detail_id].present? %>
         <input type="hidden" name="user_detail_id" value="<%= params[:user_detail_id] %>">
       <% end %>
-      <% if params[:quarter].present? %>
-        <input type="hidden" name="selected_quarter" value="<%= params[:quarter] %>">
-      <% end %>
+      <input type="hidden" name="selected_quarter" value="<%= params[:quarter] %>">
       <input type="hidden" name="apply_to_all_activities" value="true">
       
       <div class="flex justify-end gap-2">
@@ -324,9 +322,16 @@
   }
 
   function updateQuarterlyStatus(newStatus) {
+    console.log('updateQuarterlyStatus called with:', newStatus);
+    
     // Find the status badge and update it
-    const statusBadge = document.querySelector('.inline-flex.items-center');
-    if (!statusBadge) return;
+    const statusBadge = document.getElementById('quarterlyStatusBadge');
+    console.log('Status badge found:', statusBadge);
+    
+    if (!statusBadge) {
+      console.error('Status badge not found!');
+      return;
+    }
 
     let statusConfig = {};
     
@@ -374,8 +379,11 @@
         };
     }
 
+    console.log('Updating status badge with config:', statusConfig);
     statusBadge.className = `inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${statusConfig.color}`;
     statusBadge.innerHTML = `<i class="${statusConfig.icon} mr-2"></i>${statusConfig.text}`;
+    
+    console.log('Status badge updated successfully');
   }
 
   function hideActionButtons() {
@@ -416,6 +424,7 @@
     .then(response => response.json())
     .then(data => {
       modalLoading.classList.add('hidden');
+      console.log('Server response:', data);
       
       if (data.success) {
         // Close modal immediately
@@ -426,15 +435,29 @@
         
         // Update UI with real data from server if provided
         if (data.updated_status) {
-          updateQuarterlyStatus(data.updated_status);
-          hideActionButtons();
-        }
-        
-        // If no status data provided, reload after short delay
-        if (!data.updated_status) {
+          console.log('Updating status to:', data.updated_status);
+          
+          // Check if status badge exists
+          const statusBadge = document.getElementById('quarterlyStatusBadge');
+          if (statusBadge) {
+            updateQuarterlyStatus(data.updated_status);
+            hideActionButtons();
+            
+            // Reload page after status update to ensure consistency
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+          } else {
+            console.error('Status badge not found, reloading page immediately');
+            setTimeout(() => {
+              window.location.reload();
+            }, 1000);
+          }
+        } else {
+          // If no status data provided, reload immediately
           setTimeout(() => {
             window.location.reload();
-          }, 1500);
+          }, 1000);
         }
         
         // Scroll to status message

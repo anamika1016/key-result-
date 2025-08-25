@@ -337,7 +337,8 @@ class EmployeeDetailsController < ApplicationController
         render json: { 
           success: true, 
           count: result[:count], 
-          message: "✅ Successfully approved #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L2" 
+          message: "✅ Successfully approved #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L2",
+          updated_status: 'l2_approved'
         }
       else
         redirect_to show_l2_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]), 
@@ -365,29 +366,36 @@ class EmployeeDetailsController < ApplicationController
       return
     end
     
+    # Add debugging
+    Rails.logger.info "L2 Return called for employee: #{@employee_detail.id}, quarter: #{params[:selected_quarter]}"
+    Rails.logger.info "Params: #{params.inspect}"
+    
     # Pass action_type parameter to indicate this is a return action
     params[:action_type] = 'return'
     result = process_quarterly_l2_return
 
-      if result[:success]
-        if request.xhr? || params[:action_type].present?
-          render json: { 
-            success: true, 
-            count: result[:count], 
-            message: "⚠️ Successfully returned #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L2" 
-          }
-        else
-          redirect_to show_l2_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]), 
-                      alert: "⚠️ Successfully returned #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L2"
-        end
+    Rails.logger.info "L2 Return result: #{result.inspect}"
+
+    if result[:success]
+      if request.xhr? || params[:action_type].present?
+        render json: { 
+          success: true, 
+          count: result[:count], 
+          message: "⚠️ Successfully returned #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L2",
+          updated_status: 'l2_returned'
+        }
       else
-        if request.xhr? || params[:action_type].present?
-          render json: { success: false, message: result[:message] }
-        else
-          redirect_to show_l2_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]), 
-                      alert: result[:message]
-        end
+        redirect_to show_l2_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]), 
+                    notice: "⚠️ Successfully returned #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L2"
       end
+    else
+      if request.xhr? || params[:action_type].present?
+        render json: { success: false, message: result[:message] }
+      else
+        redirect_to show_l2_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]), 
+                    alert: result[:message]
+      end
+    end
   end
 
   private
@@ -748,11 +756,16 @@ def process_quarterly_l2_approval
   is_approval = action_type.include?('approve')
   new_status = is_approval ? 'l2_approved' : 'l2_returned'
   
+  Rails.logger.info "Processing L2 #{action_type} with status: #{new_status}"
+  Rails.logger.info "Selected quarter: #{params[:selected_quarter]}"
+  
   if params[:selected_quarter].present?
     # Approve/Return specific quarter
     quarter_months = get_quarter_months(params[:selected_quarter])
+    Rails.logger.info "Quarter months: #{quarter_months}"
     
     @employee_detail.user_details.each do |detail|
+      Rails.logger.info "Processing user_detail: #{detail.id}"
       quarter_months.each do |month|
         # Check if there's a target for this month
         target_value = get_target_for_month(detail, month)
@@ -760,12 +773,17 @@ def process_quarterly_l2_approval
         
         # Find or create achievement for this month
         achievement = detail.achievements.find_or_create_by(month: month)
+        Rails.logger.info "Achievement for #{month}: #{achievement.inspect}, status: #{achievement.status}"
         
         # Ensure achievement is saved and has an ID
         achievement.save! if achievement.new_record?
         
-        # Only process if achievement is in correct status for L2 action
-        if ['l1_approved', 'l2_returned'].include?(achievement.status)
+        # For L2 return, we should be able to return L1 approved achievements
+        # For L2 approve, we need L1 approved or L2 returned achievements
+        eligible_statuses = is_approval ? ['l1_approved', 'l2_returned'] : ['l1_approved']
+        
+        if eligible_statuses.include?(achievement.status)
+          Rails.logger.info "Processing achievement #{achievement.id} for #{month}"
           # Update achievement status
           achievement.update!(status: new_status)
           
@@ -776,6 +794,9 @@ def process_quarterly_l2_approval
           remark.save!
           
           approved_count += 1
+          Rails.logger.info "Successfully processed achievement #{achievement.id}"
+        else
+          Rails.logger.info "Skipping achievement #{achievement.id} for #{month} - status #{achievement.status} not eligible for #{action_type}"
         end
       end
     end
@@ -796,8 +817,11 @@ def process_quarterly_l2_approval
           # Ensure achievement is saved and has an ID
           achievement.save! if achievement.new_record?
           
-          # Only process if achievement is in correct status for L2 action
-          if ['l1_approved', 'l2_returned'].include?(achievement.status)
+          # For L2 return, we should be able to return L1 approved achievements
+          # For L2 approve, we need L1 approved or L2 returned achievements
+          eligible_statuses = is_approval ? ['l1_approved', 'l2_returned'] : ['l1_approved']
+          
+          if eligible_statuses.include?(achievement.status)
             # Update achievement status
             achievement.update!(status: new_status)
             
@@ -813,6 +837,7 @@ def process_quarterly_l2_approval
     end
   end
 
+  Rails.logger.info "Final result: #{approved_count} achievements processed"
   if approved_count > 0
     { success: true, count: approved_count }
   else

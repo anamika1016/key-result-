@@ -1,5 +1,6 @@
 class UserDetailsController < ApplicationController
   require 'ostruct'
+  require 'set'
   before_action :set_user_detail, only: [:show, :edit, :update, :destroy]
   
   def index
@@ -340,6 +341,7 @@ end
     achievement_data = params[:achievement] || {}
     success_count = 0
     sms_results = []
+    processed_employees = Set.new
 
     ActiveRecord::Base.transaction do
       achievement_data.each do |user_detail_id, monthly_data|
@@ -347,7 +349,7 @@ end
         next unless user_detail
         
         employee_detail = user_detail.employee_detail
-        next unless employee_detail&.mobile_number.present?
+        next unless employee_detail.present?
 
         monthly_data.each do |month, values|
           achievement_value = values[:achievement]
@@ -367,32 +369,42 @@ end
           
           if achievement.save
             success_count += 1
-            
-            # Check if this month belongs to a quarter and send SMS immediately
+          end
+        end
+        
+        # FIXED: Send SMS only once per employee per quarter, outside the monthly loop
+        unless processed_employees.include?(employee_detail.id)
+          processed_employees.add(employee_detail.id)
+          
+          # Check which quarters were filled in this submission
+          quarters_filled = Set.new
+          monthly_data.each do |month, values|
+            next if values[:achievement].blank?
             quarter = determine_quarter(month)
-            if quarter.present?
-              # Check if SMS was already sent for this quarter using database tracking
-              # Use employee_detail_id instead of user_detail_id to track per employee
-              sms_already_sent = check_sms_already_sent(employee_detail.id, quarter)
+            quarters_filled.add(quarter) if quarter.present?
+          end
+          
+          # Send SMS for each quarter that was filled
+          quarters_filled.each do |quarter|
+            # Check if SMS was already sent for this quarter using database tracking
+            sms_already_sent = check_sms_already_sent(employee_detail.id, quarter)
+            
+            unless sms_already_sent
+              # Send SMS for this quarter
+              sms_result = send_sms_to_l1(employee_detail, quarter, user_detail)
+              sms_results << {
+                quarter: quarter,
+                employee: employee_detail.employee_name,
+                success: sms_result[:success],
+                message: sms_result[:success] ? "SMS sent successfully" : sms_result[:error]
+              }
               
-              unless sms_already_sent
-                # Send SMS immediately for this quarter
-                sms_result = send_sms_to_l1(employee_detail, quarter, user_detail)
-                sms_results << {
-                  quarter: quarter,
-                  employee: employee_detail.employee_name,
-                  month: month,
-                  success: sms_result[:success],
-                  message: sms_result[:success] ? "SMS sent successfully" : sms_result[:error]
-                }
-                
-                # Mark this quarter as SMS sent in database using employee_detail_id
-                mark_sms_as_sent(employee_detail.id, quarter)
-                
-                Rails.logger.info "SMS sent for #{quarter} when #{month} was filled for employee #{employee_detail.employee_name}"
-              else
-                Rails.logger.info "SMS already sent for #{quarter} for employee #{employee_detail.employee_name}, skipping duplicate"
-              end
+              # Mark this quarter as SMS sent in database
+              mark_sms_as_sent(employee_detail.id, quarter)
+              
+              Rails.logger.info "SMS sent for #{quarter} for employee #{employee_detail.employee_name}"
+            else
+              Rails.logger.info "SMS already sent for #{quarter} for employee #{employee_detail.employee_name}, skipping duplicate"
             end
           end
         end
@@ -845,9 +857,16 @@ end
   # SMS functionality for quarterly notifications
   def send_sms_to_l1(employee_detail, quarter, user_detail)
     begin
-      # Get L1 employer mobile number
-      l1_mobile = employee_detail.mobile_number
-      return { success: false, error: "L1 mobile number not found" } unless l1_mobile.present?
+      # Get L1 manager's mobile number (not the employee's mobile number)
+      l1_code = employee_detail.l1_code
+      return { success: false, error: "L1 code not found for employee" } unless l1_code.present?
+      
+      # Find the L1 manager's employee detail record
+      l1_manager = EmployeeDetail.find_by('employee_code LIKE ?', l1_code.strip + '%')
+      return { success: false, error: "L1 manager not found with code: #{l1_code}" } unless l1_manager.present?
+      
+      l1_mobile = l1_manager.mobile_number
+      return { success: false, error: "L1 manager mobile number not found" } unless l1_mobile.present?
       
       # Clean and validate mobile number
       l1_mobile = l1_mobile.to_s.strip.gsub(/\D/, '')
@@ -872,7 +891,7 @@ end
       api_url = "https://sms.yoursmsbox.com/api/sendhttp.php"
       
       # Log the API call for debugging
-      Rails.logger.info "Sending SMS to #{l1_mobile} for employee #{employee_detail.employee_code}"
+      Rails.logger.info "Sending SMS to L1 manager #{l1_manager.employee_name} (#{l1_mobile}) for employee #{employee_detail.employee_code}"
       Rails.logger.info "SMS API URL: #{api_url}"
       Rails.logger.info "SMS Parameters: #{params.inspect}"
       
@@ -889,7 +908,7 @@ end
         begin
           response_data = JSON.parse(response.body)
           if response_data["Status"] == "Success" && response_data["Code"] == "000"
-            Rails.logger.info "SMS sent successfully to L1 employer #{l1_mobile} for employee #{employee_detail.employee_code}"
+            Rails.logger.info "SMS sent successfully to L1 manager #{l1_manager.employee_name} (#{l1_mobile}) for employee #{employee_detail.employee_code}"
             Rails.logger.info "Message ID: #{response_data['Message-Id']}"
             return { 
               success: true, 
