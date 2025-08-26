@@ -4,7 +4,7 @@ class CreateSmsLogs < ActiveRecord::Migration[8.0]
       t.string :quarter
       t.boolean :sent
       t.datetime :sent_at
-      t.references :user_detail, null: false, foreign_key: true
+      t.references :employee_detail, null: false, foreign_key: true
 
       t.timestamps
     end
