@@ -17,6 +17,11 @@ Rails.application.configure do
   config.assets.debug = true
   config.assets.digest = false
   config.assets.raise_runtime_errors = true
+  
+  # Allow specific hosts for development
+  config.hosts << "139.59.8.73"
+  config.hosts << "139.59.8.73:3002"
+  
   # Enable/disable Action Controller caching. By default Action Controller caching is disabled.
   # Run rails dev:cache to toggle Action Controller caching.
   if Rails.root.join("tmp/caching-dev.txt").exist?
