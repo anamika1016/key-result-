@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_26_094633) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -40,7 +40,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
     t.text "employee_remarks"
     t.index ["month"], name: "index_achievements_on_month"
     t.index ["status"], name: "index_achievements_on_status"
-    t.index ["user_detail_id", "month"], name: "index_achievements_on_user_detail_id_and_month", unique: true
+    t.index ["user_detail_id", "month"], name: "index_achievements_on_user_detail_id_and_month"
     t.index ["user_detail_id"], name: "index_achievements_on_user_detail_id"
   end
 
