@@ -336,96 +336,109 @@ end
   end
   
   def submit_achievements
-    achievement_data = params[:achievement] || {}
-    success_count = 0
-    sms_results = []
-    processed_employees = Set.new
+    begin
+      achievement_data = params[:achievement] || {}
+      success_count = 0
+      sms_results = []
+      processed_employees = Set.new
 
-    ActiveRecord::Base.transaction do
-      achievement_data.each do |user_detail_id, monthly_data|
-        user_detail = UserDetail.find_by(id: user_detail_id)
-        next unless user_detail
+      Rails.logger.info "Starting achievement submission with data: #{achievement_data.inspect}"
+
+      ActiveRecord::Base.transaction do
+        Rails.logger.info "Database transaction started"
         
-        employee_detail = user_detail.employee_detail
-        next unless employee_detail.present?
-
-        monthly_data.each do |month, values|
-          achievement_value = values[:achievement]
-          employee_remarks = values[:employee_remarks]
-
-          next if achievement_value.blank?
-          target_value = user_detail.send(month)
-          next if target_value.blank?
-
-          achievement = Achievement.find_or_initialize_by(
-            user_detail: user_detail, 
-            month: month
-          )
+        achievement_data.each do |user_detail_id, monthly_data|
+          user_detail = UserDetail.find_by(id: user_detail_id)
+          next unless user_detail
           
-          achievement.achievement = achievement_value
-          achievement.employee_remarks = employee_remarks
-          # FIXED: Ensure status is set to pending for quarterly consistency
-          achievement.status = 'pending'
-          
-          if achievement.save
-            success_count += 1
-          end
-        end
-        
-        # FIXED: Send SMS only once per employee per quarter, outside the monthly loop
-        unless processed_employees.include?(employee_detail.id)
-          processed_employees.add(employee_detail.id)
-          
-          # Check which quarters were filled in this submission
-          quarters_filled = Set.new
+          employee_detail = user_detail.employee_detail
+          next unless employee_detail
+
           monthly_data.each do |month, values|
-            next if values[:achievement].blank?
-            quarter = determine_quarter(month)
-            quarters_filled.add(quarter) if quarter.present?
-          end
-          
-          # Send SMS for each quarter that was filled
-          quarters_filled.each do |quarter|
-            # Check if SMS was already sent for this quarter using database tracking
-            sms_already_sent = check_sms_already_sent(employee_detail.id, quarter)
+            achievement_value = values[:achievement]
+            employee_remarks = values[:employee_remarks]
+
+            next if achievement_value.blank?
             
-            unless sms_already_sent
-              # Send SMS for this quarter
-              sms_result = send_sms_to_l1(employee_detail, quarter, user_detail)
-              sms_results << {
-                quarter: quarter,
-                employee: employee_detail.employee_name,
-                success: sms_result[:success],
-                message: sms_result[:success] ? "SMS sent successfully" : sms_result[:error]
-              }
+            target_value = user_detail.send(month)
+            next if target_value.blank?
+
+            achievement = Achievement.find_or_initialize_by(
+              user_detail: user_detail, 
+              month: month
+            )
+            
+            achievement.achievement = achievement_value
+            achievement.employee_remarks = employee_remarks
+            achievement.status = 'pending'
+            
+            if achievement.save
+              success_count += 1
+            end
+          end
+        
+          # Send SMS only once per employee per quarter
+          unless processed_employees.include?(employee_detail.id)
+            processed_employees.add(employee_detail.id)
+            
+            quarters_filled = Set.new
+            monthly_data.each do |month, values|
+              next if values[:achievement].blank?
+              quarter = determine_quarter(month)
+              quarters_filled.add(quarter) if quarter.present?
+            end
+            
+            quarters_filled.each do |quarter|
+              sms_already_sent = check_sms_already_sent(employee_detail.id, quarter)
               
-              # Mark this quarter as SMS sent in database
-              mark_sms_as_sent(employee_detail.id, quarter)
-              
-              Rails.logger.info "SMS sent for #{quarter} for employee #{employee_detail.employee_name}"
-            else
-              Rails.logger.info "SMS already sent for #{quarter} for employee #{employee_detail.employee_name}, skipping duplicate"
+              unless sms_already_sent
+                sms_result = send_sms_to_l1(employee_detail, quarter, user_detail)
+                sms_results << {
+                  quarter: quarter,
+                  employee: employee_detail.employee_name,
+                  success: sms_result[:success],
+                  message: sms_result[:success] ? "SMS sent successfully" : sms_result[:error]
+                }
+                
+                mark_sms_as_sent(employee_detail.id, quarter)
+              end
             end
           end
         end
+        
+        Rails.logger.info "Database transaction completed successfully"
       end
-    end
 
-    # Prepare response message
-    response_message = "Achievements submitted successfully. #{success_count} records updated."
-    if sms_results.any?
-      successful_sms = sms_results.select { |r| r[:success] }
-      if successful_sms.any?
-        response_message += " 📱 SMS notifications sent for #{successful_sms.count} quarter(s)."
+      # Prepare response message
+      response_message = "Achievements submitted successfully. #{success_count} records updated."
+      if sms_results.any?
+        successful_sms = sms_results.select { |r| r[:success] }
+        if successful_sms.any?
+          response_message += " 📱 SMS notifications sent for #{successful_sms.count} quarter(s)."
+        end
       end
-    end
 
-    render json: { 
-      success: true, 
-      count: success_count, 
-      sms_results: sms_results,
-      message: response_message
-    }
+      render json: { 
+        success: true, 
+        count: success_count, 
+        sms_results: sms_results,
+        message: response_message
+      }
+    rescue => e
+      Rails.logger.error "Achievement submission failed: #{e.message}"
+      Rails.logger.error "Error class: #{e.class}"
+      Rails.logger.error "Backtrace: #{e.backtrace.first(10).join("\n")}"
+      
+      error_response = { 
+        success: false, 
+        error: "Achievement submission failed: #{e.message}",
+        message: "There was an error submitting achievements. Please try again."
+      }
+      
+      Rails.logger.error "Error response prepared: #{error_response.inspect}"
+      
+      render json: error_response, status: :internal_server_error
+    end
   end
 
   def get_activities
