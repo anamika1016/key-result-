@@ -124,14 +124,14 @@
                       </td>
                       
                       <!-- Achievement -->
-                      <td class="px-4 py-3 text-sm text-center border-r border-gray-200">
+                      <td class="px-4 py-3 text-sm text-center border-r border-gray-200 achievement-cell">
                         <span class="<%= achievement_value.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
                           <%= achievement_value.presence || '-' %>
                         </span>
                       </td>
                       
                       <!-- Remarks -->
-                      <td class="px-4 py-3 text-sm text-center border-r border-gray-200 max-w-xs">
+                      <td class="px-4 py-3 text-sm text-center border-r border-gray-200 remarks-cell">
                         <span class="<%= employee_remarks.presence ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs break-words' : 'text-gray-400 text-xs' %>">
                           <%= employee_remarks.presence || '-' %>
                         </span>
@@ -691,7 +691,19 @@ button:hover {
 }
 
 .max-w-xs {
-  max-width: 200px;
+  max-width: 350px;
+}
+
+/* Achievement column specific styling */
+.achievement-cell {
+  min-width: 300px;
+  max-width: 400px;
+}
+
+/* Remarks column enhanced styling */
+.remarks-cell {
+  min-width: 350px;
+  max-width: 450px;
 }
 
 .break-words {
