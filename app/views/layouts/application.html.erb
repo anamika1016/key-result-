@@ -25,6 +25,22 @@
 
   <body>
     <%= render 'shared/sidebar' %>
+    
+    <!-- Flash Messages - Upper Center -->
+    <% if flash[:notice] %>
+      <div class="alert alert-success alert-dismissible fade show">
+        <i class="fas fa-check-circle me-2"></i>
+        <%= flash[:notice] %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <% elsif flash[:alert] %>
+      <div class="alert alert-danger alert-dismissible fade show">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <%= flash[:alert] %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <% end %>
+    
     <%= yield %>
   </body>
 </html>

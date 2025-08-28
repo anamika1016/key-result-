@@ -29,29 +29,68 @@ class UserDetailsController < ApplicationController
 
     # Filter employees based on selected department
     if params[:department_id].present?
-      dept_type = Department.find(params[:department_id]).department_type
-      @employee_details = EmployeeDetail.where(department: dept_type)
-                                        .select(:id, :employee_name, :l1_employer_name, :l2_employer_name, :department)
-                                        .order(:employee_name)
+      begin
+        dept_type = Department.find(params[:department_id]).department_type
+        @employee_details = EmployeeDetail.where(department: dept_type)
+                                          .select(:id, :employee_name, :l1_employer_name, :l2_employer_name, :department)
+                                          .order(:employee_name)
+      rescue ActiveRecord::RecordNotFound
+        flash[:alert] = "Department not found."
+        @employee_details = EmployeeDetail.none
+      end
     else
       @employee_details = EmployeeDetail.none
     end
 
     # Find selected employee to show L1/L2
     if params[:employee_detail_id].present?
-      @selected_employee = EmployeeDetail.find_by(id: params[:employee_detail_id])
+      begin
+        @selected_employee = EmployeeDetail.find_by(id: params[:employee_detail_id])
+      rescue ActiveRecord::RecordNotFound
+        flash[:alert] = "Employee not found."
+        @selected_employee = nil
+      end
     end
 
     @users = User.select(:id, :email, :role) if params[:show_users]
 
-    # FIXED: Only load user_details when BOTH department and employee are selected
-    # This prevents showing all data when only one filter is applied
-    @user_details = if params[:department_id].present? && params[:employee_detail_id].present?
-      UserDetail.includes(:department, :activity, :employee_detail)
-                .where(filter_conditions)
-                .limit(100)
+    # Load employee-specific activities when both department and employee are selected
+    if params[:department_id].present? && params[:employee_detail_id].present?
+      begin
+        # Get the department
+        selected_department = Department.find(params[:department_id])
+        
+        # Get activities that have existing user_details for this specific employee
+        # This ensures only activities relevant to the selected employee are shown
+        @employee_activities = UserDetail.includes(:activity)
+                                       .where(employee_detail_id: params[:employee_detail_id])
+                                       .where.not(activity_id: nil)
+                                       .map(&:activity)
+                                       .uniq
+        
+        # If no existing activities found, show all department activities (for new entries)
+        if @employee_activities.empty?
+          @employee_activities = selected_department.activities
+        end
+        
+        # FIXED: Only load user_details when BOTH department and employee are selected
+        # This prevents showing all data when only one filter is applied
+        @user_details = UserDetail.includes(:department, :activity, :employee_detail)
+                                  .where(filter_conditions)
+                                  .limit(100)
+      rescue ActiveRecord::RecordNotFound => e
+        flash[:alert] = "Error loading data: #{e.message}"
+        @employee_activities = []
+        @user_details = UserDetail.none
+      rescue => e
+        flash[:alert] = "An error occurred while loading data."
+        Rails.logger.error "Error in new action: #{e.message}"
+        @employee_activities = []
+        @user_details = UserDetail.none
+      end
     else
-      UserDetail.none
+      @employee_activities = []
+      @user_details = UserDetail.none
     end
   end
 
@@ -73,13 +112,32 @@ class UserDetailsController < ApplicationController
   end
   
   def update
-    if @user_detail.update(user_detail_params)
-      redirect_to new_user_detail_path, notice: 'User detail was successfully updated.'
-    else
-      @departments = Department.select(:id, :department_type)
-      @activities = Activity.select(:id, :activity_name, :unit, :theme_name)
-                           .where(department_id: @user_detail.department_id)
-      render :edit
+    begin
+      # Store the current context before update
+      department_id = @user_detail.department_id
+      employee_detail_id = @user_detail.employee_detail_id
+      
+      if @user_detail.update(user_detail_params)
+        # Clear any existing flash messages
+        flash.clear
+        
+        # Redirect to new_user_detail_path with current filters to maintain context
+        redirect_to new_user_detail_path(department_id: department_id, employee_detail_id: employee_detail_id), 
+                    notice: 'User detail was successfully updated.'
+      else
+        @departments = Department.select(:id, :department_type)
+        @activities = Activity.select(:id, :activity_name, :unit, :theme_name)
+                             .where(department_id: @user_detail.department_id)
+        render :edit
+      end
+    rescue => e
+      Rails.logger.error "Error in update action: #{e.message}"
+      
+      # Clear any existing flash messages
+      flash.clear
+      
+      redirect_to new_user_detail_path, 
+                  alert: "An error occurred while updating the user detail."
     end
   end
 
@@ -262,9 +320,42 @@ end
 
   
   def destroy
-    @user_detail = UserDetail.find(params[:id])
-    @user_detail.destroy
-    redirect_to new_user_detail_path, notice: "User detail was successfully deleted."
+    begin
+      @user_detail = UserDetail.find(params[:id])
+      
+      # Store the current context before deletion
+      department_id = @user_detail.department_id
+      employee_detail_id = @user_detail.employee_detail_id
+      
+      if @user_detail.destroy
+        # Clear any existing flash messages
+        flash.clear
+        
+        # Redirect to new_user_detail_path with current filters to maintain context
+        redirect_to new_user_detail_path(department_id: department_id, employee_detail_id: employee_detail_id), 
+                    notice: "User detail was successfully deleted."
+      else
+        # Clear any existing flash messages
+        flash.clear
+        
+        redirect_to new_user_detail_path, 
+                    alert: "Failed to delete user detail."
+      end
+    rescue ActiveRecord::RecordNotFound
+      # Clear any existing flash messages
+      flash.clear
+      
+      redirect_to new_user_detail_path, 
+                  alert: "User detail not found."
+    rescue => e
+      Rails.logger.error "Error in destroy action: #{e.message}"
+      
+      # Clear any existing flash messages
+      flash.clear
+      
+      redirect_to new_user_detail_path, 
+                  alert: "An error occurred while deleting the user detail."
+    end
   end
 
   def test_sms
