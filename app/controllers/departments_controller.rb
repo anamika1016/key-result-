@@ -4,30 +4,73 @@ class DepartmentsController < ApplicationController
   before_action :set_department, only: [:show, :edit, :update, :destroy, :edit_data]
   
   def index
-    @departments = Department.includes(:activities).all
+    # Get all employees with their departments
     @employee_departments = EmployeeDetail.distinct.pluck(:department).compact.reject(&:blank?)
     @employees = EmployeeDetail.where.not(employee_name: nil, employee_id: nil, department: nil)
                               .select(:employee_name, :employee_id, :department)
                               .order(:employee_name)
-    @department = Department.new
-    3.times { @department.activities.build }
     
-    # Debug: Log the data structure
-    Rails.logger.debug "Departments loaded: #{@departments.count}"
+    # Get all departments with activities, grouped by employee
+    @departments = Department.includes(:activities).all
+    
+    # Create a hash to group activities by employee
+    @employee_activities = {}
+    
     @departments.each do |dept|
-      Rails.logger.debug "Department #{dept.id}: #{dept.department_type} - Employee: #{dept.employee_reference} - Activities: #{dept.activities.count}"
+      next unless dept.employee_reference.present?
+      
+      employee = EmployeeDetail.find_by(employee_id: dept.employee_reference)
+      next unless employee
+      
+      employee_key = "#{employee.employee_id}_#{employee.employee_name}"
+      
+      @employee_activities[employee_key] ||= {
+        employee_id: employee.employee_id,
+        employee_name: employee.employee_name,
+        employee_code: employee.employee_code,
+        department: employee.department,
+        total_activities: 0,
+        activities: []
+      }
+      
+      # Add activities from this department
+      dept.activities.each do |activity|
+        @employee_activities[employee_key][:activities] << {
+          id: activity.id,
+          theme_name: activity.theme_name,
+          activity_name: activity.activity_name,
+          unit: activity.unit,
+          weight: activity.weight,
+          department_type: dept.department_type
+        }
+        @employee_activities[employee_key][:total_activities] += 1
+      end
     end
+    
+    # Sort by employee name
+    @employee_activities = @employee_activities.sort_by { |key, data| data[:employee_name] }.to_h
+    
+    # Debug logging
+    Rails.logger.info "Employee activities loaded: #{@employee_activities.count} employees"
+    @employee_activities.each do |key, data|
+      Rails.logger.info "Employee #{data[:employee_name]} (#{data[:employee_id]}): #{data[:total_activities]} activities"
+      if data[:activities].any?
+        data[:activities].each_with_index do |activity, index|
+          Rails.logger.info "  Activity #{index + 1}: #{activity[:theme_name]} - #{activity[:activity_name]}"
+        end
+      end
+    end
+    
+    @department = Department.new
+    # Only build one activity by default to prevent duplicates
+    @department.activities.build
     
     respond_to do |format|
       format.html
       format.json do
-        render json: @departments.as_json(include: {
-          activities: {
-            only: [:id, :theme_name, :activity_name, :unit, :weight]
-          }
-          }, methods: [:employee_name, :employee_code, :employee_display_name], only: [:id, :department_type, :theme_name, :employee_reference])
-        end
+        render json: @employee_activities.values
       end
+    end
   end
     
   def new
@@ -36,7 +79,8 @@ class DepartmentsController < ApplicationController
     @employees = EmployeeDetail.where.not(employee_name: nil, employee_id: nil, department: nil)
                               .select(:employee_name, :employee_id, :department)
                               .order(:employee_name)
-    3.times { @department.activities.build }
+    # Only build one activity by default to prevent duplicates
+    @department.activities.build
   end
   
   def create
@@ -105,6 +149,117 @@ class DepartmentsController < ApplicationController
         }
         format.json { render json: { success: false, errors: @department.errors.full_messages } }
       end
+    end
+  end
+
+  def update_employee_activities
+    Rails.logger.info "=== update_employee_activities method called ==="
+    Rails.logger.info "Request method: #{request.method}"
+    Rails.logger.info "Request path: #{request.path}"
+    Rails.logger.info "Request headers: #{request.headers.to_h.select { |k, v| k.start_with?('HTTP_') }}"
+    
+    employee_id = params[:employee_id]
+    
+    Rails.logger.info "Updating activities for employee: #{employee_id}"
+    Rails.logger.info "Received params: #{params.inspect}"
+    
+    # Find all departments for this employee
+    departments = Department.where(employee_reference: employee_id)
+    Rails.logger.info "Found #{departments.count} departments for employee #{employee_id}"
+    
+    if departments.any?
+      begin
+        ActiveRecord::Base.transaction do
+          # Update each department's activities
+          departments.each do |dept|
+            Rails.logger.info "Processing department #{dept.id} with #{dept.activities.count} existing activities"
+            
+                                      if params[:activities].present?
+               Rails.logger.info "Processing #{params[:activities].count} activities for update"
+               
+               # Get existing activity IDs for this department
+               existing_activity_ids = dept.activities.pluck(:id)
+               Rails.logger.info "Existing activity IDs: #{existing_activity_ids}"
+               
+               # Find activities that are no longer in the form (deleted by user)
+               # We'll need to check by content since the form doesn't send IDs for new activities
+               activities_to_delete = []
+               
+               dept.activities.each do |existing_activity|
+                 # Check if this activity still exists in the form data
+                 activity_still_exists = params[:activities].any? do |form_activity|
+                   form_activity[:theme_name] == existing_activity.theme_name &&
+                   form_activity[:activity_name] == existing_activity.activity_name &&
+                   form_activity[:unit] == existing_activity.unit &&
+                   form_activity[:weight].to_s == existing_activity.weight.to_s
+                 end
+                 
+                 unless activity_still_exists
+                   activities_to_delete << existing_activity
+                   Rails.logger.info "Activity #{existing_activity.id} (#{existing_activity.activity_name}) will be deleted"
+                 end
+               end
+               
+               # Delete only the activities that were removed from the form
+               activities_to_delete.each do |activity|
+                 Rails.logger.info "Deleting activity #{activity.id} (#{activity.activity_name})"
+                 
+                 # Delete user_details that reference this activity
+                 user_details = UserDetail.where(activity_id: activity.id)
+                 user_details_count = user_details.count
+                 Rails.logger.info "Found #{user_details_count} user_details for activity #{activity.id}"
+                 
+                 # Delete the user_details (achievements and achievement_remarks will be deleted automatically)
+                 user_details.destroy_all
+                 Rails.logger.info "Deleted #{user_details_count} user_details for activity #{activity.id}"
+                 
+                 # Delete the activity
+                 activity.destroy
+                 Rails.logger.info "Deleted activity #{activity.id}"
+               end
+               
+               # Now handle updates and new activities
+               params[:activities].each_with_index do |activity_params, index|
+                 Rails.logger.info "Processing activity #{index + 1}: #{activity_params.inspect}"
+                 
+                 # Try to find an existing activity to update
+                 existing_activity = dept.activities.find_by(
+                   theme_name: activity_params[:theme_name],
+                   activity_name: activity_params[:activity_name]
+                 )
+                 
+                 if existing_activity
+                   # Update existing activity
+                   Rails.logger.info "Updating existing activity #{existing_activity.id}"
+                   existing_activity.update!(
+                     unit: activity_params[:unit],
+                     weight: activity_params[:weight]
+                   )
+                 else
+                   # Create new activity
+                   Rails.logger.info "Creating new activity"
+                   dept.activities.create!(
+                     theme_name: activity_params[:theme_name],
+                     activity_name: activity_params[:activity_name],
+                     unit: activity_params[:unit],
+                     weight: activity_params[:weight]
+                   )
+                 end
+               end
+               
+               Rails.logger.info "Updated department #{dept.id}: deleted #{activities_to_delete.count} activities, processed #{params[:activities].count} activities"
+             end
+          end
+        end
+        
+        render json: { success: true, message: 'Employee activities updated successfully!' }
+      rescue => e
+        Rails.logger.error "Error updating employee activities: #{e.message}"
+        Rails.logger.error "Backtrace: #{e.backtrace.join("\n")}"
+        render json: { success: false, message: "Error updating activities: #{e.message}" }, status: :unprocessable_entity
+      end
+    else
+      render json: { success: false, message: 'No departments found for this employee' }
     end
   end
 
@@ -224,6 +379,99 @@ class DepartmentsController < ApplicationController
   def destroy
     @department.destroy
     redirect_to departments_path, notice: 'Department was successfully deleted.'
+  end
+
+  def delete_employee_activities
+    employee_id = params[:employee_id]
+    
+    Rails.logger.info "=== delete_employee_activities method called ==="
+    Rails.logger.info "Deleting activities for employee: #{employee_id}"
+    
+    # Find all departments for this employee
+    departments = Department.where(employee_reference: employee_id)
+    Rails.logger.info "Found #{departments.count} departments for employee #{employee_id}"
+    
+    if departments.any?
+      begin
+        # Delete all activities and departments for this employee
+        ActiveRecord::Base.transaction do
+          departments.each do |dept|
+            Rails.logger.info "Processing department #{dept.id} with #{dept.activities.count} activities"
+            
+                       # First, delete all records that reference these activities
+           dept.activities.each do |activity|
+             Rails.logger.info "Deleting references for activity #{activity.id}"
+             
+             # Delete user_details that reference this activity
+             # This will automatically delete associated achievements and achievement_remarks due to dependent: :destroy
+             user_details = UserDetail.where(activity_id: activity.id)
+             user_details_count = user_details.count
+             Rails.logger.info "Found #{user_details_count} user_details for activity #{activity.id}"
+             
+             # Delete the user_details (achievements and achievement_remarks will be deleted automatically)
+             user_details.destroy_all
+             Rails.logger.info "Deleted #{user_details_count} user_details for activity #{activity.id}"
+           end
+            
+            # Now delete the activities
+            activities_count = dept.activities.count
+            dept.activities.destroy_all
+            Rails.logger.info "Deleted #{activities_count} activities from department #{dept.id}"
+            
+            # Finally delete the department
+            dept.destroy
+            Rails.logger.info "Deleted department #{dept.id}"
+          end
+        end
+        
+        render json: { success: true, message: 'Employee activities deleted successfully!' }
+      rescue => e
+        Rails.logger.error "Error deleting employee activities: #{e.message}"
+        Rails.logger.error "Backtrace: #{e.backtrace.join("\n")}"
+        render json: { success: false, message: "Error deleting activities: #{e.message}" }, status: :unprocessable_entity
+      end
+    else
+      render json: { success: false, message: 'No activities found for this employee' }
+    end
+  end
+
+  def test_route
+    Rails.logger.info "=== test_route method called ==="
+    render json: { success: true, message: 'Test route working!' }
+  end
+
+  def delete_activity
+    activity_id = params[:activity_id]
+    
+    Rails.logger.info "=== delete_activity method called ==="
+    Rails.logger.info "Deleting activity: #{activity_id}"
+    
+    begin
+      activity = Activity.find(activity_id)
+      
+             ActiveRecord::Base.transaction do
+         # First, delete all records that reference this activity
+         user_details = UserDetail.where(activity_id: activity_id)
+         user_details_count = user_details.count
+         Rails.logger.info "Found #{user_details_count} user_details for activity #{activity_id}"
+         
+         # Delete the user_details (achievements and achievement_remarks will be deleted automatically due to dependent: :destroy)
+         user_details.destroy_all
+         Rails.logger.info "Deleted #{user_details_count} user_details for activity #{activity_id}"
+         
+         # Now delete the activity
+         activity.destroy
+         Rails.logger.info "Deleted activity #{activity_id}"
+       end
+      
+      render json: { success: true, message: 'Activity deleted successfully!' }
+    rescue ActiveRecord::RecordNotFound
+      render json: { success: false, message: 'Activity not found' }, status: :not_found
+    rescue => e
+      Rails.logger.error "Error deleting activity: #{e.message}"
+      Rails.logger.error "Backtrace: #{e.backtrace.join("\n")}"
+      render json: { success: false, message: "Error deleting activity: #{e.message}" }, status: :unprocessable_entity
+    end
   end
 
   # Debug method to show current data structure

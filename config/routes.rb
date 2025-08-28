@@ -38,9 +38,19 @@ Rails.application.routes.draw do
     collection do
       post :import
       get :export
+      delete :delete_employee_activities
     end
     resources :activities, except: [:show]
   end
+  
+  # Custom route for updating employee activities
+  post 'departments/update_employee_activities', to: 'departments#update_employee_activities'
+  
+  # Custom route for deleting individual activities
+  delete 'departments/delete_activity/:activity_id', to: 'departments#delete_activity'
+  
+  # Test route to verify routing is working
+  get 'departments/test_route', to: 'departments#test_route'
   # This makes the employee list the home page.
 
   resources :employee_details do

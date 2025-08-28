@@ -157,9 +157,12 @@
 <script>
 class DepartmentManager {
   constructor() {
+    console.log('DepartmentManager constructor called');
     this.activityIndex = 0;
     this.isEditing = false;
     this.editingId = null;
+    this.isSubmitting = false;
+    this.isAddingActivity = false;
     this.departments = [];
     this.employeeDepartments = [];
     this.employees = [];
@@ -208,47 +211,78 @@ class DepartmentManager {
   }
 
   bindEvents() {
-    // Existing event bindings
-    document.getElementById('add-activity')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.addActivity();
-    });
+    // Remove any existing event listeners to prevent duplicates
+    this.removeEventListeners();
+    
+    // Add event listeners with proper error handling
+    const addActivityBtn = document.getElementById('add-activity');
+    if (addActivityBtn) {
+      addActivityBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.addActivity();
+      });
+    }
 
-    document.getElementById('department-form')?.addEventListener('submit', (e) => {
-      e.preventDefault();
-      this.handleFormSubmit();
-    });
+    const departmentForm = document.getElementById('department-form');
+    if (departmentForm) {
+      departmentForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleFormSubmit();
+      });
+    }
 
-    document.getElementById('cancel-btn')?.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.resetForm();
-    });
+    const cancelBtn = document.getElementById('cancel-btn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.resetForm();
+      });
+    }
 
-    document.getElementById('search-input')?.addEventListener('input', (e) => {
-      this.handleSearch(e.target.value);
-    });
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.handleSearch(e.target.value);
+      });
+    }
 
     // Department change event to filter employees
-    document.getElementById('department_department_type')?.addEventListener('change', (e) => {
-      this.filterEmployeesByDepartment(e.target.value);
-    });
+    const deptSelect = document.getElementById('department_department_type');
+    if (deptSelect) {
+      deptSelect.addEventListener('change', (e) => {
+        this.filterEmployeesByDepartment(e.target.value);
+      });
+    }
 
+    // Use event delegation for dynamic elements
     document.addEventListener('click', (e) => {
       if (e.target.closest('.remove-activity')) {
         e.preventDefault();
+        e.stopPropagation();
         this.removeActivity(e.target.closest('.activity-fields'));
       }
 
       if (e.target.classList.contains('edit-btn')) {
         e.preventDefault();
+        e.stopPropagation();
         this.editDepartment(e.target.dataset.departmentId);
       }
 
       if (e.target.classList.contains('delete-btn')) {
         e.preventDefault();
+        e.stopPropagation();
         this.deleteDepartment(e.target.dataset.departmentId);
       }
     });
+  }
+
+  removeEventListeners() {
+    // This method can be used to clean up event listeners if needed
+    // For now, we'll rely on the single instance approach
+    console.log('Event listeners bound for DepartmentManager instance');
   }
 
   filterEmployeesByDepartment(selectedDept) {
@@ -275,10 +309,23 @@ class DepartmentManager {
   }
 
   addActivity() {
+    // Prevent rapid clicking
+    if (this.isAddingActivity) {
+      console.log('Adding activity already in progress, ignoring...');
+      return;
+    }
+
+    this.isAddingActivity = true;
+    
     const container = document.getElementById('activities-container');
     const activityHtml = this.getActivityTemplate(this.activityIndex);
     container.insertAdjacentHTML('beforeend', activityHtml);
     this.activityIndex++;
+    
+    // Reset flag after a short delay
+    setTimeout(() => {
+      this.isAddingActivity = false;
+    }, 300);
   }
 
   addDefaultActivity() {
@@ -342,8 +389,22 @@ class DepartmentManager {
   }
 
   async handleFormSubmit() {
+    // Prevent multiple submissions
+    if (this.isSubmitting) {
+      console.log('Form submission already in progress, ignoring...');
+      return;
+    }
+
+    this.isSubmitting = true;
     this.hideError();
     this.hideSuccess();
+
+    // Disable submit button to prevent multiple clicks
+    const submitBtn = document.getElementById('submit-button');
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
+    }
 
     const form = document.getElementById('department-form');
     const formData = new FormData(form);
@@ -370,6 +431,13 @@ class DepartmentManager {
     } catch (error) {
       console.error('Form submission error:', error);
       this.showError('Network error. Please try again.');
+    } finally {
+      // Re-enable submit button
+      this.isSubmitting = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = this.isEditing ? 'Update Department' : 'Save Department';
+      }
     }
   }
 
@@ -568,12 +636,29 @@ class DepartmentManager {
   hideError() {
     document.getElementById('error-container')?.classList.add('hidden');
   }
+
+  // Cleanup method to prevent memory leaks
+  destroy() {
+    // Remove event listeners if needed
+    console.log('DepartmentManager instance destroyed');
+    departmentManagerInstance = null;
+  }
 }
 
-// Initialize when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize only once to prevent duplicate event handlers
+let departmentManagerInstance = null;
+
+function initializeDepartmentManager() {
+  console.log('initializeDepartmentManager called');
+  
+  // Prevent multiple initializations
+  if (departmentManagerInstance) {
+    console.log('DepartmentManager already initialized, skipping...');
+    return;
+  }
+
   // Debug: Check if data is available
-  console.log('DOM loaded, checking data...');
+  console.log('Initializing DepartmentManager...');
   
   // Embed employee data in page for JavaScript access
   <% if @employee_departments %>
@@ -599,22 +684,22 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('Department dropdown options:', deptSelect ? deptSelect.options.length : 'not found');
   console.log('Employee dropdown options:', empSelect ? empSelect.options.length : 'not found');
   
-  new DepartmentManager();
-});
+  // Create single instance
+  departmentManagerInstance = new DepartmentManager();
+  console.log('DepartmentManager initialized successfully');
+}
 
+// Use only one event listener to prevent duplicates
+document.addEventListener('DOMContentLoaded', initializeDepartmentManager);
+
+// For Turbo compatibility, but only if not already initialized
 document.addEventListener('turbo:load', () => {
-  window.employeeDepartments = <%= raw @employee_departments.to_json %>;
-  window.employees = <%= raw @employees.map { |emp| { employee_name: emp.employee_name, employee_id: emp.employee_id, department: emp.department } }.to_json %>;
-  
-  new DepartmentManager();
+  if (!departmentManagerInstance) {
+    initializeDepartmentManager();
+  }
 });
 
-document.addEventListener('turbo:render', () => {
-  window.employeeDepartments = <%= raw @employee_departments.to_json %>;
-  window.employees = <%= raw @employees.map { |emp| { employee_name: emp.employee_name, employee_id: emp.employee_id, department: emp.department } }.to_json %>;
-  
-  new DepartmentManager();
-});
+// Remove turbo:render listener as it's not needed and causes duplicates
 </script>
 
 <style>
