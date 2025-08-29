@@ -42,19 +42,26 @@
                     
                     row_index += 1
                     
-                    # Determine the single, aggregated status for the entire quarter
+                    # FIXED: Improved status calculation logic for quarterly status
                     quarter_statuses = all_quarter_achievements.map { |ach| ach.status || "pending" }
                     
-                    current_status = if quarter_statuses.all? { |s| s == "l2_approved" }
-                                      "l2_approved"
-                                    elsif quarter_statuses.any? { |s| s == "l2_returned" }
+                    # Check for achievement remarks to determine if L1/L2 has actually processed
+                    has_l1_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l1_percentage.present? && ach.achievement_remark&.l1_remarks.present? }
+                    has_l2_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l2_percentage.present? && ach.achievement_remark&.l2_remarks.present? }
+                    
+                    # FIXED: More accurate status calculation - check actual data, not just status strings
+                    current_status = if quarter_statuses.any? { |s| s == "l2_returned" }
                                       "l2_returned"
-                                    elsif quarter_statuses.all? { |s| s == "l1_approved" }
-                                      "l1_approved"
+                                    elsif quarter_statuses.all? { |s| s == "l2_approved" } || has_l2_approval
+                                      "l2_approved"
                                     elsif quarter_statuses.any? { |s| s == "l1_returned" }
                                       "l1_returned"
+                                    elsif quarter_statuses.all? { |s| s == "l1_approved" } || has_l1_approval
+                                      "l1_approved"
                                     elsif quarter_statuses.any? { |s| s == "submitted" }
                                       "submitted"
+                                    elsif quarter_statuses.any? { |s| s == "pending" }
+                                      "pending"
                                     else
                                       "pending"
                                     end
@@ -130,7 +137,7 @@
         </div>
       </div>
 
-      <!-- Refactored Summary Cards Logic -->
+      <!-- FIXED: Refactored Summary Cards Logic with Improved Status Calculation -->
       <%
         total_quarterly_records = 0
         l1_approved_count = 0
@@ -154,21 +161,32 @@
             
             total_quarterly_records += 1
             
+            # FIXED: Improved status calculation for summary cards
             quarter_statuses = all_quarter_achievements.map { |ach| ach.status || "pending" }
             
-            current_status = if quarter_statuses.all? { |s| s == "l2_approved" }
-                              "l2_approved"
-                            elsif quarter_statuses.any? { |s| s == "l2_returned" }
+            # Check for actual approval data in achievement remarks
+            has_l1_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l1_percentage.present? && ach.achievement_remark&.l1_remarks.present? }
+            has_l2_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l2_percentage.present? && ach.achievement_remark&.l2_remarks.present? }
+            
+            # FIXED: More accurate status calculation - check actual data, not just status strings
+            current_status = if quarter_statuses.any? { |s| s == "l2_returned" }
                               "l2_returned"
-                            elsif quarter_statuses.all? { |s| s == "l1_approved" }
-                              "l1_approved"
+                            elsif quarter_statuses.all? { |s| s == "l2_approved" } || has_l2_approval
+                              "l2_approved"
                             elsif quarter_statuses.any? { |s| s == "l1_returned" }
                               "l1_returned"
+                            elsif quarter_statuses.all? { |s| s == "l1_approved" } || has_l1_approval
+                              "l1_approved"
                             elsif quarter_statuses.any? { |s| s == "submitted" }
                               "submitted"
+                            elsif quarter_statuses.any? { |s| s == "pending" }
+                              "pending"
                             else
                               "pending"
                             end
+            
+            # DEBUG: Log summary status calculation
+            Rails.logger.debug "Summary - Employee: #{emp.employee_name}, Quarter: #{quarter_name}, Statuses: #{quarter_statuses}, Final Status: #{current_status}"
 
             case current_status
             when "l1_approved"
@@ -186,7 +204,7 @@
         end
       %>
 
-      <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4">
         <!-- Total Quarterly Records -->
         <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
           <div class="flex items-center">
@@ -209,13 +227,24 @@
           </div>
         </div>
 
-        <!-- L2 Approved -->
+        <!-- L1 Approved -->
         <div class="bg-green-50 p-4 rounded-lg border border-green-200">
           <div class="flex items-center">
-            <i class="fas fa-check-double text-green-600 mr-3"></i>
+            <i class="fas fa-check-circle text-green-600 mr-3"></i>
             <div>
-              <p class="text-sm font-medium text-green-800">L2 Approved</p>
-              <p class="text-2xl font-bold text-green-900"><%= l2_approved_count %></p>
+              <p class="text-sm font-medium text-green-800">L1 Approved</p>
+              <p class="text-2xl font-bold text-green-900"><%= l1_approved_count %></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- L2 Approved -->
+        <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+          <div class="flex items-center">
+            <i class="fas fa-check-double text-emerald-600 mr-3"></i>
+            <div>
+              <p class="text-sm font-medium text-emerald-800">L2 Approved</p>
+              <p class="text-2xl font-bold text-emerald-900"><%= l2_approved_count %></p>
             </div>
           </div>
         </div>
@@ -341,4 +370,5 @@
   .border-emerald-300 {
     border-color: #6ee7b7;
   }
+</style>
 </style>

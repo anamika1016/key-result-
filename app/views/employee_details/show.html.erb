@@ -393,32 +393,16 @@
   <% end %>
 <% end %>
 
-<!-- FIXED: Quarterly Approval/Return Process -->
+  <!-- FIXED: Quarterly Approval/Return Process -->
 <% if @can_approve_or_return && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } && params[:quarter].present? %>
   <%
+    # Use the already calculated overall_quarter_status to determine button visibility
     can_take_action = false
-    quarter_months = case params[:quarter]
-                   when 'Q1'
-                     ['january', 'february', 'march']
-                   when 'Q2'
-                     ['april', 'may', 'june']
-                   when 'Q3'
-                     ['july', 'august', 'september']
-                   when 'Q4'
-                     ['october', 'november', 'december']
-                   else
-                     []
-                   end
     
-    @user_details.each do |detail|
-      quarter_achievements = detail.achievements.select { |a| quarter_months.include?(a.month) }
-      quarter_statuses = quarter_achievements.map { |a| a.status || "pending" }
-      
-      # Can take action if any achievement in quarter is pending or l1_returned
-      if quarter_statuses.any? { |s| ['pending', 'l1_returned'].include?(s) }
-        can_take_action = true
-        break
-      end
+    # Only show buttons if status is pending
+    # Hide buttons if status is l1_approved, l1_returned, l2_approved, l2_returned, or submitted
+    if overall_quarter_status == 'pending'
+      can_take_action = true
     end
   %>
   
@@ -435,16 +419,17 @@
     </div>
   <% else %>
     <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium">
-      This  Quarter has been processed and cannot be modified.
+      This Quarter has been processed and cannot be modified.
     </div>
   <% end %>
 
 <% elsif @can_approve_or_return && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
   <%
+    # For bulk actions, check if any achievement is still pending only
     can_take_bulk_action = false
     @user_details.each do |detail|
       detail.achievements.each do |achievement|
-        if ['pending', 'l1_returned'].include?(achievement.status || "pending")
+        if (achievement.status || "pending") == 'pending'
           can_take_bulk_action = true
           break
         end

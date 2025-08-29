@@ -143,6 +143,8 @@ class UserDetailsController < ApplicationController
 
 
 def update_quarterly_achievements
+  # FIXED: This method now properly sets ALL achievements in a quarter to 'pending' status
+  # when any achievement is updated, ensuring the entire quarter needs re-approval
   # Get the correct parameters
   selected_quarter = params[:selected_quarter]
   achievement_data = params[:achievements] || {}
@@ -224,38 +226,36 @@ def update_quarterly_achievements
       end
     end
 
-    # After all individual updates, set ENTIRE quarter to pending for employees who had changes
-    employee_details_with_changes.each do |employee_detail_id|
-      # Find all user_details for this employee in current quarter
-      employee_user_details = UserDetail.where(employee_detail_id: employee_detail_id)
-      
-      employee_user_details.each do |user_detail|
-        # Set ALL achievements for this quarter to pending, regardless of whether they have values
-        quarter_months.each do |month|
-          # Find or create achievement for each month in the quarter
-          achievement = Achievement.find_or_initialize_by(
-            user_detail: user_detail,
-            month: month
-          )
-          
-          # Always update status to pending for the entire quarter when any month is edited
-          old_status = achievement.status
-          achievement.status = 'pending'
-          
-          # Save the achievement
-          if achievement.save
-            # Reset approval remarks for quarterly approval
-            if achievement.achievement_remark
-              achievement.achievement_remark.update(
-                l1_remarks: nil,
-                l1_percentage: nil,
-                l2_remarks: nil,
-                l2_percentage: nil
-              )
-            end
-          end
-        end
+    # FIXED: After all individual updates, set ENTIRE quarter to pending for ALL employees in the quarter
+    # This ensures that when any achievement is edited, the entire quarter needs re-approval
+    # This was the main issue - previously only achievements for employees with changes were set to pending
+    Rails.logger.info "Setting entire quarter #{selected_quarter} to pending status for all achievements"
+    
+    # Use the more efficient bulk update method from the Achievement model
+    updated_count = Achievement.reset_quarter_to_pending!(quarter_months)
+    Rails.logger.info "Bulk updated #{updated_count} achievements in quarter #{selected_quarter} to pending status"
+    
+    # Also reset approval remarks in achievement_remark table for all updated achievements
+    achievements_with_remarks = Achievement.joins(:achievement_remark).where(month: quarter_months)
+    if achievements_with_remarks.any?
+      achievements_with_remarks.each do |achievement|
+        achievement.achievement_remark.update(
+          l1_remarks: nil,
+          l1_percentage: nil,
+          l2_remarks: nil,
+          l2_percentage: nil
+        )
       end
+      Rails.logger.info "Reset approval remarks for #{achievements_with_remarks.count} achievements with remarks"
+    end
+    
+    # Log summary of status updates
+    total_quarter_achievements = Achievement.where(month: quarter_months).count
+    pending_count = Achievement.where(month: quarter_months).where(status: 'pending').count
+    Rails.logger.info "Quarterly status update complete: #{updated_count} achievements updated, #{pending_count}/#{total_quarter_achievements} achievements in quarter #{selected_quarter} are now pending"
+    
+    if pending_count != total_quarter_achievements
+      Rails.logger.warn "WARNING: Not all achievements in quarter #{selected_quarter} are pending! Expected #{total_quarter_achievements}, got #{pending_count}"
     end
   end
 

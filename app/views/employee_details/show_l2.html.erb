@@ -38,22 +38,31 @@
                                []
                              end
 
-            # Calculate overall quarterly status once
+            # Calculate overall quarterly status once - FIXED for correct status display
             all_quarterly_statuses = []
             @user_details.each do |detail|
               existing_achievements = detail.achievements.index_by(&:month)
               display_months.each do |month_symbol, _|
                 achievement_record = existing_achievements[month_symbol.to_s]
                 if achievement_record
-                  all_quarterly_statuses << (achievement_record.status || "pending")
+                  # Ensure we get the actual status from the database
+                  status = achievement_record.status.presence || "pending"
+                  all_quarterly_statuses << status
+                  Rails.logger.info "Month: #{month_symbol}, Status: #{status}, Achievement ID: #{achievement_record.id}"
+                else
+                  all_quarterly_statuses << "pending"
+                  Rails.logger.info "Month: #{month_symbol}, No achievement record found"
                 end
               end
             end
 
-            # Determine single overall quarterly status
+            # Determine single overall quarterly status - FIXED priority logic
             overall_quarterly_status = "pending"
             if all_quarterly_statuses.any?
-              if all_quarterly_statuses.all? { |s| s == "l2_approved" }
+              Rails.logger.info "All quarterly statuses: #{all_quarterly_statuses}"
+              
+              # Priority order: L2 actions take precedence
+              if all_quarterly_statuses.any? { |s| s == "l2_approved" }
                 overall_quarterly_status = "l2_approved"
               elsif all_quarterly_statuses.any? { |s| s == "l2_returned" }
                 overall_quarterly_status = "l2_returned"
@@ -63,8 +72,12 @@
                 overall_quarterly_status = "l1_returned"
               elsif all_quarterly_statuses.any? { |s| s == "submitted" }
                 overall_quarterly_status = "submitted"
+              elsif all_quarterly_statuses.all? { |s| s == "pending" }
+                overall_quarterly_status = "pending"
               end
             end
+            
+            Rails.logger.info "Final overall quarterly status: #{overall_quarterly_status}"
           %>
 
           <table class="table table-hover w-full min-w-full">
@@ -149,9 +162,12 @@
           <div class="flex items-center justify-center">
             <h3 class="text-lg font-semibold text-gray-700 mr-4">Overall Quarterly Status:</h3>
             <%
+              # FIXED: Enhanced status configuration with better status mapping
               status_config = case overall_quarterly_status
               when "pending"
                 { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
+              when "submitted"
+                { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
               when "l1_approved"
                 { color: "bg-green-100 text-green-800 border-green-300", text: "L1 Approved", icon: "fas fa-check-circle" }
               when "l1_returned"
@@ -160,11 +176,11 @@
                 { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
               when "l2_returned"
                 { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
-              when "submitted"
-                { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
               else
-                { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status", icon: "fas fa-question-circle" }
+                { color: "bg-gray-100 text-gray-600 border-gray-300", text: "Unknown Status: #{overall_quarterly_status}", icon: "fas fa-question-circle" }
               end
+              
+              Rails.logger.info "Status config for '#{overall_quarterly_status}': #{status_config.inspect}"
             %>
             <span id="quarterlyStatusBadge" class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border <%= status_config[:color] %>">
               <i class="<%= status_config[:icon] %> mr-2"></i>
@@ -335,6 +351,7 @@
 
     let statusConfig = {};
     
+    // FIXED: Enhanced status configuration mapping to match the view logic
     switch(newStatus) {
       case 'l2_approved':
         statusConfig = {
@@ -371,11 +388,18 @@
           icon: 'fas fa-paper-plane'
         };
         break;
-      default:
+      case 'pending':
         statusConfig = {
           color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
           text: 'Pending',
           icon: 'fas fa-clock'
+        };
+        break;
+      default:
+        statusConfig = {
+          color: 'bg-gray-100 text-gray-600 border-gray-300',
+          text: `Unknown Status: ${newStatus}`,
+          icon: 'fas fa-question-circle'
         };
     }
 
