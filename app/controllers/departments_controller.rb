@@ -10,45 +10,27 @@ class DepartmentsController < ApplicationController
                               .select(:employee_name, :employee_id, :department)
                               .order(:employee_name)
     
-    # Get all departments with activities, grouped by employee
-    @departments = Department.includes(:activities).all
-    
-    # Create a hash to group activities by employee
-    @employee_activities = {}
-    
-    @departments.each do |dept|
-      next unless dept.employee_reference.present?
-      
-      employee = EmployeeDetail.find_by(employee_id: dept.employee_reference)
-      next unless employee
-      
-      employee_key = "#{employee.employee_id}_#{employee.employee_name}"
-      
-      @employee_activities[employee_key] ||= {
-        employee_id: employee.employee_id,
-        employee_name: employee.employee_name,
-        employee_code: employee.employee_code,
-        department: employee.department,
-        total_activities: 0,
-        activities: []
-      }
-      
-      # Add activities from this department
-      dept.activities.each do |activity|
-        @employee_activities[employee_key][:activities] << {
-          id: activity.id,
-          theme_name: activity.theme_name,
-          activity_name: activity.activity_name,
-          unit: activity.unit,
-          weight: activity.weight,
-          department_type: dept.department_type
-        }
-        @employee_activities[employee_key][:total_activities] += 1
+    # Filter by employee if specified
+    if params[:employee_id].present?
+      @selected_employee = EmployeeDetail.find_by(employee_id: params[:employee_id])
+      if @selected_employee
+        # Get activities for the selected employee using UserDetail
+        @employee_activities = get_employee_activities(@selected_employee)
+      else
+        @employee_activities = {}
       end
+    elsif params[:employee_code].present?
+      @selected_employee = EmployeeDetail.find_by(employee_code: params[:employee_code])
+      if @selected_employee
+        # Get activities for the selected employee using UserDetail
+        @employee_activities = get_employee_activities(@selected_employee)
+      else
+        @employee_activities = {}
+      end
+    else
+      # Show all employees with their activities grouped by employee
+      @employee_activities = get_all_employee_activities
     end
-    
-    # Sort by employee name
-    @employee_activities = @employee_activities.sort_by { |key, data| data[:employee_name] }.to_h
     
     # Debug logging
     Rails.logger.info "Employee activities loaded: #{@employee_activities.count} employees"
@@ -520,5 +502,95 @@ class DepartmentsController < ApplicationController
   def department_params
     params.require(:department).permit(:department_type, :employee_reference, :theme_name,
     activities_attributes: [:id, :theme_name, :activity_name, :unit, :weight, :_destroy])
+  end
+
+  # Get activities for a specific employee using UserDetail
+  def get_employee_activities(employee)
+    activities_hash = {}
+    
+    # Get all user_details for this employee
+    user_details = UserDetail.includes(:activity, :department)
+                            .where(employee_detail_id: employee.id)
+                            .where.not(activity_id: nil)
+    
+    user_details.each do |user_detail|
+      activity = user_detail.activity
+      department = user_detail.department
+      
+      # Group by employee ONLY - no department grouping
+      key = "#{employee.employee_id}"
+      
+      activities_hash[key] ||= {
+        id: user_detail.id,
+        employee_id: employee.employee_id,
+        employee_name: employee.employee_name,
+        employee_code: employee.employee_name,
+        department: employee.department, # Employee's department
+        department_type: department.department_type, # Activity's department
+        total_activities: 0,
+        activities: []
+      }
+      
+      activities_hash[key][:activities] << {
+        id: activity.id,
+        theme_name: activity.theme_name,
+        activity_name: activity.activity_name,
+        unit: activity.unit,
+        weight: activity.weight,
+        department_type: department.department_type
+      }
+      activities_hash[key][:total_activities] += 1
+    end
+    
+    activities_hash
+  end
+
+  # Get all employees with their activities grouped by employee
+  def get_all_employee_activities
+    activities_hash = {}
+    
+    # Get all employees who have user_details
+    employees_with_activities = EmployeeDetail.joins(:user_details)
+                                             .distinct
+                                             .includes(:user_details)
+    
+    employees_with_activities.each do |employee|
+      # Get activities for this employee
+      user_details = UserDetail.includes(:activity, :department)
+                              .where(employee_detail_id: employee.id)
+                              .where.not(activity_id: nil)
+      
+      user_details.each do |user_detail|
+        activity = user_detail.activity
+        department = user_detail.department
+        
+        # Group by employee ONLY - no department grouping
+        key = "#{employee.employee_id}"
+        
+        activities_hash[key] ||= {
+          id: user_detail.id,
+          employee_id: employee.employee_id,
+          employee_name: employee.employee_name,
+          employee_code: employee.employee_name,
+          department: employee.department, # Employee's department
+          department_type: department.department_type, # Activity's department
+          total_activities: 0,
+          activities: []
+        }
+        
+        activities_hash[key][:activities] << {
+          id: activity.id,
+          theme_name: activity.theme_name,
+          activity_name: activity.activity_name,
+          unit: activity.unit,
+          weight: activity.weight,
+          department_type: department.department_type
+        }
+        activities_hash[key][:total_activities] += 1
+      end
+    end
+    
+    # Sort by employee name
+    activities_hash.sort_by { |key, data| data[:employee_name] }.to_h
   end
 end
