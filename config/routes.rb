@@ -34,6 +34,7 @@ Rails.application.routes.draw do
   resources :departments do
     member do
       get :edit_data
+      patch :update_employee_activity_data
     end
     collection do
       post :import

@@ -40,8 +40,9 @@
             
             <!-- Form Section -->
             <form id="department-form" method="POST" action="/departments">
-              <input type="hidden" name="authenticity_token" value="">
+              <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
               <input type="hidden" name="_method" value="POST" id="form-method">
+              <input type="hidden" name="department[theme_name]" value="" id="department-theme-name">
               
               <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <!-- Department Dropdown -->
@@ -81,15 +82,46 @@
               <div class="mb-6">
                 <div class="flex items-center justify-between mb-4">
                   <h3 class="text-lg font-semibold text-gray-800">Activities</h3>
-                  <button type="button" id="add-activity" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                    </svg>
-                    Add Activity
-                  </button>
+                                    <div class="flex gap-2">
+                    <button type="button" id="add-activity" onclick="if(window.departmentManagerInstance && window.departmentManagerInstance.isReady && typeof window.departmentManagerInstance.addActivity === 'function') { window.departmentManagerInstance.addActivity(); } else { console.log('DepartmentManager not ready yet, retrying...'); setTimeout(() => { if(window.departmentManagerInstance && window.departmentManagerInstance.isReady && typeof window.departmentManagerInstance.addActivity === 'function') { window.departmentManagerInstance.addActivity(); } else { console.error('DepartmentManager still not available or not ready'); } }, 100); }" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                      <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                      </svg>
+                      Add Activity
+                    </button>
+
+                  </div>
                 </div>
                 
                 <div id="activities-container">
+                  <!-- Default activity field - will be replaced by JavaScript if needed -->
+                  <div class="activity-fields border border-gray-200 rounded-md p-4 mb-4 bg-gray-50">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700">Theme Name</label>
+                        <input type="text" name="department[activities_attributes][default][theme_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter theme name" required>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700">Activity Name</label>
+                        <input type="text" name="department[activities_attributes][default][activity_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter activity name" required>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700">Unit</label>
+                        <input type="text" name="department[activities_attributes][default][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter unit" required>
+                      </div>
+                      <div>
+                        <label class="block text-sm font-medium text-gray-700">Weight</label>
+                        <input type="number" name="department[activities_attributes][default][weight]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter weight" required>
+                      </div>
+                    </div>
+                    <div class="mt-3 flex justify-end">
+                      <button type="button" class="remove-activity bg-red-600 text-white text-sm px-3 py-1 rounded-md hover:bg-red-700">
+                        Remove
+                      </button>
+                    </div>
+                    <input type="hidden" name="department[activities_attributes][default][id]" value="">
+                    <input type="hidden" name="department[activities_attributes][default][_destroy]" value="false">
+                  </div>
                 </div>
               </div>
 
@@ -222,17 +254,59 @@ class DepartmentManager {
     this.editingId = null;
     this.isSubmitting = false;
     this.isAddingActivity = false;
+    this.isReady = false;
     this.departments = [];
     this.employeeDepartments = [];
     this.employees = [];
+    console.log('DepartmentManager constructor completed, calling init...');
     this.init();
   }
 
   async init() {
+    console.log('DepartmentManager init started');
+    
+    // Bind events immediately so buttons work right away
     this.bindEvents();
-    this.addDefaultActivity();
-    await this.loadEmployeeData();
-    // await this.loadDepartments(); // DISABLED - using server-side rendering
+    console.log('Events bound, buttons should now be functional');
+    
+    // Set the initial activity index since we now have a default activity in HTML
+    const container = document.getElementById('activities-container');
+    if (container) {
+      this.activityIndex = container.children.length;
+      console.log('Initialized with activity index:', this.activityIndex);
+      
+      // Convert the default activity from "default" to proper index
+      const defaultActivity = container.querySelector('.activity-fields');
+      if (defaultActivity) {
+        const inputs = defaultActivity.querySelectorAll('input[name*="[default]"]');
+        inputs.forEach(input => {
+          const newName = input.name.replace('[default]', `[0]`);
+          input.name = newName;
+        });
+        console.log('Updated default activity input names from default to index 0');
+      }
+    }
+    
+    // Load employee data in background (non-blocking)
+    this.loadEmployeeData().catch(error => {
+      console.error('Error loading employee data:', error);
+    });
+    
+    // Only add default activity if none exist and we're not in editing mode
+    // But first check if we already have a default activity in HTML
+    if (!this.isEditing) {
+      const container = document.getElementById('activities-container');
+      if (container && container.children.length === 1) {
+        // We already have the default activity from HTML, don't add another
+        console.log('Default activity already exists in HTML, not calling ensureDefaultActivity');
+      } else {
+        this.ensureDefaultActivity();
+      }
+    }
+    
+    console.log('DepartmentManager init completed');
+    this.isReady = true;
+    console.log('DepartmentManager is now ready');
   }
 
   async loadEmployeeData() {
@@ -270,26 +344,55 @@ class DepartmentManager {
   }
 
   bindEvents() {
+    console.log('bindEvents called');
     // Remove any existing event listeners to prevent duplicates
     this.removeEventListeners();
     
     // Add event listeners with proper error handling
     const addActivityBtn = document.getElementById('add-activity');
     if (addActivityBtn) {
+      console.log('Add activity button found, adding click listener');
       addActivityBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        
+        // Check if DepartmentManager is ready
+        if (!this.isReady) {
+          console.log('DepartmentManager not ready yet, waiting...');
+          setTimeout(() => {
+            if (this.isReady) {
+              this.addActivity();
+            } else {
+              console.error('DepartmentManager still not ready');
+            }
+          }, 100);
+          return;
+        }
+        
         this.addActivity();
       });
+      
+
+      
+    } else {
+      console.error('Add activity button not found!');
     }
+    
+
+    
+    // Removed Test CSRF and Add Default buttons - no event listeners needed
 
     const departmentForm = document.getElementById('department-form');
     if (departmentForm) {
+      console.log('Department form found, adding submit listener');
       departmentForm.addEventListener('submit', (e) => {
+        console.log('Form submit event triggered');
         e.preventDefault();
         e.stopPropagation();
         this.handleFormSubmit();
       });
+    } else {
+      console.error('Department form not found!');
     }
 
     const cancelBtn = document.getElementById('cancel-btn');
@@ -376,6 +479,8 @@ class DepartmentManager {
   }
 
   addActivity() {
+    console.log('Adding activity, index:', this.activityIndex);
+    
     // Prevent rapid clicking
     if (this.isAddingActivity) {
       console.log('Adding activity already in progress, ignoring...');
@@ -385,9 +490,17 @@ class DepartmentManager {
     this.isAddingActivity = true;
     
     const container = document.getElementById('activities-container');
+    if (!container) {
+      console.error('Activities container not found!');
+      this.isAddingActivity = false;
+      return;
+    }
+    
     const activityHtml = this.getActivityTemplate(this.activityIndex);
     container.insertAdjacentHTML('beforeend', activityHtml);
+    
     this.activityIndex++;
+    console.log('Activity added successfully, new index:', this.activityIndex);
     
     // Reset flag after a short delay
     setTimeout(() => {
@@ -395,10 +508,109 @@ class DepartmentManager {
     }, 300);
   }
 
-  addDefaultActivity() {
+  ensureDefaultActivity() {
+    console.log('ensureDefaultActivity called');
     const container = document.getElementById('activities-container');
-    if (container.children.length === 0) {
+    
+    if (!container) {
+      console.error('Activities container not found!');
+      // Try again after a short delay
+      setTimeout(() => {
+        this.ensureDefaultActivity();
+      }, 100);
+      return;
+    }
+    
+    console.log('Activities container found, children length:', container.children.length);
+    
+    // Check if there are any visible activity fields (not hidden)
+    const visibleActivities = Array.from(container.children).filter(child => 
+      child.style.display !== 'none' && 
+      child.classList.contains('activity-fields')
+    );
+    
+    console.log('Visible activities found:', visibleActivities.length);
+    
+    // Also check if we're in editing mode
+    if (this.isEditing) {
+      console.log('In editing mode, not adding default activity');
+      return;
+    }
+    
+    // Check if there are any activities with actual content
+    const hasContentActivities = visibleActivities.some(activity => {
+      const themeName = activity.querySelector('input[name*="[theme_name]"]')?.value;
+      const activityName = activity.querySelector('input[name*="[activity_name]"]')?.value;
+      const unit = activity.querySelector('input[name*="[unit]"]')?.value;
+      const weight = activity.querySelector('input[name*="[weight]"]')?.value;
+      
+      return themeName || activityName || unit || weight;
+    });
+    
+    if (visibleActivities.length === 0 || (!hasContentActivities && visibleActivities.length === 1)) {
+      console.log('No meaningful activities found, adding default activity...');
       this.addActivity();
+    } else {
+      console.log('Activities already present with content - container has', visibleActivities.length, 'visible activities');
+    }
+  }
+  
+  testCsrfToken() {
+    console.log('=== Testing CSRF Token ===');
+    
+    // Debug: Show all meta tags
+    console.log('All meta tags:');
+    document.querySelectorAll('meta').forEach((meta, index) => {
+      console.log(`Meta ${index}:`, meta.name, meta.content);
+    });
+    
+    // Try multiple sources for CSRF token
+    console.log('Looking for CSRF token...');
+    
+    // First try the meta tag (most reliable)
+    let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+    console.log('From meta[name="csrf-token"]:', !!csrfToken);
+    
+    if (!csrfToken) {
+      // Try the form input
+      csrfToken = document.querySelector('input[name="authenticity_token"]')?.value;
+      console.log('From input[name="authenticity_token"]:', !!csrfToken);
+    }
+    if (!csrfToken) {
+      // Try to get it from the form's hidden input
+      const form = document.getElementById('department-form');
+      if (form) {
+        csrfToken = form.querySelector('input[name="authenticity_token"]')?.value;
+        console.log('From form input[name="authenticity_token"]:', !!csrfToken);
+      } else {
+        console.error('Department form not found!');
+      }
+    }
+    
+    // Also try the meta tag with different name
+    if (!csrfToken) {
+      csrfToken = document.querySelector('meta[name="csrf-param"]')?.content;
+      console.log('From meta[name="csrf-param"]:', !!csrfToken);
+    }
+    
+    // If still no token, try to get it from the current page URL
+    if (!csrfToken) {
+      // Try to extract from current page's form
+      const currentForm = document.querySelector('form');
+      if (currentForm) {
+        csrfToken = currentForm.querySelector('input[name="authenticity_token"]')?.value;
+        console.log('From current page form:', !!csrfToken);
+      }
+    }
+    
+    console.log('Final CSRF Token found:', !!csrfToken);
+    console.log('CSRF Token length:', csrfToken ? csrfToken.length : 0);
+    console.log('CSRF Token first 10 chars:', csrfToken ? csrfToken.substring(0, 10) + '...' : 'none');
+    
+    if (csrfToken) {
+      this.showSuccess(`CSRF Token found! Length: ${csrfToken.length} characters`);
+    } else {
+      this.showError('No CSRF token found!');
     }
   }
 
@@ -440,15 +652,21 @@ class DepartmentManager {
     if (container.children.length > 1) {
       const idInput = activityElement.querySelector('input[name*="[id]"]');
       if (idInput && idInput.value) {
+        // This is an existing activity, mark it for destruction
         const destroyInput = activityElement.querySelector('input[name*="[_destroy]"]');
         if (destroyInput) {
           destroyInput.value = 'true';
+          // Hide the element but don't remove it so it's included in form submission
           activityElement.style.display = 'none';
+          console.log('Marked activity for destruction:', idInput.value);
         }
       } else {
+        // This is a new activity, just remove it from the DOM
         activityElement.remove();
+        console.log('Removed new activity from DOM');
       }
     } else {
+      // At least one activity is required
       const inputs = activityElement.querySelectorAll('input[type!="hidden"]');
       inputs.forEach(input => input.value = '');
       this.showError('At least one activity is required');
@@ -466,6 +684,49 @@ class DepartmentManager {
     this.hideError();
     this.hideSuccess();
 
+    // Validate form before submission
+    const form = document.getElementById('department-form');
+    const deptType = form.querySelector('#department_department_type').value;
+    const empRef = form.querySelector('#department_employee_reference').value;
+    const activities = form.querySelectorAll('.activity-fields');
+
+    if (!deptType) {
+      this.showError('Please select a department.');
+      this.isSubmitting = false;
+      return;
+    }
+
+    if (!empRef) {
+      this.showError('Please select an employee.');
+      this.isSubmitting = false;
+      return;
+    }
+
+    if (activities.length === 0) {
+      this.showError('Please add at least one activity.');
+      this.isSubmitting = false;
+      return;
+    }
+
+    // Check if at least one activity has all required fields filled
+    let hasValidActivity = false;
+    activities.forEach(activity => {
+      const themeName = activity.querySelector('input[name*="[theme_name]"]')?.value;
+      const activityName = activity.querySelector('input[name*="[activity_name]"]')?.value;
+      const unit = activity.querySelector('input[name*="[unit]"]')?.value;
+      const weight = activity.querySelector('input[name*="[weight]"]')?.value;
+      
+      if (themeName && activityName && unit && weight) {
+        hasValidActivity = true;
+      }
+    });
+
+    if (!hasValidActivity) {
+      this.showError('Please fill in all activity fields.');
+      this.isSubmitting = false;
+      return;
+    }
+
     // Disable submit button to prevent multiple clicks
     const submitBtn = document.getElementById('submit-button');
     if (submitBtn) {
@@ -473,28 +734,57 @@ class DepartmentManager {
       submitBtn.textContent = 'Saving...';
     }
 
-    const form = document.getElementById('department-form');
     const formData = new FormData(form);
 
+    // Debug: Log what's being sent
+    console.log('Form data being sent:');
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}: ${value}`);
+    }
+
     try {
+      // For PATCH requests, we need to send the method in the form data
+      if (this.isEditing) {
+        formData.append('_method', 'PATCH');
+        
+        // If editing, use the update_employee_activity_data endpoint
+        const editUrl = `/departments/${this.editingId}/update_employee_activity_data`;
+        const response = await fetch(editUrl, {
+          method: 'POST', // Always use POST, let Rails handle the method override
+          body: formData,
+          headers: {
+            'X-CSRF-Token': document.querySelector('input[name="authenticity_token"]')?.value || 
+                           document.querySelector('meta[name="csrf-token"]')?.content || '',
+            'Accept': 'application/json' // Request JSON response
+          }
+        });
+        
+        return this.handleResponse(response);
+      }
+      
+      const csrfToken = document.querySelector('input[name="authenticity_token"]')?.value || 
+                       document.querySelector('meta[name="csrf-token"]')?.content || '';
+      
+      if (!csrfToken) {
+        this.showError('CSRF token not found. Please refresh the page.');
+        this.isSubmitting = false;
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.textContent = this.isEditing ? 'Update Department' : 'Save Department';
+        }
+        return;
+      }
+      
       const response = await fetch(form.action, {
-        method: this.isEditing ? 'PATCH' : 'POST',
+        method: 'POST', // Always use POST, let Rails handle the method override
         body: formData,
         headers: {
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+          'X-CSRF-Token': csrfToken,
+          'Accept': 'application/json' // Request JSON response
         }
       });
-
-      const result = await response.json();
-
-      if (response.ok && result.success !== false) {
-        this.showSuccess(this.isEditing ? 'Department updated successfully!' : 'Department created successfully!');
-        this.resetForm();
-        await this.loadDepartments();
-      } else {
-        const errors = result.errors || ['Error saving department. Please check your input.'];
-        this.showError(errors.join(', '));
-      }
+      
+            return this.handleResponse(response);
     } catch (error) {
       console.error('Form submission error:', error);
       this.showError('Network error. Please try again.');
@@ -516,19 +806,40 @@ class DepartmentManager {
   }
 
   async editDepartment(departmentId) {
+    console.log('editDepartment called with ID:', departmentId);
     try {
-      const response = await fetch(`/departments/${departmentId}/edit_data`);
+      const csrfToken = document.querySelector('input[name="authenticity_token"]')?.value || 
+                       document.querySelector('meta[name="csrf-token"]')?.content || '';
+      
+      if (!csrfToken) {
+        this.showError('CSRF token not found. Please refresh the page.');
+        return;
+      }
+      
+      const response = await fetch(`/departments/${departmentId}/edit_data`, {
+        headers: {
+          'X-CSRF-Token': csrfToken,
+          'Accept': 'application/json' // Request JSON response
+        }
+      });
+      console.log('Edit response status:', response.status);
       if (response.ok) {
         const department = await response.json();
+        console.log('Department data received:', department);
         this.populateForm(department);
+      } else {
+        console.error('Edit request failed:', response.status, response.statusText);
+        this.showError('Error loading department data');
       }
     } catch (error) {
+      console.error('Edit error:', error);
       this.showError('Error loading department data');
     }
   }
 
   populateForm(department) {
     document.getElementById('department_department_type').value = department.department_type || '';
+    document.getElementById('department-theme-name').value = department.theme_name || '';
     
     // First filter employees by department, then set the employee
     if (department.department_type) {
@@ -540,8 +851,15 @@ class DepartmentManager {
     }
 
     const form = document.getElementById('department-form');
-    form.action = `/departments/${department.id}`;
+    // Don't change the form action - keep it as /departments
+    // The edit logic will handle the correct endpoint in handleFormSubmit
     document.getElementById('form-method').value = 'PATCH';
+    
+    // Update the form method to PATCH
+    const methodField = document.getElementById('form-method');
+    if (methodField) {
+      methodField.value = 'PATCH';
+    }
 
     const container = document.getElementById('activities-container');
     container.innerHTML = '';
@@ -566,7 +884,7 @@ class DepartmentManager {
     } else {
       this.addActivity();
     }
-
+ 
     this.isEditing = true;
     this.editingId = department.id;
     document.getElementById('submit-button').textContent = 'Update Department';
@@ -575,21 +893,116 @@ class DepartmentManager {
   }
 
   async deleteDepartment(departmentId) {
+    console.log('deleteDepartment called with ID:', departmentId);
     if (!confirm('Are you sure you want to delete this department?')) return;
 
     try {
+      // Try multiple sources for CSRF token
+      console.log('Looking for CSRF token...');
+      
+      // First try the meta tag (most reliable)
+      let csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+      console.log('From meta[name="csrf-token"]:', !!csrfToken);
+      
+      if (!csrfToken) {
+        // Try the form input
+        csrfToken = document.querySelector('input[name="authenticity_token"]')?.value;
+        console.log('From input[name="authenticity_token"]:', !!csrfToken);
+      }
+      if (!csrfToken) {
+        // Try to get it from the form's hidden input
+        const form = document.getElementById('department-form');
+        if (form) {
+          csrfToken = form.querySelector('input[name="authenticity_token"]')?.value;
+          console.log('From form input[name="authenticity_token"]:', !!csrfToken);
+        } else {
+          console.error('Department form not found!');
+        }
+      }
+      
+      // Also try the meta tag with different name
+      if (!csrfToken) {
+        csrfToken = document.querySelector('meta[name="csrf-param"]')?.content;
+        console.log('From meta[name="csrf-param"]:', !!csrfToken);
+      }
+      
+      // If still no token, try to get it from the current page URL
+      if (!csrfToken) {
+        // Try to extract from current page's form
+        const currentForm = document.querySelector('form');
+        if (currentForm) {
+          csrfToken = currentForm.querySelector('input[name="authenticity_token"]')?.value;
+          console.log('From current page form:', !!csrfToken);
+        }
+      }
+      
+      console.log('Final CSRF Token found:', !!csrfToken);
+      console.log('CSRF Token length:', csrfToken ? csrfToken.length : 0);
+      console.log('CSRF Token first 10 chars:', csrfToken ? csrfToken.substring(0, 10) + '...' : 'none');
+      
+      if (!csrfToken) {
+        console.error('No CSRF token found from any source!');
+        this.showError('CSRF token not found. Please refresh the page.');
+        return;
+      }
+      
+      // Verify the token looks valid (should be a long string)
+      if (csrfToken.length < 20) {
+        console.error('CSRF token seems too short:', csrfToken);
+        this.showError('Invalid CSRF token. Please refresh the page.');
+        return;
+      }
+      
+      // For DELETE requests, use Rails method override with POST
+      console.log('Sending DELETE request to:', `/departments/${departmentId}`);
+      console.log('Request method: POST (with _method override)');
+      console.log('CSRF Token:', csrfToken);
+      
+      // Create form data with method override
+      const formData = new FormData();
+      formData.append('_method', 'DELETE');
+      formData.append('authenticity_token', csrfToken);
+      
       const response = await fetch(`/departments/${departmentId}`, {
-        method: 'DELETE',
+        method: 'POST', // Use POST, let Rails handle method override
+        body: formData,
         headers: {
-          'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''
+          'Accept': 'application/json' // Request JSON response
         }
       });
+      
+      console.log('Delete response status:', response.status);
+      console.log('Delete response headers:', response.headers);
 
-      if (response.ok) {
-        this.showSuccess('Department deleted successfully!');
-        await this.loadDepartments();
+      let result;
+      try {
+        result = await response.json();
+        console.log('Delete response JSON:', result);
+      } catch (parseError) {
+        console.error('Error parsing delete response:', parseError);
+        const responseText = await response.text();
+        console.log('Delete response text:', responseText);
+        
+        // If it's HTML (likely a redirect), show success and reload
+        if (responseText.includes('<html') || responseText.includes('<!DOCTYPE')) {
+          this.showSuccess('Department deleted successfully! Reloading page...');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        } else {
+          this.showError('Error deleting department. Please try again.');
+        }
+        return;
+      }
+
+      if (response.ok && result.success === true) {
+        this.showSuccess(result.message || 'Department deleted successfully!');
+        // Reload the page to show updated data
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
-        this.showError('Error deleting department');
+        this.showError(result.message || 'Error deleting department');
       }
     } catch (error) {
       this.showError('Network error. Please try again.');
@@ -601,6 +1014,7 @@ class DepartmentManager {
     form.reset();
     form.action = '/departments';
     document.getElementById('form-method').value = 'POST';
+    document.getElementById('department-theme-name').value = '';
 
     const container = document.getElementById('activities-container');
     container.innerHTML = '';
@@ -617,6 +1031,57 @@ class DepartmentManager {
 
     this.hideError();
     this.hideSuccess();
+  }
+
+  // Handle response from form submission
+  async handleResponse(response) {
+    console.log('Response status:', response.status);
+    console.log('Response headers:', response.headers);
+    console.log('Response URL:', response.url);
+    
+    // Check if response is a redirect
+    if (response.redirected) {
+      console.log('Response was redirected to:', response.url);
+      this.showSuccess('Operation completed successfully! Redirecting...');
+      setTimeout(() => {
+        window.location.href = response.url;
+      }, 1000);
+      return;
+    }
+    
+    let result;
+    try {
+      result = await response.json();
+      console.log('Response JSON:', result);
+    } catch (parseError) {
+      console.error('Error parsing JSON response:', parseError);
+      const responseText = await response.text();
+      console.log('Response text:', responseText);
+      
+      // If it's HTML (likely a redirect), show success and reload
+      if (responseText.includes('<html') || responseText.includes('<!DOCTYPE')) {
+        this.showSuccess('Operation completed successfully! Reloading page...');
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        this.showError('Invalid response from server. Please try again.');
+      }
+      return;
+    }
+
+    if (response.ok && result.success === true) {
+      this.showSuccess(result.message || (this.isEditing ? 'Department updated successfully!' : 'Department created successfully!'));
+      this.resetForm();
+      // Reload the page to show updated data
+      setTimeout(() => {
+        console.log('Reloading page to show updated data...');
+        window.location.reload();
+      }, 1500);
+    } else {
+      const errors = result.errors || [result.message] || ['Error saving department. Please check your input.'];
+      this.showError(Array.isArray(errors) ? errors.join(', ') : errors);
+    }
   }
 
   updateDepartmentList() {
@@ -724,18 +1189,46 @@ class DepartmentManager {
 
 // Initialize only once to prevent duplicate event handlers
 let departmentManagerInstance = null;
+let isInitializing = false;
+
+// Immediate check for activity box
+(function ensureActivityBoxImmediate() {
+  console.log('Immediate check for activity box...');
+  const container = document.getElementById('activities-container');
+  if (container) {
+    console.log('Activities container found with', container.children.length, 'children');
+    if (container.children.length === 0) {
+      console.log('No activities found immediately, will add after initialization...');
+      window.needsDefaultActivity = true;
+    } else {
+      console.log('Default activity already present in HTML, no need to add more');
+      window.needsDefaultActivity = false;
+    }
+  }
+})();
 
 function initializeDepartmentManager() {
   console.log('initializeDepartmentManager called');
-  
+
   // Prevent multiple initializations
-  if (departmentManagerInstance) {
-    console.log('DepartmentManager already initialized, skipping...');
+  if (departmentManagerInstance || isInitializing) {
+    console.log('DepartmentManager already initialized or initializing, skipping...');
     return;
   }
+  
+  isInitializing = true;
 
   // Debug: Check if data is available
   console.log('Initializing DepartmentManager...');
+  
+  // Check if required elements exist
+  const form = document.getElementById('department-form');
+  const activitiesContainer = document.getElementById('activities-container');
+  const addActivityBtn = document.getElementById('add-activity');
+  
+  console.log('Form found:', !!form);
+  console.log('Activities container found:', !!activitiesContainer);
+  console.log('Add activity button found:', !!addActivityBtn);
   
   // Embed employee data in page for JavaScript access
   <% if @employee_departments %>
@@ -761,13 +1254,42 @@ function initializeDepartmentManager() {
   console.log('Department dropdown options:', deptSelect ? deptSelect.options.length : 'not found');
   console.log('Employee dropdown options:', empSelect ? empSelect.options.length : 'not found');
   
-  // DISABLED: DepartmentManager initialization - using server-side rendering
-  // departmentManagerInstance = new DepartmentManager();
-  console.log('DepartmentManager disabled - using server-side rendering');
+      // Initialize DepartmentManager for form handling
+    try {
+      console.log('Creating DepartmentManager instance...');
+      departmentManagerInstance = new DepartmentManager();
+      console.log('DepartmentManager initialized successfully');
+
+      // Check if we need to add a default activity immediately
+      if (window.needsDefaultActivity) {
+        console.log('Adding default activity immediately after initialization...');
+        const addActivityBtn = document.getElementById('add-activity');
+        if (addActivityBtn) {
+          addActivityBtn.click();
+        }
+        window.needsDefaultActivity = false;
+      } else {
+        console.log('No need to add default activity, already present in HTML');
+      }
+      
+      // Make DepartmentManager globally accessible for debugging
+      window.departmentManagerInstance = departmentManagerInstance;
+      console.log('DepartmentManager ready and accessible');
+      
+    } catch (error) {
+      console.error('Error initializing DepartmentManager:', error);
+    } finally {
+      isInitializing = false;
+    }
 }
 
 // Use only one event listener to prevent duplicates
-document.addEventListener('DOMContentLoaded', initializeDepartmentManager);
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM Content Loaded event fired');
+  initializeDepartmentManager();
+});
+
+
 
 // Global function to clear employee filter
 function clearEmployeeFilter() {
@@ -777,12 +1299,16 @@ function clearEmployeeFilter() {
   window.location.href = currentUrl.toString();
 }
 
+
+
 // For Turbo compatibility, but only if not already initialized
 document.addEventListener('turbo:load', () => {
   if (!departmentManagerInstance) {
     initializeDepartmentManager();
   }
 });
+
+
 
 // Remove turbo:render listener as it's not needed and causes duplicates
 </script>
