@@ -440,6 +440,27 @@ class DepartmentsController < ApplicationController
                     unit: activity_attrs[:unit],
                     weight: activity_attrs[:weight]
                   )
+                  
+                  # Ensure UserDetail record exists for this activity
+                  if department.employee_reference.present?
+                    employee = EmployeeDetail.find_by(employee_id: department.employee_reference)
+                    if employee
+                      existing_user_detail = UserDetail.find_by(
+                        department_id: department.id,
+                        activity_id: existing_activity.id,
+                        employee_detail_id: employee.id
+                      )
+                      
+                      unless existing_user_detail
+                        UserDetail.create!(
+                          department_id: department.id,
+                          activity_id: existing_activity.id,
+                          employee_detail_id: employee.id
+                        )
+                        Rails.logger.info "Created missing UserDetail for existing activity #{existing_activity.id}"
+                      end
+                    end
+                  end
                 else
                   Rails.logger.warn "Activity with ID #{activity_attrs[:id]} not found, skipping"
                 end
@@ -453,6 +474,19 @@ class DepartmentsController < ApplicationController
                   weight: activity_attrs[:weight]
                 )
                 Rails.logger.info "Created new activity #{new_activity.id}"
+                
+                # Create UserDetail record to link activity to employee
+                if department.employee_reference.present?
+                  employee = EmployeeDetail.find_by(employee_id: department.employee_reference)
+                  if employee
+                    UserDetail.create!(
+                      department_id: department.id,
+                      activity_id: new_activity.id,
+                      employee_detail_id: employee.id
+                    )
+                    Rails.logger.info "Created UserDetail linking activity #{new_activity.id} to employee #{employee.employee_id}"
+                  end
+                end
               end
             end
             
