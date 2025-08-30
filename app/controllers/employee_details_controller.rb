@@ -92,6 +92,91 @@ class EmployeeDetailsController < ApplicationController
     send_file tempfile.path, filename: "employee_details.xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   end
 
+  def export_quarterly_xlsx
+    @employee_details = EmployeeDetail.includes(user_details: [:activity, :department, :achievements]).all
+    
+    package = Axlsx::Package.new
+    workbook = package.workbook
+
+    workbook.add_worksheet(name: "Quarterly L1 L2 Data") do |sheet|
+      # Add header row
+      sheet.add_row [
+        "Employee Name", "Employee Code", "Department", "Quarter End Month",
+        "L1 Name", "L1 Employee Code", "L1 Remarks", "L1 Percentage",
+        "L2 Name", "L2 Employee Code", "L2 Remarks", "L2 Percentage"
+      ]
+
+      # Define quarters
+      quarters = {
+        'Q1' => ['january', 'february', 'march'],
+        'Q2' => ['april', 'may', 'june'], 
+        'Q3' => ['july', 'august', 'september'],
+        'Q4' => ['october', 'november', 'december']
+      }
+
+      # Process each employee and quarter
+      @employee_details.each do |emp|
+        quarters.each do |quarter_name, quarter_months|
+          # Get all achievements for this employee in this quarter
+          all_quarter_achievements = emp.user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month) }
+          
+          # Only add row if there are achievements in this quarter
+          if all_quarter_achievements.any?
+            # Get L1 and L2 data from achievement remarks
+            l1_remarks = []
+            l1_percentages = []
+            l2_remarks = []
+            l2_percentages = []
+            
+            all_quarter_achievements.each do |achievement|
+              if achievement.achievement_remark.present?
+                if achievement.achievement_remark.l1_remarks.present?
+                  l1_remarks << achievement.achievement_remark.l1_remarks
+                end
+                if achievement.achievement_remark.l1_percentage.present?
+                  l1_percentages << achievement.achievement_remark.l1_percentage.to_f
+                end
+                if achievement.achievement_remark.l2_remarks.present?
+                  l2_remarks << achievement.achievement_remark.l2_remarks
+                end
+                if achievement.achievement_remark.l2_percentage.present?
+                  l2_percentages << achievement.achievement_remark.l2_percentage.to_f
+                end
+              end
+            end
+            
+            # Calculate averages
+            l1_avg = l1_percentages.any? ? (l1_percentages.sum / l1_percentages.size).round(1) : 0.0
+            l2_avg = l2_percentages.any? ? (l2_percentages.sum / l2_percentages.size).round(1) : 0.0
+            
+            # Join remarks with semicolons
+            l1_remarks_text = l1_remarks.uniq.join('; ')
+            l2_remarks_text = l2_remarks.uniq.join('; ')
+            
+            sheet.add_row [
+              emp.employee_name || 'N/A',
+              emp.employee_code || 'N/A',
+              emp.department || 'N/A',
+              quarter_name,
+              emp.l1_employer_name || 'N/A',
+              emp.l1_code || 'N/A',
+              l1_remarks_text.presence || 'N/A',
+              l1_avg > 0 ? "#{l1_avg}%" : 'N/A',
+              emp.l2_employer_name || 'N/A',
+              emp.l2_code || 'N/A',
+              l2_remarks_text.presence || 'N/A',
+              l2_avg > 0 ? "#{l2_avg}%" : 'N/A'
+            ]
+          end
+        end
+      end
+    end
+
+    tempfile = Tempfile.new(["quarterly_l1_l2_data", ".xlsx"])
+    package.serialize(tempfile.path)
+    send_file tempfile.path, filename: "quarterly_l1_l2_data.xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  end
+
   def import
     file = params[:file]
 

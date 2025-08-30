@@ -57,6 +57,7 @@ Rails.application.routes.draw do
   resources :employee_details do
     collection do
       get :export_xlsx
+      get :export_quarterly_xlsx  # Export quarterly L1 L2 data
       post :import
       get 'l1'
       get 'l2'  # ➤ this is your sidebar L1 view
