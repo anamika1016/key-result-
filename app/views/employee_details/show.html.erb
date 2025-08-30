@@ -414,10 +414,6 @@
         </button>
       </div>
     </div>
-  <% else %>
-    <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium">
-      This Quarter has been processed and cannot be modified.
-    </div>
   <% end %>
 
 <% elsif @can_approve_or_return && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
@@ -445,10 +441,6 @@
           Return All Activities
         </button>
       </div>
-    </div>
-  <% else %>
-    <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium">
-      All activities have been processed and cannot be modified.
     </div>
   <% end %>
 <% end %>
@@ -596,11 +588,14 @@
     if (actionButtons) {
       actionButtons.style.display = 'none';
       
-      // Add processed message
-      const processedMessage = document.createElement('div');
-      processedMessage.className = 'mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium';
-      processedMessage.textContent = 'This Quarter has been processed and cannot be modified.';
-      actionButtons.parentNode.appendChild(processedMessage);
+      // Check if the message already exists to prevent duplication
+      const existingMessage = actionButtons.parentNode.querySelector('.text-center.text-gray-600.font-medium');
+      if (!existingMessage) {
+        const processedMessage = document.createElement('div');
+        processedMessage.className = 'mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium';
+        processedMessage.textContent = 'This Quarter has been processed and cannot be modified.';
+        actionButtons.parentNode.appendChild(processedMessage);
+      }
     }
   }
 
