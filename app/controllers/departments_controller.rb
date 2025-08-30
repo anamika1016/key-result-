@@ -1,7 +1,7 @@
 require 'roo'
 
 class DepartmentsController < ApplicationController
-  before_action :set_department, only: [:show, :edit, :update, :destroy]
+  before_action :set_department, only: [:show, :edit, :update, :destroy, :delete_user_activities, :delete_user_from_department]
   
   def index
     if params[:employee_id].present?
@@ -692,24 +692,33 @@ class DepartmentsController < ApplicationController
 
   def destroy
     begin
-      ActiveRecord::Base.transaction do
-        # First, delete all records that reference activities in this department
-        @department.activities.each do |activity|
-          # Delete user_details that reference this activity
-          user_details = UserDetail.where(activity_id: activity.id)
-          user_details.destroy_all
+      # Check if this is a request to delete a specific user's activities
+      if params[:user_id].present?
+        # Delete only specific user's activities from this department
+        delete_user_activities_from_department(params[:user_id])
+        message = "User activities deleted successfully from this department."
+      else
+        # Delete the entire department (existing behavior)
+        ActiveRecord::Base.transaction do
+          # First, delete all records that reference activities in this department
+          @department.activities.each do |activity|
+            # Delete user_details that reference this activity
+            user_details = UserDetail.where(activity_id: activity.id)
+            user_details.destroy_all
+          end
+          
+          # Now delete the activities
+          @department.activities.destroy_all
+          
+          # Finally delete the department
+          @department.destroy
         end
-        
-        # Now delete the activities
-        @department.activities.destroy_all
-        
-        # Finally delete the department
-        @department.destroy
+        message = 'Department was successfully deleted.'
       end
       
       respond_to do |format|
-        format.html { redirect_to departments_path, notice: 'Department was successfully deleted.' }
-        format.json { render json: { success: true, message: 'Department deleted successfully!' } }
+        format.html { redirect_to departments_path, notice: message }
+        format.json { render json: { success: true, message: message } }
       end
     rescue => e
       Rails.logger.error "Error deleting department: #{e.message}"
@@ -717,6 +726,108 @@ class DepartmentsController < ApplicationController
         format.html { redirect_to departments_path, alert: "Error deleting department: #{e.message}" }
         format.json { render json: { success: false, message: "Error deleting department: #{e.message}" }, status: :unprocessable_entity }
       end
+    end
+  end
+
+  # New method to delete specific user's activities from a department
+  def delete_user_activities_from_department(user_id)
+    Rails.logger.info "=== delete_user_activities_from_department method called ==="
+    Rails.logger.info "Deleting activities for user: #{user_id} from department: #{@department.id}"
+    
+    begin
+      ActiveRecord::Base.transaction do
+        # Find the employee detail for this user
+        employee_detail = EmployeeDetail.find_by(employee_id: user_id)
+        
+        if employee_detail
+          Rails.logger.info "Found employee: #{employee_detail.employee_name}"
+          
+          # Find all user_details for this specific employee in this department
+          user_details = UserDetail.where(
+            department_id: @department.id,
+            employee_detail_id: employee_detail.id
+          )
+          
+          user_details_count = user_details.count
+          Rails.logger.info "Found #{user_details_count} user_details for employee #{employee_detail.employee_name} in department #{@department.id}"
+          
+          if user_details_count > 0
+            # Delete the user_details (achievements and achievement_remarks will be deleted automatically due to dependent: :destroy)
+            user_details.destroy_all
+            Rails.logger.info "Deleted #{user_details_count} user_details for employee #{employee_detail.employee_name}"
+            
+            # Check if this was the only employee in this department
+            remaining_user_details = UserDetail.where(department_id: @department.id)
+            
+            if remaining_user_details.count == 0
+              Rails.logger.info "No more user_details in department #{@department.id}, deleting department and activities"
+              # If no more user_details, delete the department and activities
+              @department.activities.destroy_all
+              @department.destroy
+            else
+              Rails.logger.info "Department #{@department.id} still has #{remaining_user_details.count} other user_details, keeping department"
+            end
+          else
+            Rails.logger.info "No user_details found for employee #{employee_detail.employee_name} in department #{@department.id}"
+          end
+        else
+          Rails.logger.error "Employee detail not found for user_id: #{user_id}"
+          raise "Employee not found"
+        end
+      end
+    rescue => e
+      Rails.logger.error "Error deleting user activities: #{e.message}"
+      raise e
+    end
+  end
+
+  # New method to handle the delete_user_activities route
+  def delete_user_activities
+    # Handle both form data and JSON parameters
+    user_id = params[:employee_id] || params[:user_id]
+    
+    if user_id.blank?
+      respond_to do |format|
+        format.html { redirect_to departments_path, alert: 'Employee ID is required' }
+        format.json { render json: { success: false, message: 'Employee ID is required' }, status: :bad_request }
+      end
+      return
+    end
+    
+    Rails.logger.info "delete_user_activities called with user_id: #{user_id}"
+    
+    begin
+      delete_user_activities_from_department(user_id)
+      
+      respond_to do |format|
+        format.html { redirect_to departments_path, notice: 'User activities deleted successfully from this department!' }
+        format.json { render json: { success: true, message: 'User activities deleted successfully from this department!' } }
+      end
+    rescue => e
+      Rails.logger.error "Error in delete_user_activities: #{e.message}"
+      
+      respond_to do |format|
+        format.html { redirect_to departments_path, alert: "Error deleting user activities: #{e.message}" }
+        format.json { render json: { success: false, message: "Error deleting user activities: #{e.message}" }, status: :unprocessable_entity }
+      end
+    end
+  end
+
+  # New method to handle the delete_user_from_department route
+  def delete_user_from_department
+    user_id = params[:user_id] || params[:employee_id]
+    
+    if user_id.blank?
+      render json: { success: false, message: 'User ID is required' }, status: :bad_request
+      return
+    end
+    
+    begin
+      delete_user_activities_from_department(user_id)
+      render json: { success: true, message: 'User deleted successfully from this department!' }
+    rescue => e
+      Rails.logger.error "Error in delete_user_from_department: #{e.message}"
+      render json: { success: false, message: "Error deleting user from department: #{e.message}" }, status: :unprocessable_entity
     end
   end
 

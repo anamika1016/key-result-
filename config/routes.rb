@@ -35,6 +35,8 @@ Rails.application.routes.draw do
     member do
       get :edit_data
       patch :update_employee_activity_data
+      post :delete_user_activities  # Changed from delete to post for JSON data
+      delete :delete_user_from_department  # New route for deleting user from specific department
     end
     collection do
       post :import

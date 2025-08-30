@@ -211,7 +211,7 @@
                       <!-- Remarks -->
                       <td class="px-4 py-3 text-sm text-center border-r border-gray-200 remarks-cell">
                         <% if employee_remarks.present? %>
-                          <div class="text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs break-words">
+                          <div class="text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs break-words max-w-full overflow-hidden" style="word-wrap: break-word; word-break: break-word; hyphens: auto; max-width: 300px;">
                             <%= employee_remarks %>
                           </div>
                         <% else %>
@@ -962,6 +962,12 @@
   vertical-align: middle;
 }
 
+/* Allow text wrapping for remarks cells */
+.remarks-cell {
+  white-space: normal;
+  word-wrap: break-word;
+}
+
 .table th {
   background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
   color: white;
@@ -1058,12 +1064,26 @@ input:valid, textarea:valid {
 .remarks-cell {
   min-width: 350px;
   max-width: 450px;
+  overflow: hidden;
 }
 
 .break-words {
   word-wrap: break-word;
   word-break: break-word;
   hyphens: auto;
+}
+
+/* Enhanced remarks container styling */
+.remarks-cell .bg-blue-50 {
+  max-width: 100%;
+  overflow: hidden;
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+  white-space: normal;
+  line-height: 1.4;
+  display: inline-block;
+  max-width: 280px;
 }
 
 .space-y-3 > * + * {

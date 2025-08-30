@@ -14,6 +14,12 @@
             <ul id="error-list"></ul>
           </div>
 
+          <!-- Hidden form for deleting user activities -->
+          <form id="delete-user-form" method="POST" action="" style="display: none;">
+            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+            <input type="hidden" name="employee_id" id="delete-user-employee-id">
+          </form>
+
 
 
           <!-- Bulk Upload Section -->
@@ -212,7 +218,15 @@
                         </td>
                         <td class="px-6 py-4 text-sm font-medium text-gray-900">
                           <button type="button" class="edit-btn text-blue-600 hover:text-blue-900 mr-4" data-department-id="<%= data[:id] %>">Edit</button>
-                          <button type="button" class="delete-btn text-red-600 hover:text-red-900" data-department-id="<%= data[:id] %>">Delete</button>
+                          <div class="flex space-x-2">
+                            <button type="button" class="delete-user-btn bg-orange-100 hover:bg-orange-200 text-orange-700 hover:text-orange-800 px-2 py-1 rounded text-xs font-medium border border-orange-300" 
+                                    data-department-id="<%= data[:id] %>" 
+                                    data-employee-id="<%= data[:employee_id] %>"
+                                    title="Delete only this user's activities">Delete User</button>
+                            <button type="button" class="delete-dept-btn bg-red-100 hover:bg-red-200 text-red-700 hover:text-red-800 px-2 py-1 rounded text-xs font-medium border border-red-300" 
+                                    data-department-id="<%= data[:id] %>"
+                                    title="Delete entire department">Delete Dept</button>
+                          </div>
                         </td>
                       </tr>
                     <% end %>
@@ -442,6 +456,18 @@ class DepartmentManager {
       }
 
       if (e.target.classList.contains('delete-btn')) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.deleteDepartment(e.target.dataset.departmentId);
+      }
+
+      if (e.target.classList.contains('delete-user-btn')) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.deleteUserActivities(e.target.dataset.departmentId, e.target.dataset.employeeId);
+      }
+
+      if (e.target.classList.contains('delete-dept-btn')) {
         e.preventDefault();
         e.stopPropagation();
         this.deleteDepartment(e.target.dataset.departmentId);
@@ -1041,6 +1067,33 @@ class DepartmentManager {
     }
   }
 
+  async deleteUserActivities(departmentId, employeeId) {
+    console.log('deleteUserActivities called with departmentId:', departmentId, 'and employeeId:', employeeId);
+    if (!confirm('Are you sure you want to delete all activities for this employee from this department? This will only affect this specific employee.')) return;
+
+    try {
+      // Use the hidden form approach to avoid CSRF issues
+      const form = document.getElementById('delete-user-form');
+      const employeeIdInput = document.getElementById('delete-user-employee-id');
+      
+      if (!form || !employeeIdInput) {
+        this.showError('Delete form not found. Please refresh the page.');
+        return;
+      }
+      
+      // Set the form action and employee ID
+      form.action = `/departments/${departmentId}/delete_user_activities`;
+      employeeIdInput.value = employeeId;
+      
+      // Submit the form
+      form.submit();
+      
+    } catch (error) {
+      console.error('Error in deleteUserActivities:', error);
+      this.showError('Error occurred. Please try again.');
+    }
+  }
+
   resetForm() {
     const form = document.getElementById('department-form');
     form.reset();
@@ -1154,7 +1207,15 @@ class DepartmentManager {
           </td>
           <td class="px-6 py-4 text-sm font-medium">
             <button type="button" class="edit-btn text-blue-600 hover:text-blue-900 mr-4" data-department-id="${dept.id}">Edit</button>
-            <button type="button" class="delete-btn text-red-600 hover:text-red-900" data-department-id="${dept.id}">Delete</button>
+            <div class="flex space-x-2">
+              <button type="button" class="delete-user-btn bg-orange-100 hover:bg-orange-200 text-orange-700 hover:text-orange-800 px-2 py-1 rounded text-xs font-medium border border-orange-300" 
+                      data-department-id="${dept.id}" 
+                      data-employee-id="${dept.employee_reference || ''}"
+                      title="Delete only this user's activities">Delete User</button>
+              <button type="button" class="delete-dept-btn bg-red-100 hover:bg-red-200 text-red-700 hover:text-red-800 px-2 py-1 rounded text-xs font-medium border border-red-300" 
+                      data-department-id="${dept.id}"
+                      title="Delete entire department">Delete Dept</button>
+            </div>
           </td>
         `;
         tbody.appendChild(row);
