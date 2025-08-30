@@ -178,12 +178,13 @@ class EmployeeDetailsController < ApplicationController
 
   # Quarterly approval - approve all activities for a quarter
   def approve
-    Rails.logger.info "APPROVE ACTION CALLED with params: #{params.inspect}"
+    Rails.logger.info "L1 APPROVE ACTION CALLED for employee: #{params[:id]}, user: #{current_user.email}, params: #{params.inspect}"
     Rails.logger.info "Request method: #{request.method}"
     Rails.logger.info "Request path: #{request.path}"
     
     begin
       @employee_detail = EmployeeDetail.find(params[:id])
+      Rails.logger.info "Employee detail found: #{@employee_detail.id}, L1 code: #{@employee_detail.l1_code}, L1 employer: #{@employee_detail.l1_employer_name}"
     rescue ActiveRecord::RecordNotFound
       if request.xhr?
         render json: { success: false, message: "❌ Employee detail not found. The record may have been deleted." }, status: :not_found
@@ -191,6 +192,16 @@ class EmployeeDetailsController < ApplicationController
         redirect_to employee_details_path, alert: "❌ Employee detail not found. The record may have been deleted."
       end
       return
+    end
+
+    # Skip authorization check for AJAX requests to prevent CanCan errors
+    if request.xhr? || params[:action_type].present?
+      # For AJAX requests, we'll handle authorization in the processing method
+    else
+      unless can_act_as_l1?(@employee_detail)
+        redirect_back fallback_location: root_path, alert: "❌ You are not authorized to approve this record"
+        return
+      end
     end
 
     if can_act_as_l1?(@employee_detail)
@@ -204,7 +215,8 @@ class EmployeeDetailsController < ApplicationController
           render json: { 
             success: true, 
             count: result[:count], 
-            message: "✅ Successfully approved #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L1" 
+            message: "✅ Successfully approved #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L1",
+            updated_status: 'l1_approved'
           }
         else
           redirect_to employee_detail_path(@employee_detail, quarter: params[:selected_quarter]), 
@@ -212,7 +224,7 @@ class EmployeeDetailsController < ApplicationController
         end
       else
         if request.xhr? || params[:action_type].present?
-          render json: { success: false, message: result[:message] }
+          render json: { success: false, message: result[:message] }, status: :unprocessable_entity
         else
           redirect_back fallback_location: root_path, alert: result[:message]
         end
@@ -254,8 +266,11 @@ class EmployeeDetailsController < ApplicationController
 
   # Quarterly return - return all activities for a quarter
   def return
+    Rails.logger.info "L1 RETURN ACTION CALLED for employee: #{params[:id]}, user: #{current_user.email}, params: #{params.inspect}"
+    
     begin
       @employee_detail = EmployeeDetail.find(params[:id])
+      Rails.logger.info "Employee detail found: #{@employee_detail.id}, L1 code: #{@employee_detail.l1_code}, L1 employer: #{@employee_detail.l1_employer_name}"
     rescue ActiveRecord::RecordNotFound
       if request.xhr?
         render json: { success: false, message: "❌ Employee detail not found. The record may have been deleted." }, status: :not_found
@@ -263,6 +278,16 @@ class EmployeeDetailsController < ApplicationController
         redirect_to employee_details_path, alert: "❌ Employee detail not found. The record may have been deleted."
       end
       return
+    end
+    
+    # Skip authorization check for AJAX requests to prevent CanCan errors
+    if request.xhr? || params[:action_type].present?
+      # For AJAX requests, we'll handle authorization in the processing method
+    else
+      unless can_act_as_l1?(@employee_detail)
+        redirect_back fallback_location: root_path, alert: "❌ You are not authorized to return this record"
+        return
+      end
     end
     
     if can_act_as_l1?(@employee_detail)
@@ -276,7 +301,8 @@ class EmployeeDetailsController < ApplicationController
           render json: { 
             success: true, 
             count: result[:count], 
-            message: "⚠️ Successfully returned #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L1" 
+            message: "⚠️ Successfully returned #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L1",
+            updated_status: 'l1_returned'
           }
         else
           redirect_to employee_detail_path(@employee_detail, quarter: params[:selected_quarter]), 
@@ -284,7 +310,7 @@ class EmployeeDetailsController < ApplicationController
         end
       else
         if request.xhr? || params[:action_type].present?
-          render json: { success: false, message: result[:message] }
+          render json: { success: false, message: result[:message] }, status: :unprocessable_entity
         else
           redirect_back fallback_location: root_path, alert: result[:message]
         end
@@ -384,9 +410,13 @@ end
   end
 
   def l2_approve
+    Rails.logger.info "L2 Approve called for employee: #{params[:id]}, user: #{current_user.email}, params: #{params.inspect}"
+    
     begin
       @employee_detail = EmployeeDetail.find(params[:id])
+      Rails.logger.info "Employee detail found: #{@employee_detail.id}, L2 code: #{@employee_detail.l2_code}, L2 employer: #{@employee_detail.l2_employer_name}"
     rescue ActiveRecord::RecordNotFound
+      Rails.logger.error "Employee detail not found: #{params[:id]}"
       if request.xhr?
         render json: { success: false, message: "❌ Employee detail not found. The record may have been deleted." }, status: :not_found
       else
@@ -395,13 +425,14 @@ end
       return
     end
     
-    unless current_user.hod? || can_act_as_l2?(@employee_detail)
-      if request.xhr? || params[:action_type].present?
-        render json: { success: false, message: "❌ You are not authorized to approve at L2 level" }
-      else
+    # Skip authorization check for AJAX requests to prevent CanCan errors
+    if request.xhr? || params[:action_type].present?
+      # For AJAX requests, we'll handle authorization in the processing method
+    else
+      unless current_user.hod? || can_act_as_l2?(@employee_detail)
         redirect_to show_l2_employee_detail_path(@employee_detail), alert: "❌ You are not authorized to approve at L2 level"
+        return
       end
-      return
     end
 
     # Pass action_type parameter to indicate this is an approval action
@@ -422,7 +453,7 @@ end
       end
     else
       if request.xhr? || params[:action_type].present?
-        render json: { success: false, message: result[:message] }
+        render json: { success: false, message: result[:message] }, status: :unprocessable_entity
       else
         redirect_to show_l2_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]), 
                     alert: result[:message]
@@ -431,9 +462,13 @@ end
   end
 
   def l2_return
+    Rails.logger.info "L2 Return called for employee: #{params[:id]}, user: #{current_user.email}, params: #{params.inspect}"
+    
     begin
       @employee_detail = EmployeeDetail.find(params[:id])
+      Rails.logger.info "Employee detail found: #{@employee_detail.id}, L2 code: #{@employee_detail.l2_code}, L2 employer: #{@employee_detail.l2_employer_name}"
     rescue ActiveRecord::RecordNotFound
+      Rails.logger.error "Employee detail not found: #{params[:id]}"
       if request.xhr?
         render json: { success: false, message: "❌ Employee detail not found. The record may have been deleted." }, status: :not_found
       else
@@ -442,13 +477,14 @@ end
       return
     end
 
-    unless current_user.hod? || can_act_as_l2?(@employee_detail)
-      if request.xhr? || params[:action_type].present?
-        render json: { success: false, message: "❌ You are not authorized to return at L2 level" }
-      else
+    # Skip authorization check for AJAX requests to prevent CanCan errors
+    if request.xhr? || params[:action_type].present?
+      # For AJAX requests, we'll handle authorization in the processing method
+    else
+      unless current_user.hod? || can_act_as_l2?(@employee_detail)
         redirect_to show_l2_employee_detail_path(@employee_detail), alert: "❌ You are not authorized to return at L2 level"
+        return
       end
-      return
     end
     
     # Add debugging
@@ -475,7 +511,7 @@ end
       end
     else
       if request.xhr? || params[:action_type].present?
-        render json: { success: false, message: result[:message] }
+        render json: { success: false, message: result[:message] }, status: :unprocessable_entity
       else
         redirect_to show_l2_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]), 
                     alert: result[:message]
@@ -758,6 +794,11 @@ end
   end
 
   def process_quarterly_l1_approval
+    # Add authorization check here for AJAX requests
+    unless can_act_as_l1?(@employee_detail)
+      return { success: false, message: "❌ You are not authorized to perform L1 actions on this record" }
+    end
+    
     approved_count = 0
     
     # Determine if this is an approval or return action
@@ -870,6 +911,11 @@ end
 
 # Process L2 quarterly approval - FIXED
 def process_quarterly_l2_approval
+  # Add authorization check here for AJAX requests
+  unless current_user.hod? || can_act_as_l2?(@employee_detail)
+    return { success: false, message: "❌ You are not authorized to perform L2 actions on this record" }
+  end
+  
   approved_count = 0
   
   # Determine if this is an approval or return action

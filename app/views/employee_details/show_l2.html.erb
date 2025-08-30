@@ -1,4 +1,7 @@
 <!-- L2 Employee Detail Quarterly View with Fixed L2 Remarks Display -->
+<!-- CSRF token meta tag -->
+<meta name="csrf-token" content="<%= form_authenticity_token %>">
+
 <div class="main-content bg-gray-50 min-h-screen">
 <div class="p-8 bg-white rounded-xl shadow-lg border border-gray-200 mx-4">
   <div class="border-b border-gray-200 pb-6 mb-8">
@@ -243,12 +246,12 @@
   <% end %>
 
   <!-- L1 & L2 Summary for Quarter -->
-  <% if quarter_achievement_count > 0 %>
+  <% if @user_details.any? { |detail| detail.achievements.any? { |a| display_months.map { |m| m[0].to_s }.include?(a.month) } } %>
     <%
-      # Calculate SINGLE average for entire quarter
+      # Calculate SINGLE average for entire quarter - include achievements with or without remarks
       all_quarter_achievements = []
       @user_details.each do |detail|
-        quarter_achievements = detail.achievements.select { |a| display_months.map { |m| m[0].to_s }.include?(a.month) && a.achievement_remark.present? }
+        quarter_achievements = detail.achievements.select { |a| display_months.map { |m| m[0].to_s }.include?(a.month) }
         all_quarter_achievements.concat(quarter_achievements)
       end
 
@@ -302,7 +305,7 @@
               <% end %>
             </div>
           <% else %>
-            <div class="bg-white p-4 rounded border">
+            <div class="bg-white p-4 rounded border" id="l1-remarks-container">
               <p class="text-gray-500 text-sm">No remarks for this quarter</p>
             </div>
           <% end %>
@@ -378,10 +381,6 @@
   <% else %>
     <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium">
       This Quarter has been processed and cannot be modified.
-      <!-- Debug info (remove in production) -->
-      <div class="text-xs text-gray-400 mt-2">
-        Debug: L2 Status = <%= l2_status %>, L2 Data = <%= has_l2_data %>, Overall Status = <%= overall_quarter_status %>
-      </div>
     </div>
   <% end %>
 <% end %>
@@ -426,23 +425,28 @@
 
 <!-- FIXED JavaScript with improved update logic -->
 <script>
-  let currentActionType = '';
-  let currentActionUrl = '';
+  // Use window object to prevent variable redeclaration with Turbo
+  if (typeof window.l2ModalData === 'undefined') {
+    window.l2ModalData = {
+      currentActionType: '',
+      currentActionUrl: ''
+    };
+  }
 
   function openModal(actionType) {
     const modal = document.getElementById("decisionModal");
     const modalTitle = document.getElementById("modalTitle");
     
-    currentActionType = actionType;
+    window.l2ModalData.currentActionType = actionType;
     
     modal.classList.remove("hidden");
     document.body.style.overflow = 'hidden';
 
     if (actionType === "l2_approve") {
-      currentActionUrl = "<%= l2_approve_employee_detail_path(@employee_detail) %>";
+      window.l2ModalData.currentActionUrl = "<%= l2_approve_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "L2 Approve Quarter";
     } else if (actionType === "l2_reject") {
-      currentActionUrl = "<%= l2_return_employee_detail_path(@employee_detail) %>";
+      window.l2ModalData.currentActionUrl = "<%= l2_return_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "L2 Return Quarter";
     }
 
@@ -454,8 +458,8 @@
   function closeModal() {
     document.getElementById("decisionModal").classList.add("hidden");
     document.body.style.overflow = 'auto';
-    currentActionType = '';
-    currentActionUrl = '';
+    window.l2ModalData.currentActionType = '';
+    window.l2ModalData.currentActionUrl = '';
   }
 
   function showStatusMessage(message, isSuccess) {
@@ -528,11 +532,11 @@
     const form = document.getElementById('modalForm');
     const formData = new FormData(form);
     
-    formData.append('action_type', currentActionType);
+    formData.append('action_type', window.l2ModalData.currentActionType);
     
     modalLoading.classList.remove('hidden');
     
-    fetch(currentActionUrl, {
+    fetch(window.l2ModalData.currentActionUrl, {
       method: 'PATCH',
       body: formData,
       headers: {
@@ -548,6 +552,12 @@
           setTimeout(() => {
             window.location.href = '<%= employee_details_path %>';
           }, 3000);
+          return;
+        } else if (response.status === 500) {
+          showStatusMessage('❌ Server error occurred. Please try again or contact support.', false);
+          return;
+        } else if (response.status === 403) {
+          showStatusMessage('❌ Access denied. You are not authorized to perform this action.', false);
           return;
         }
         throw new Error(`HTTP error! status: ${response.status}`);
@@ -580,11 +590,43 @@
           updateL2Summary(percentage, remarks);
         }
         
+        // Ensure summary sections are visible immediately
+        showSummarySections();
+        
+        // Force update the summary sections with the form data
+        if (percentage || remarks) {
+          // Update both L1 and L2 summaries if they exist
+          updateL1Summary(percentage, remarks);
+          updateL2Summary(percentage, remarks);
+          
+          // Force show all summary sections
+          setTimeout(() => {
+            showSummarySections();
+          }, 100);
+        }
+        
+        // Update quarter status immediately
+        if (data.updated_status) {
+          updateQuarterStatus(data.updated_status);
+        }
+        
+        // Refresh the page data to show latest information
+        setTimeout(() => {
+          // Force one more update before reload
+          showSummarySections();
+          window.location.reload();
+        }, 2000);
+        
         // Scroll to status message
         document.getElementById('statusMessage').scrollIntoView({ 
           behavior: 'smooth', 
           block: 'center' 
         });
+        
+        // Show success feedback
+        setTimeout(() => {
+          showStatusMessage('✅ Action completed successfully! The page will refresh to show updated data.', true);
+        }, 1000);
         
       } else {
         showStatusMessage(data.message || 'An error occurred', false);
@@ -593,7 +635,15 @@
     .catch(error => {
       modalLoading.classList.add('hidden');
       console.error('Error:', error);
-      showStatusMessage('Network error occurred. Please try again.', false);
+      
+      // More specific error messages
+      if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+        showStatusMessage('❌ Network error. Please check your connection and try again.', false);
+      } else if (error.message.includes('HTTP error')) {
+        showStatusMessage('❌ Server error. Please try again or contact support.', false);
+      } else {
+        showStatusMessage('❌ An unexpected error occurred. Please try again.', false);
+      }
     });
   }
 
@@ -636,6 +686,209 @@
     }
   }
 
+  // Function to update quarter status immediately
+  function updateQuarterStatus(newStatus) {
+    console.log('Updating quarter status to:', newStatus);
+    
+    // Update the status badge
+    updateStatusBadge(newStatus);
+    
+    // Update the action buttons visibility
+    if (newStatus === 'l2_approved' || newStatus === 'l2_returned') {
+      hideActionButtons();
+    }
+    
+    // Update the quarter status display
+    const statusBadge = document.getElementById('quarterStatusBadge');
+    if (statusBadge) {
+      statusBadge.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    // Ensure summary sections are visible after status change
+    showSummarySections();
+  }
+  
+  // Function to update L1 summary section immediately
+  function updateL1Summary(percentage, remarks) {
+    console.log('Updating L1 Summary with:', { percentage, remarks });
+    
+    // Find the L1 Quarter Summary section by looking for the heading text
+    const l1Heading = Array.from(document.querySelectorAll('h3')).find(h3 => h3.textContent.includes('L1 Quarter Summary'));
+    if (!l1Heading) {
+      console.log('L1 Quarter Summary heading not found');
+      console.log('Available h3 elements:', Array.from(document.querySelectorAll('h3')).map(h => h.textContent));
+      return;
+    }
+    console.log('Found L1 heading:', l1Heading);
+    
+    let l1SummarySection = l1Heading.closest('.bg-gradient-to-r.from-blue-50');
+    if (!l1SummarySection) {
+      console.log('L1 Summary section not found with .from-blue-50, trying alternative selector');
+      l1SummarySection = l1Heading.closest('.bg-gradient-to-r');
+      if (!l1SummarySection) {
+        console.log('L1 Summary section still not found with .bg-gradient-to-r');
+        // Try finding by parent div
+        l1SummarySection = l1Heading.parentElement;
+        console.log('Trying parent element:', l1SummarySection);
+        if (!l1SummarySection) {
+          console.log('L1 Summary section still not found');
+          return;
+        }
+      }
+    }
+    console.log('Found L1 summary section:', l1SummarySection);
+    
+    // Update L1 percentage display - find the percentage text element
+    const l1PercentageElement = l1SummarySection.querySelector('.text-3xl.font-bold.text-blue-800');
+    if (l1PercentageElement && percentage !== undefined && percentage !== null && percentage !== '') {
+      l1PercentageElement.textContent = parseFloat(percentage).toFixed(1) + '%';
+      console.log('Updated L1 percentage display to:', percentage + '%');
+    } else {
+      console.log('L1 percentage element not found or percentage is empty');
+    }
+    
+    // Update L1 remarks display - find the remarks container by ID first, then by class
+    let l1RemarksContainer = document.getElementById('l1-remarks-container');
+    if (!l1RemarksContainer) {
+      l1RemarksContainer = l1SummarySection.querySelector('.bg-white.p-4.rounded.border');
+    }
+    
+    if (l1RemarksContainer) {
+      if (remarks && remarks.trim() !== '') {
+        l1RemarksContainer.innerHTML = `
+          <div class="text-gray-700 text-sm mb-3 pb-3">
+            <div class="flex items-start gap-2">
+              <span class="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                Remark 1
+              </span>
+              <span class="text-gray-700">${remarks}</span>
+            </div>
+          </div>
+        `;
+        console.log('Updated L1 remarks display with:', remarks);
+      }
+    } else {
+      console.log('L1 remarks container not found');
+    }
+  }
+  
+  // Function to ensure summary sections are always visible
+  function showSummarySections() {
+    console.log('showSummarySections called');
+    
+    let summarySections = document.querySelectorAll('.grid.grid-cols-1.lg\\:grid-cols-2.gap-6.mt-6');
+    console.log('Found summary sections:', summarySections.length);
+    
+    // If no summary sections found, try to create them dynamically
+    if (summarySections.length === 0) {
+      console.log('No summary sections found, attempting to create them');
+      createSummarySections();
+      // Re-query after creation
+      summarySections = document.querySelectorAll('.grid.grid-cols-1.lg\\:grid-cols-2.gap-6.mt-6');
+    }
+    
+    summarySections.forEach((section, index) => {
+      console.log(`Summary section ${index}:`, section);
+      if (section.style.display === 'none') {
+        section.style.display = 'grid';
+        console.log(`Fixed display for section ${index}`);
+      }
+    });
+    
+    // Also ensure the quarter status section is visible
+    const statusSection = document.querySelector('.mt-8.pt-6.border-t.border-gray-200');
+    if (statusSection) {
+      statusSection.style.display = 'block';
+      console.log('Fixed quarter status section display');
+    }
+    
+    // Force visibility of all summary elements
+    const allSummaryElements = document.querySelectorAll('.bg-gradient-to-r, .bg-blue-50, .bg-green-50');
+    console.log('Found summary elements:', allSummaryElements.length);
+    allSummaryElements.forEach((element, index) => {
+      element.style.display = 'block';
+      element.style.visibility = 'visible';
+      element.style.opacity = '1';
+      console.log(`Fixed visibility for element ${index}:`, element);
+    });
+    
+    // Also check for any hidden elements with specific classes
+    const hiddenElements = document.querySelectorAll('[style*="display: none"], [style*="visibility: hidden"]');
+    console.log('Found hidden elements:', hiddenElements.length);
+    hiddenElements.forEach((element, index) => {
+      if (element.classList.contains('bg-gradient-to-r') || 
+          element.classList.contains('bg-blue-50') || 
+          element.classList.contains('bg-green-50') ||
+          element.classList.contains('grid')) {
+        element.style.display = 'block';
+        element.style.visibility = 'visible';
+        element.style.opacity = '1';
+        console.log(`Fixed visibility for element ${index}:`, element);
+      }
+    });
+  }
+  
+  // Function to create summary sections if they don't exist
+  function createSummarySections() {
+    console.log('Creating summary sections dynamically');
+    
+    // Find the table or main content area to insert after
+    const tableSection = document.querySelector('.table-wrapper');
+    if (!tableSection) {
+      console.log('Table section not found, cannot create summary sections');
+      return;
+    }
+    
+    // Create the summary sections container
+    const summaryContainer = document.createElement('div');
+    summaryContainer.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6';
+    summaryContainer.innerHTML = `
+      <!-- L1 Quarterly Summary -->
+      <div class="bg-gradient-to-r from-blue-50 via-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-md">
+        <h3 class="text-xl font-bold text-blue-700 mb-6 flex items-center gap-2">
+          <i class="fas fa-user-check text-blue-500"></i>
+          L1 Quarter Summary
+        </h3>
+        <div class="mb-6 text-center">
+          <div class="bg-blue-200 p-4 rounded-lg inline-block">
+            <p class="text-blue-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
+            <p class="text-3xl font-bold text-blue-800">0.0%</p>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <h4 class="text-blue-600 font-semibold text-sm">Quarter Remarks:</h4>
+          <div class="bg-white p-4 rounded border" id="l1-remarks-container">
+            <p class="text-gray-500 text-sm">No remarks for this quarter</p>
+          </div>
+        </div>
+      </div>
+      
+      <!-- L2 Quarterly Summary -->
+      <div class="bg-gradient-to-r from-green-50 via-green-50 to-green-100 border border-green-200 rounded-xl p-6 shadow-md">
+        <h3 class="text-xl font-bold text-green-700 mb-6 flex items-center gap-2">
+          <i class="fas fa-user-shield text-green-500"></i>
+          L2 Quarter Summary
+        </h3>
+        <div class="mb-6 text-center">
+          <div class="bg-green-200 p-4 rounded-lg inline-block">
+            <p class="text-green-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
+            <p class="text-3xl font-bold text-green-800">0.0%</p>
+          </div>
+        </div>
+        <div class="space-y-3">
+          <h4 class="text-green-600 font-semibold text-sm">Quarter Remarks:</h4>
+          <div class="bg-white p-4 rounded border" id="l2-remarks-container">
+            <p class="text-gray-500 text-sm">No remarks for this quarter</p>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Insert after the table section
+    tableSection.parentNode.insertBefore(summaryContainer, tableSection.nextSibling);
+    console.log('Created summary sections dynamically');
+  }
+
   // Close modal when clicking outside
   document.getElementById('decisionModal').addEventListener('click', function(e) {
     if (e.target === this) {
@@ -647,6 +900,34 @@
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
       closeModal();
+    }
+  });
+
+  // Handle Turbo events to prevent conflicts
+  document.addEventListener('turbo:before-visit', function() {
+    // Clean up modal state before navigation
+    if (document.getElementById('decisionModal')) {
+      closeModal();
+    }
+  });
+
+  // Initialize modal state when page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    // Ensure modal is hidden on page load
+    const modal = document.getElementById('decisionModal');
+    if (modal) {
+      modal.classList.add('hidden');
+    }
+    
+    // Ensure summary sections are visible on page load
+    showSummarySections();
+    
+    // Force show quarter status badge if it exists
+    const statusBadge = document.getElementById('quarterStatusBadge');
+    if (statusBadge) {
+      statusBadge.style.display = 'inline-flex';
+      statusBadge.style.visibility = 'visible';
+      statusBadge.style.opacity = '1';
     }
   });
 </script>
@@ -852,6 +1133,36 @@ input:valid, textarea:valid {
   transition: all 0.5s ease-in-out;
 }
 
+/* Ensure summary sections are always visible */
+.grid.grid-cols-1.lg\\:grid-cols-2.gap-6.mt-6,
+.bg-gradient-to-r.from-blue-50,
+.bg-gradient-to-r.from-green-50,
+.mt-8.pt-6.border-t.border-gray-200 {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Force grid display for summary sections */
+.grid.grid-cols-1.lg\\:grid-cols-2.gap-6.mt-6 {
+  display: grid !important;
+}
+
+/* Ensure quarter summary boxes are always visible */
+.bg-gradient-to-r.from-blue-50,
+.bg-gradient-to-r.from-green-50 {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Force show quarter status section */
+#quarterStatusBadge {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
 button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
@@ -862,10 +1173,5 @@ body.modal-open {
   overflow: hidden;
 }
 </style>
-
-<!-- CSRF token meta tag -->
-<div style="display: none;">
-  <meta name="csrf-token" content="<%= form_authenticity_token if respond_to?(:form_authenticity_token) %>">
-</div>
 
 </div>
