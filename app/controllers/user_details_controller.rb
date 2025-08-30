@@ -768,7 +768,7 @@ class UserDetailsController < ApplicationController
             department_type = row["department"]
             activity_name = row["activity_name"]
             activity_theme_name = row["theme"] || row["activity_theme"]
-            unit = row["unit"] || "Count"
+            unit = row["unit"]
 
 
 

@@ -38,8 +38,25 @@ class EmployeeDetailsController < ApplicationController
   end
 
   def destroy
-    @employee_detail.destroy
-    redirect_to employee_details_path, notice: 'Employee deleted successfully.'
+    begin
+      @employee_detail.destroy
+      
+      # Check if the request came from L2 view and redirect appropriately
+      if request.referer&.include?('/employee_details/l2')
+        redirect_to l2_employee_details_path, notice: 'Employee deleted successfully.'
+      else
+        redirect_to employee_details_path, notice: 'Employee deleted successfully.'
+      end
+    rescue => e
+      Rails.logger.error "Error deleting employee detail: #{e.message}"
+      
+      # Check if the request came from L2 view and redirect appropriately
+      if request.referer&.include?('/employee_details/l2')
+        redirect_to l2_employee_details_path, alert: 'Failed to delete employee. Please try again.'
+      else
+        redirect_to employee_details_path, alert: 'Failed to delete employee. Please try again.'
+      end
+    end
   end
 
   def export_xlsx

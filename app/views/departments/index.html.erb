@@ -107,7 +107,7 @@
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-700">Unit</label>
-                        <input type="text" name="department[activities_attributes][default][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter unit" required>
+                        <input type="text" name="department[activities_attributes][default][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter unit">
                       </div>
                       <div>
                         <label class="block text-sm font-medium text-gray-700">Weight</label>
@@ -628,7 +628,7 @@ class DepartmentManager {
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Unit</label>
-            <input type="text" name="department[activities_attributes][${index}][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter unit" required>
+            <input type="text" name="department[activities_attributes][${index}][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter unit">
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700">Weight</label>
@@ -658,10 +658,13 @@ class DepartmentManager {
           destroyInput.value = 'true';
           // Hide the element but don't remove it so it's included in form submission
           activityElement.style.display = 'none';
+          // Also add a visual indicator that this activity is marked for deletion
+          activityElement.style.opacity = '0.5';
+          activityElement.style.backgroundColor = '#fee2e2';
           console.log('Marked activity for destruction:', idInput.value);
         }
       } else {
-        // This is a new activity, just remove it from the DOM
+        // This is a new activity, just remove it from DOM
         activityElement.remove();
         console.log('Removed new activity from DOM');
       }
@@ -716,7 +719,7 @@ class DepartmentManager {
       const unit = activity.querySelector('input[name*="[unit]"]')?.value;
       const weight = activity.querySelector('input[name*="[weight]"]')?.value;
       
-      if (themeName && activityName && unit && weight) {
+      if (themeName && activityName && weight) {
         hasValidActivity = true;
       }
     });
@@ -741,6 +744,24 @@ class DepartmentManager {
     for (let [key, value] of formData.entries()) {
       console.log(`${key}: ${value}`);
     }
+    
+    // Also log activities marked for destruction
+    const activitiesToDestroy = form.querySelectorAll('input[name*="[_destroy]"][value="true"]');
+    console.log('Activities marked for destruction:', activitiesToDestroy.length);
+    activitiesToDestroy.forEach((input, index) => {
+      const activityContainer = input.closest('.activity-fields');
+      const idInput = activityContainer.querySelector('input[name*="[id]"]');
+      console.log(`Activity ${index} marked for destruction - ID: ${idInput?.value}`);
+    });
+    
+    // Also log all _destroy fields to see their values
+    const allDestroyFields = form.querySelectorAll('input[name*="[_destroy]"]');
+    console.log('All _destroy fields:', allDestroyFields.length);
+    allDestroyFields.forEach((input, index) => {
+      const activityContainer = input.closest('.activity-fields');
+      const idInput = activityContainer.querySelector('input[name*="[id]"]');
+      console.log(`_destroy field ${index}: value="${input.value}", activity ID: ${idInput?.value}`);
+    });
 
     try {
       // For PATCH requests, we need to send the method in the form data
@@ -826,6 +847,12 @@ class DepartmentManager {
       if (response.ok) {
         const department = await response.json();
         console.log('Department data received:', department);
+        console.log('Number of activities received:', department.activities ? department.activities.length : 0);
+        if (department.activities) {
+          department.activities.forEach((activity, index) => {
+            console.log(`Activity ${index}:`, activity);
+          });
+        }
         this.populateForm(department);
       } else {
         console.error('Edit request failed:', response.status, response.statusText);
@@ -867,7 +894,9 @@ class DepartmentManager {
     this.activityIndex = 0;
 
     if (department.activities && department.activities.length > 0) {
-      department.activities.forEach(activity => {
+      console.log(`Populating form with ${department.activities.length} activities`);
+      department.activities.forEach((activity, index) => {
+        console.log(`Creating activity ${index}:`, activity);
         const html = this.getActivityTemplate(this.activityIndex);
         container.insertAdjacentHTML('beforeend', html);
 
@@ -879,9 +908,12 @@ class DepartmentManager {
         currentActivity.querySelector('input[name*="[weight]"]').value = activity.weight || '';
         currentActivity.querySelector('input[name*="[id]"]').value = activity.id || '';
 
+        console.log(`Activity ${index} populated with ID: ${activity.id}, name: ${activity.activity_name}`);
         this.activityIndex++;
       });
+      console.log(`Form populated with ${this.activityIndex} activities total`);
     } else {
+      console.log('No activities found, adding default activity');
       this.addActivity();
     }
  

@@ -75,16 +75,34 @@
                   record_key = "#{emp.id}_#{quarter_name}"
                   next if processed_records[record_key]
                   
-                  # ENHANCED: Use the same status calculation logic with L1+ filter
+                  # FIXED: Enhanced status calculation logic matching show_l2.html.erb
                   all_statuses = quarter_data[:achievements].map { |ach| ach.status }
                   
-                  # Priority order: L2 actions take precedence (same logic as show_l2)
-                  current_status = if all_statuses.any? { |s| s == "l2_approved" }
-                                    "l2_approved"
+                  # Check for L2 data (percentages and remarks) to determine if L2 has acted
+                  has_l2_data = false
+                  quarter_data[:achievements].each do |ach|
+                    if ach.achievement_remark.present?
+                      if ach.achievement_remark.l2_percentage.present? || ach.achievement_remark.l2_remarks.present?
+                        has_l2_data = true
+                        break
+                      end
+                    end
+                  end
+                  
+                  # FIXED: Corrected status logic with L2 data detection
+                  current_status = if has_l2_data
+                                    # L2 has provided data, check if approved or returned
+                                    if all_statuses.any? { |s| s == "l2_approved" }
+                                      "l2_approved"
+                                    elsif all_statuses.any? { |s| s == "l2_returned" }
+                                      "l2_returned"
+                                    else
+                                      "l2_approved" # Default when L2 data exists but status unclear
+                                    end
                                   elsif all_statuses.any? { |s| s == "l2_returned" }
                                     "l2_returned"
                                   elsif all_statuses.all? { |s| s == "l1_approved" }
-                                    "l1_approved"
+                                    "l1_approved" # Ready for L2 review
                                   else
                                     "l1_approved" # Default for mixed L1+ statuses
                                   end
@@ -99,7 +117,7 @@
                 
                 <% status_config = case current_status
                 when "l1_approved"
-                  { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Ready for L2 Review", icon: "fas fa-clock" }
+                  { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "L1 Approved - Ready for L2 Review", icon: "fas fa-clock" }
                 when "l2_approved"
                   { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
                 when "l2_returned"
@@ -159,7 +177,7 @@
         <% end %>
       </div>
 
-      <!-- ENHANCED: Statistics calculation for L1+ approved records only -->
+      <!-- FIXED: Enhanced statistics calculation matching show_l2.html.erb logic -->
       <%
         total_quarters = 0
         l1_approved_count = 0
@@ -191,16 +209,35 @@
             stats_key = "#{emp.id}_#{quarter_name}"
             next if processed_stats[stats_key]
             
-            # Calculate current status for this quarter
+            # FIXED: Enhanced status calculation with L2 data detection
             all_statuses = quarter_achievements.map { |ach| ach.status }
-            current_status = if all_statuses.any? { |s| s == "l2_approved" }
-                              "l2_approved"
+            
+            # Check for L2 data
+            has_l2_data = false
+            quarter_achievements.each do |ach|
+              if ach.achievement_remark.present?
+                if ach.achievement_remark.l2_percentage.present? || ach.achievement_remark.l2_remarks.present?
+                  has_l2_data = true
+                  break
+                end
+              end
+            end
+            
+            # Calculate current status for this quarter
+            current_status = if has_l2_data
+                              if all_statuses.any? { |s| s == "l2_approved" }
+                                "l2_approved"
+                              elsif all_statuses.any? { |s| s == "l2_returned" }
+                                "l2_returned"
+                              else
+                                "l2_approved"
+                              end
                             elsif all_statuses.any? { |s| s == "l2_returned" }
                               "l2_returned"
                             elsif all_statuses.all? { |s| s == "l1_approved" }
                               "l1_approved"
                             else
-                              "l1_approved" # Default for mixed L1+ statuses
+                              "l1_approved"
                             end
             
             processed_stats[stats_key] = true
@@ -218,7 +255,7 @@
         end
       %>
 
-      <!-- ENHANCED: Updated statistics cards for L1+ approved records -->
+      <!-- FIXED: Updated statistics cards with correct status descriptions -->
       <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
         <!-- Total Quarterly Records with L1+ Approval -->
         <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
@@ -231,7 +268,7 @@
           </div>
         </div>
 
-        <!-- Ready for L2 Review -->
+        <!-- Ready for L2 Review (L1 Approved) -->
         <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
           <div class="flex items-center">
             <i class="fas fa-clock text-yellow-600 mr-3"></i>

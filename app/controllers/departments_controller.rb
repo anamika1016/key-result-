@@ -96,29 +96,51 @@ class DepartmentsController < ApplicationController
     
     if department
       # If department exists, get its activities and employee info
-      activities = department.activities
+      # But activities are actually linked through UserDetail records
       employee = EmployeeDetail.find_by(department: department.department_type)
-    employee_name = employee&.employee_name
-    employee_code = employee&.employee_code
-    
-    render json: {
-        id: department.id,
-        department_type: department.department_type,
-        theme_name: department.theme_name,
-      employee_reference: employee&.employee_id,
-      employee_name: employee_name,
-      employee_code: employee_code,
-      employee_display_name: employee ? "#{employee_name} (#{employee_code})" : 'N/A',
-      activities: activities.map do |activity|
-        {
-          id: activity.id,
-          theme_name: activity.theme_name,
-          activity_name: activity.activity_name,
-          unit: activity.unit,
-          weight: activity.weight
+      
+      if employee
+        # Get activities directly from the department first (this is where they're actually stored)
+        Rails.logger.info "Getting activities directly from department #{department.id}"
+        activities = department.activities.map do |activity|
+          Rails.logger.info "Processing direct activity #{activity.id}: #{activity.activity_name}"
+          {
+            id: activity.id,
+            theme_name: activity.theme_name,
+            activity_name: activity.activity_name,
+            unit: activity.unit,
+            weight: activity.weight
+          }
+        end
+        
+        Rails.logger.info "Found #{activities.length} activities directly from department"
+        
+        # Also check UserDetail records for additional context (but don't use them for activities)
+        user_details = UserDetail.includes(:activity, :department)
+                                .where(employee_detail_id: employee.id)
+                                .where("activity_id IS NOT NULL")
+        
+        Rails.logger.info "Found #{user_details.count} user_details for employee #{employee.employee_id}"
+        
+        Rails.logger.info "Returning #{activities.length} activities for edit"
+        
+        employee_name = employee.employee_name
+        employee_code = employee.employee_code
+        
+        render json: {
+          id: department.id,
+          department_type: department.department_type,
+          theme_name: department.theme_name,
+          employee_reference: employee.employee_id,
+          employee_name: employee_name,
+          employee_code: employee_code,
+          employee_display_name: employee ? "#{employee_name} (#{employee_code})" : 'N/A',
+          activities: activities
         }
+      else
+        # No employee found for this department
+        render json: { error: 'No employee found for this department' }, status: :not_found
       end
-    }
     else
       # If department doesn't exist, try to find employee activities by employee ID
       # This handles the case where the ID might actually be an employee ID
@@ -363,11 +385,11 @@ class DepartmentsController < ApplicationController
               Rails.logger.info "Checking activity #{index}: destroy=#{activity_attrs[:_destroy]}, theme=#{activity_attrs[:theme_name].present?}, name=#{activity_attrs[:activity_name].present?}, unit=#{activity_attrs[:unit].present?}, weight=#{activity_attrs[:weight].present?}"
               
               # Skip if marked for destruction
-              next if activity_attrs[:_destroy] == 'true'
+              next if activity_attrs[:_destroy] == 'true' || activity_attrs[:_destroy] == true
               
-              # Check if all required fields are present
+              # Check if all required fields are present (unit is now optional)
               if activity_attrs[:theme_name].present? && activity_attrs[:activity_name].present? && 
-                 activity_attrs[:unit].present? && activity_attrs[:weight].present?
+                 activity_attrs[:weight].present?
                 valid_activities_count += 1
                 activities_to_process << index
               else
@@ -378,13 +400,13 @@ class DepartmentsController < ApplicationController
             Rails.logger.info "Found #{valid_activities_count} valid activities to process: #{activities_to_process}"
             
             if valid_activities_count == 0
-              raise "At least one complete activity is required. Please fill in all fields (Theme Name, Activity Name, Unit, and Weight) for at least one activity."
+              raise "At least one complete activity is required. Please fill in all fields (Theme Name, Activity Name, and Weight) for at least one activity. Unit is optional."
             end
             
             # First, handle activities marked for destruction
             activities_to_delete = []
             params[:department][:activities_attributes].each do |index, activity_attrs|
-              if activity_attrs[:_destroy] == 'true' && activity_attrs[:id].present? && activity_attrs[:id] != ""
+              if (activity_attrs[:_destroy] == 'true' || activity_attrs[:_destroy] == true) && activity_attrs[:id].present? && activity_attrs[:id] != ""
                 Rails.logger.info "Activity #{index} (ID: #{activity_attrs[:id]}) marked for destruction"
                 activity = department.activities.find_by(id: activity_attrs[:id])
                 if activity
@@ -407,23 +429,27 @@ class DepartmentsController < ApplicationController
               end
               
               # Now delete the activity
-              activity.destroy
-              Rails.logger.info "Successfully deleted activity #{activity.id}"
+              if activity.destroy
+                Rails.logger.info "Successfully deleted activity #{activity.id}"
+              else
+                Rails.logger.error "Failed to delete activity #{activity.id}: #{activity.errors.full_messages.join(', ')}"
+              end
             end
             
             # Process each activity from the form (only valid ones)
+            Rails.logger.info "Total activities in form: #{params[:department][:activities_attributes].keys.length}"
             params[:department][:activities_attributes].each do |index, activity_attrs|
               Rails.logger.info "Processing activity #{index}: #{activity_attrs.inspect}"
               
               # Skip if marked for destruction
-              if activity_attrs[:_destroy] == 'true'
+              if activity_attrs[:_destroy] == 'true' || activity_attrs[:_destroy] == true
                 Rails.logger.info "Skipping activity #{index} - marked for destruction"
                 next
               end
               
-              # Skip if any required field is blank (incomplete activity)
+              # Skip if any required field is blank (incomplete activity) - unit is now optional
               if activity_attrs[:theme_name].blank? || activity_attrs[:activity_name].blank? || 
-                 activity_attrs[:unit].blank? || activity_attrs[:weight].blank?
+                 activity_attrs[:weight].blank?
                 Rails.logger.info "Skipping incomplete activity #{index} - missing required fields"
                 next
               end
@@ -492,24 +518,35 @@ class DepartmentsController < ApplicationController
             
             # Find activities that are no longer in the form and delete them
             form_activity_ids = params[:department][:activities_attributes].values
-              .select { |attrs| attrs[:id].present? && attrs[:id] != "" && attrs[:_destroy] != 'true' }
+              .select { |attrs| attrs[:id].present? && attrs[:id] != "" && attrs[:_destroy] != 'true' && attrs[:_destroy] != true }
               .map { |attrs| attrs[:id].to_i }
+            
+            Rails.logger.info "Form activity IDs (not marked for destruction): #{form_activity_ids}"
+            Rails.logger.info "Current department activities: #{department.activities.pluck(:id)}"
             
             activities_to_delete = department.activities.where.not(id: form_activity_ids)
             
-            activities_to_delete.each do |activity|
-              Rails.logger.info "Deleting activity #{activity.id} (#{activity.activity_name}) - no longer in form"
-              
-              # First delete dependent user_details records to avoid foreign key constraint violation
-              user_details = UserDetail.where(activity_id: activity.id)
-              if user_details.any?
-                Rails.logger.info "Found #{user_details.count} user_details for activity #{activity.id}, deleting them first"
-                user_details.destroy_all
+            if activities_to_delete.any?
+              Rails.logger.info "Found #{activities_to_delete.count} activities to delete that are no longer in form"
+              activities_to_delete.each do |activity|
+                Rails.logger.info "Deleting activity #{activity.id} (#{activity.activity_name}) - no longer in form"
+                
+                # First delete dependent user_details records to avoid foreign key constraint violation
+                user_details = UserDetail.where(activity_id: activity.id)
+                if user_details.any?
+                  Rails.logger.info "Found #{user_details.count} user_details for activity #{activity.id}, deleting them first"
+                  user_details.destroy_all
+                end
+                
+                # Now delete the activity
+                if activity.destroy
+                  Rails.logger.info "Successfully deleted activity #{activity.id} that was no longer in form"
+                else
+                  Rails.logger.error "Failed to delete activity #{activity.id}: #{activity.errors.full_messages.join(', ')}"
+                end
               end
-              
-              # Now delete the activity
-              activity.destroy
-              Rails.logger.info "Successfully deleted activity #{activity.id}"
+            else
+              Rails.logger.info "No activities to delete that are no longer in form"
             end
           end
           

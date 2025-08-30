@@ -148,7 +148,7 @@
                           </td>
                           <td class="sticky-col unit-col">
                             <%= form.text_field "user_details[#{activity.id}][unit]", 
-                                value: (activity.unit.present? && activity.unit != "Count") ? activity.unit : "",
+                                value: activity.unit.present? ? activity.unit : "",
                                 class: "form-control form-control-sm text-center", 
                                 placeholder: "Unit" %>
                           </td>
@@ -242,7 +242,7 @@
                       <td><%= detail.employee_detail ? detail.employee_detail.employee_name : 'N/A' %></td>
                       <td><%= detail.activity.activity_name %></td>
                       <td><%= detail.activity.theme_name.present? ? detail.activity.theme_name : 'No Theme' %></td>
-                      <td><%= (detail.activity.unit.present? && detail.activity.unit != "Count") ? detail.activity.unit : "" %></td>
+                      <td><%= detail.activity.unit.present? ? detail.activity.unit : "" %></td>
                       <td><%= detail.april.present? ? detail.april : '-' %></td>
                       <td><%= detail.may.present? ? detail.may : '-' %></td>
                       <td><%= detail.june.present? ? detail.june : '-' %></td>
