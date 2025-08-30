@@ -307,20 +307,33 @@ class EmployeeDetailsController < ApplicationController
     end
   end
 
-  def l2
-    if current_user.hod?
-      @employee_details = EmployeeDetail
-                          .includes(user_details: [:activity, :department, :achievements])
-                          .order(created_at: :desc)
-    else
-      @employee_details = EmployeeDetail
-                          .where("l2_code = ? OR l2_employer_name = ?", current_user.employee_code, current_user.email)
-                          .includes(user_details: [:activity, :department, :achievements])
-                          .order(created_at: :desc)
-    end
-
-    # No need for separate quarterly grouping method since it's handled in the view
+def l2
+  if current_user.hod?
+    # HOD can see all employee details, but only those with L1+ approved achievements
+    employee_details = EmployeeDetail.includes(user_details: [:activity, :department, :achievements])
+                                   .order(created_at: :desc)
+  else
+    # L2 managers can only see their assigned employees with L1+ approved achievements
+    employee_details = EmployeeDetail.where("l2_code = ? OR l2_employer_name = ?", 
+                                           current_user.employee_code, 
+                                           current_user.email)
+                                   .includes(user_details: [:activity, :department, :achievements])
+                                   .order(created_at: :desc)
   end
+
+  # Filter to only include employees who have at least one L1+ approved achievement
+  @employee_details = employee_details.select do |emp|
+    emp.user_details.any? do |ud|
+      ud.achievements.any? do |achievement|
+        # Only show records with L1 approved, L2 approved, or L2 returned status
+        ['l1_approved', 'l2_approved', 'l2_returned'].include?(achievement.status)
+      end
+    end
+  end
+
+  Rails.logger.info "L2 Dashboard: Found #{@employee_details.count} employees with L1+ approved achievements"
+  Rails.logger.info "Current user: #{current_user.email}, Employee code: #{current_user.employee_code}"
+end
 
   def show_l2
     begin
@@ -655,14 +668,20 @@ class EmployeeDetailsController < ApplicationController
     
     statuses = activities.map { |a| a[:status] }
     
-    if statuses.all? { |s| ['l2_approved'].include?(s) }
+    # FIXED: L2 statuses should take highest priority
+    # If ANY activity has L2 approved, the quarter is L2 approved
+    if statuses.include?('l2_approved')
       'l2_approved'
-    elsif statuses.all? { |s| ['l1_approved', 'l2_approved'].include?(s) }
-      'l1_approved'
-    elsif statuses.any? { |s| ['l2_returned'].include?(s) }
+    # If ANY activity has L2 returned, the quarter is L2 returned
+    elsif statuses.include?('l2_returned')
       'l2_returned'
+    # If ALL activities are L1 approved, the quarter is L1 approved
+    elsif statuses.all? { |s| ['l1_approved'].include?(s) }
+      'l1_approved'
+    # If ANY activity has L1 returned, the quarter is L1 returned
     elsif statuses.any? { |s| ['l1_returned'].include?(s) }
       'l1_returned'
+    # If ANY activity has submitted status, the quarter is submitted
     elsif statuses.any? { |s| ['submitted'].include?(s) }
       'submitted'
     else

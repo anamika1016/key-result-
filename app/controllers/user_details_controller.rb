@@ -2,6 +2,7 @@ class UserDetailsController < ApplicationController
   require 'ostruct'
   require 'set'
   before_action :set_user_detail, only: [:show, :edit, :update, :destroy]
+  load_and_authorize_resource except: [:index, :new, :create, :get_user_detail, :get_activities, :bulk_create, :submit_achievements, :export, :import, :quarterly_edit_all, :update_quarterly_achievements, :test_sms, :view_sms_logs]
   
   def index
     if current_user.role == "employee" || current_user.role == "l1_employer" || current_user.role == "l2_employer"
@@ -142,150 +143,148 @@ class UserDetailsController < ApplicationController
   end
 
 
-def update_quarterly_achievements
-  # FIXED: This method now properly sets ALL achievements in a quarter to 'pending' status
-  # when any achievement is updated, ensuring the entire quarter needs re-approval
-  # Get the correct parameters
-  selected_quarter = params[:selected_quarter]
-  achievement_data = params[:achievements] || {}
-  success_count = 0
-  errors = []
-  updated_activities = []
+  def update_quarterly_achievements
+    # Get the correct parameters
+    selected_quarter = params[:selected_quarter]
+    achievement_data = params[:achievements] || {}
+    success_count = 0
+    errors = []
+    updated_activities = []
 
-  if achievement_data.empty?
-    flash[:alert] = "No achievement data received. Please try again."
-    redirect_to quarterly_edit_all_user_details_path
-    return
-  end
+    if achievement_data.empty?
+      flash[:alert] = "No achievement data received. Please try again."
+      redirect_to quarterly_edit_all_user_details_path
+      return
+    end
 
-  # Define quarter months to limit updates to selected quarter only
-  quarter_months = case selected_quarter
-  when 'Q1'
-    ['april', 'may', 'june']
-  when 'Q2'
-    ['july', 'august', 'september']
-  when 'Q3'
-    ['october', 'november', 'december']
-  when 'Q4'
-    ['january', 'february', 'march']
-  else
-    []
-  end
+    # Define quarter months to limit updates to selected quarter only
+    quarter_months = case selected_quarter
+    when 'Q1'
+      ['april', 'may', 'june']
+    when 'Q2'
+      ['july', 'august', 'september']
+    when 'Q3'
+      ['october', 'november', 'december']
+    when 'Q4'
+      ['january', 'february', 'march']
+    else
+      []
+    end
 
-  # Track which employee_details had changes to reset their entire quarter
-  employee_details_with_changes = Set.new
+    # Track which employee_details had changes to reset their quarter only
+    employee_details_with_changes = Set.new
 
-  ActiveRecord::Base.transaction do
-    achievement_data.each do |user_detail_id, monthly_data|
-      user_detail = UserDetail.find_by(id: user_detail_id)
-      next unless user_detail
+    ActiveRecord::Base.transaction do
+      achievement_data.each do |user_detail_id, monthly_data|
+        user_detail = UserDetail.find_by(id: user_detail_id)
+        next unless user_detail
 
-      activity_updated = false
-      
-      monthly_data.each do |month, values|
-        # IMPORTANT: Only process months that belong to the selected quarter
-        next unless quarter_months.include?(month)
+        activity_updated = false
         
-        achievement_value = values[:achievement]
-        employee_remarks = values[:employee_remarks]
+        monthly_data.each do |month, values|
+          # IMPORTANT: Only process months that belong to the selected quarter
+          next unless quarter_months.include?(month)
+          
+          achievement_value = values[:achievement]
+          employee_remarks = values[:employee_remarks]
 
-        # Skip if both achievement and remarks are blank
-        next if achievement_value.blank? && employee_remarks.blank?
+          # Skip if both achievement and remarks are blank
+          next if achievement_value.blank? && employee_remarks.blank?
 
-        # Find or initialize achievement
-        achievement = Achievement.find_or_initialize_by(
-          user_detail: user_detail, 
-          month: month
-        )
-        
-        # Store old values for comparison
-        old_achievement = achievement.achievement
-        old_remarks = achievement.employee_remarks
-        
-        # Update values
-        achievement.achievement = achievement_value.present? ? achievement_value : nil
-        achievement.employee_remarks = employee_remarks.present? ? employee_remarks : nil
-        
-        # Save if there are changes
-        if achievement.achievement != old_achievement || achievement.employee_remarks != old_remarks
-          if achievement.save
-            success_count += 1
-            activity_updated = true
-            # Mark this employee_detail as having changes for quarterly status update
-            employee_details_with_changes.add(user_detail.employee_detail_id)
-          else
-            error_msg = "Failed to save #{month.capitalize} for #{user_detail.activity.activity_name}: #{achievement.errors.full_messages.join(', ')}"
-            errors << error_msg
+          # Find or initialize achievement
+          achievement = Achievement.find_or_initialize_by(
+            user_detail: user_detail, 
+            month: month
+          )
+          
+          # Store old values for comparison
+          old_achievement = achievement.achievement
+          old_remarks = achievement.employee_remarks
+          
+          # Update values
+          achievement.achievement = achievement_value.present? ? achievement_value : nil
+          achievement.employee_remarks = employee_remarks.present? ? employee_remarks : nil
+          
+          # Save if there are changes
+          if achievement.achievement != old_achievement || achievement.employee_remarks != old_remarks
+            if achievement.save
+              success_count += 1
+              activity_updated = true
+              # Mark this employee_detail as having changes for quarterly status update
+              employee_details_with_changes.add(user_detail.employee_detail_id)
+            else
+              error_msg = "Failed to save #{month.capitalize} for #{user_detail.activity.activity_name}: #{achievement.errors.full_messages.join(', ')}"
+              errors << error_msg
+            end
           end
         end
-      end
-      
-      if activity_updated
-        activity_name = "#{user_detail.employee_detail&.employee_name} - #{user_detail.activity.activity_name}"
-        updated_activities << activity_name
-      end
-    end
-
-    # FIXED: After all individual updates, set ENTIRE quarter to pending for ALL employees in the quarter
-    # This ensures that when any achievement is edited, the entire quarter needs re-approval
-    # This was the main issue - previously only achievements for employees with changes were set to pending
-    Rails.logger.info "Setting entire quarter #{selected_quarter} to pending status for all achievements"
-    
-    # Use the more efficient bulk update method from the Achievement model
-    updated_count = Achievement.reset_quarter_to_pending!(quarter_months)
-    Rails.logger.info "Bulk updated #{updated_count} achievements in quarter #{selected_quarter} to pending status"
-    
-    # Also reset approval remarks in achievement_remark table for all updated achievements
-    achievements_with_remarks = Achievement.joins(:achievement_remark).where(month: quarter_months)
-    if achievements_with_remarks.any?
-      achievements_with_remarks.each do |achievement|
-        achievement.achievement_remark.update(
-          l1_remarks: nil,
-          l1_percentage: nil,
-          l2_remarks: nil,
-          l2_percentage: nil
-        )
-      end
-      Rails.logger.info "Reset approval remarks for #{achievements_with_remarks.count} achievements with remarks"
-    end
-    
-    # Log summary of status updates
-    total_quarter_achievements = Achievement.where(month: quarter_months).count
-    pending_count = Achievement.where(month: quarter_months).where(status: 'pending').count
-    Rails.logger.info "Quarterly status update complete: #{updated_count} achievements updated, #{pending_count}/#{total_quarter_achievements} achievements in quarter #{selected_quarter} are now pending"
-    
-    if pending_count != total_quarter_achievements
-      Rails.logger.warn "WARNING: Not all achievements in quarter #{selected_quarter} are pending! Expected #{total_quarter_achievements}, got #{pending_count}"
-    end
-  end
-
-  # Handle response messages
-  if errors.empty?
-    if success_count > 0
-      flash[:notice] = "✅ Successfully updated #{success_count} achievement records across #{updated_activities.count} activities!"
-      if updated_activities.any?
-        if updated_activities.count <= 3
-          flash[:notice] += " Updated activities: #{updated_activities.join(', ')}"
-        else
-          flash[:notice] += " Updated activities: #{updated_activities.first(3).join(', ')} and #{updated_activities.count - 3} more..."
+        
+        if activity_updated
+          activity_name = "#{user_detail.employee_detail&.employee_name} - #{user_detail.activity.activity_name}"
+          updated_activities << activity_name
         end
       end
-      flash[:notice] += " All updated achievements are now in 'pending' status and need L1/L2 approval."
-    else
-      flash[:notice] = "No changes were made to the achievements."
+
+      # FIXED: Only set achievements to pending for employees who actually made changes
+      # This ensures that only the specific employee's data gets reset to pending
+      employee_details_with_changes.each do |employee_detail_id|
+        employee_detail = EmployeeDetail.find(employee_detail_id)
+        Rails.logger.info "Setting quarter #{selected_quarter} to pending for employee: #{employee_detail.employee_name} (#{employee_detail.employee_code})"
+        
+        # Get all achievements for this specific employee in the selected quarter
+        employee_achievements = Achievement.joins(:user_detail)
+                                        .where(user_details: { employee_detail_id: employee_detail_id })
+                                        .where(month: quarter_months)
+        
+        # Set status to pending for this employee's achievements only
+        updated_count = employee_achievements.update_all(status: 'pending')
+        Rails.logger.info "Updated #{updated_count} achievements to pending status for employee #{employee_detail.employee_name}"
+        
+        # Also reset approval remarks for this employee's achievements
+        employee_achievements.joins(:achievement_remark).each do |achievement|
+          achievement.achievement_remark.update(
+            l1_remarks: nil,
+            l1_percentage: nil,
+            l2_remarks: nil,
+            l2_percentage: nil
+          )
+        end
+        
+        Rails.logger.info "Reset approval remarks for employee #{employee_detail.employee_name} in quarter #{selected_quarter}"
+      end
     end
-  else
-    flash[:alert] = "⚠️ Some updates failed: #{errors.first(2).join('; ')}"
-    flash[:alert] += " and #{errors.count - 2} more errors..." if errors.count > 2
-  end
-  
-  redirect_to quarterly_edit_all_user_details_path
-  
-rescue => e
-  Rails.logger.error "Quarterly update error: #{e.message}\n#{e.backtrace.join("\n")}"
-  flash[:alert] = "❌ An error occurred while updating achievements: #{e.message}"
-  redirect_to quarterly_edit_all_user_details_path
-end
+
+    # Handle response messages
+    if errors.empty?
+      if success_count > 0
+        affected_employees = employee_details_with_changes.map do |emp_id|
+          EmployeeDetail.find(emp_id).employee_name
+        end.join(', ')
+        
+        flash[:notice] = "✅ Successfully updated #{success_count} achievement records across #{updated_activities.count} activities!"
+        if updated_activities.any?
+          if updated_activities.count <= 3
+            flash[:notice] += " Updated activities: #{updated_activities.first(3).join(', ')}"
+          else
+            flash[:notice] += " Updated activities: #{updated_activities.first(3).join(', ')} and #{updated_activities.count - 3} more..."
+          end
+        end
+        flash[:notice] += " Updated achievements for employees: #{affected_employees} are now in 'pending' status and need L1/L2 approval."
+      else
+        flash[:notice] = "No changes were made to the achievements."
+      end
+    else
+      flash[:alert] = "⚠️ Some updates failed: #{errors.first(2).join('; ')}"
+      flash[:alert] += " and #{errors.count - 2} more errors..." if errors.count > 2
+    end
+    
+    redirect_to quarterly_edit_all_user_details_path
+    
+    rescue => e
+      Rails.logger.error "Quarterly update error: #{e.message}\n#{e.backtrace.join("\n")}"
+      flash[:alert] = "❌ An error occurred while updating achievements: #{e.message}"
+      redirect_to quarterly_edit_all_user_details_path
+  end 
 
   # FIXED: Quarterly edit all method
   def quarterly_edit_all

@@ -211,18 +211,20 @@
       Rails.logger.debug "Has L1 Returned: #{quarterly_statuses.any? { |s| s == "l1_returned" }}"
       Rails.logger.debug "Has L2 Returned: #{quarterly_statuses.any? { |s| s == "l2_returned" }}"
       
-      # Check if L2 has approved the entire quarter
-      if quarterly_statuses.all? { |s| s == "l2_approved" }
+      # FIXED: L2 statuses should take highest priority
+      # If ANY month has L2 approved, the quarter is L2 approved
+      if quarterly_statuses.include?("l2_approved")
         overall_quarter_status = "l2_approved"
-        Rails.logger.debug "Setting status to: l2_approved (all months are l2_approved)"
-      # Check if L1 has approved the entire quarter (all months are l1_approved)
+        Rails.logger.debug "Setting status to: l2_approved (some months are l2_approved)"
+      # If ANY month has L2 returned, the quarter is L2 returned
+      elsif quarterly_statuses.include?("l2_returned")
+        overall_quarter_status = "l2_returned"
+        Rails.logger.debug "Setting status to: l2_returned (some months are l2_returned)"
+      # If ALL months are L1 approved, the quarter is L1 approved
       elsif quarterly_statuses.all? { |s| s == "l1_approved" }
         overall_quarter_status = "l1_approved"
         Rails.logger.debug "Setting status to: l1_approved (all months are l1_approved)"
-      # Check for returned statuses FIRST (these override approval data)
-      elsif quarterly_statuses.any? { |s| s == "l2_returned" }
-        overall_quarter_status = "l2_returned"
-        Rails.logger.debug "Setting status to: l2_returned (some months are l2_returned)"
+      # If ANY month has L1 returned, the quarter is L1 returned
       elsif quarterly_statuses.any? { |s| s == "l1_returned" }
         overall_quarter_status = "l1_returned"
         Rails.logger.debug "Setting status to: l1_returned (some months are l1_returned)"

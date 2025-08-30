@@ -60,11 +60,33 @@ module UserDetailsHelper
   def calculate_quarter_status(months, existing_achievements)
     statuses = months.map { |month| existing_achievements[month]&.status }.compact
     
-    return "l2_approved" if statuses.include?("l2_approved")
-    return "l1_approved" if statuses.include?("l1_approved")
-    return "l2_returned" if statuses.include?("l2_returned")
-    return "l1_returned" if statuses.include?("l1_returned")
-    return "submitted" if statuses.include?("submitted")
+    # FIXED: L2 statuses should take highest priority
+    # If ANY month has L2 approved, the quarter is L2 approved
+    if statuses.include?("l2_approved")
+      return "l2_approved"
+    end
+    
+    # If ANY month has L2 returned, the quarter is L2 returned
+    if statuses.include?("l2_returned")
+      return "l2_returned"
+    end
+    
+    # If ALL months are L1 approved, the quarter is L1 approved
+    if statuses.all? { |s| s == "l1_approved" }
+      return "l1_approved"
+    end
+    
+    # If ANY month has L1 returned, the quarter is L1 returned
+    if statuses.include?("l1_returned")
+      return "l1_returned"
+    end
+    
+    # If ANY month has submitted status, the quarter is submitted
+    if statuses.include?("submitted")
+      return "submitted"
+    end
+    
+    # Default to pending
     "pending"
   end
 
