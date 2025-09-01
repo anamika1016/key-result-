@@ -270,7 +270,7 @@
 
   <!-- SINGLE OVERALL STATUS DISPLAY -->
   <% if quarterly_statuses.any? %>
-    <div class="mt-8 pt-6 border-t border-gray-200">
+    <div class="mt-8 pt-6 border-t border-gray-200" id="quarterStatusSection">
       <div class="text-center mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">
            Quarter Overall Status
@@ -445,9 +445,9 @@
   <% end %>
 <% end %>
 
-<!-- FIXED Modal with AJAX -->
-<div id="decisionModal" class="hidden fixed inset-0 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative">
+<!-- FIXED Modal with Correct Positioning - Modal will show OVER Quarter Overall Status -->
+<div id="decisionModal" class="hidden fixed inset-0 flex items-start justify-center z-50 pt-20">
+  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative mx-4" style="margin-top: 0;">
     <!-- Loading overlay -->
     <div id="modalLoading" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
       <div class="flex items-center space-x-2">
@@ -483,7 +483,7 @@
   </div>
 </div>
 
-<!-- FIXED JavaScript with AJAX -->
+<!-- FIXED JavaScript with Correct Modal Positioning Logic -->
 <script>
   // Use window object to prevent variable redeclaration with Turbo
   if (typeof window.l1ModalData === 'undefined') {
@@ -494,31 +494,76 @@
   }
 
   function openModal(actionType) {
+    console.log('openModal called with actionType:', actionType);
+    
     const modal = document.getElementById("decisionModal");
     const modalTitle = document.getElementById("modalTitle");
+    const quarterStatusSection = document.getElementById("quarterStatusSection");
+    
+    console.log('Modal element found:', modal);
+    console.log('Modal title element found:', modalTitle);
+    console.log('Quarter status section found:', quarterStatusSection);
+    
+    if (!modal) {
+      console.error('Modal element not found!');
+      alert('Error: Modal not found. Please refresh the page.');
+      return;
+    }
+    
+    if (!modalTitle) {
+      console.error('Modal title element not found!');
+      alert('Error: Modal title not found. Please refresh the page.');
+      return;
+    }
     
     window.l1ModalData.currentActionType = actionType;
     
+    // Position modal over Quarter Overall Status section (not above it)
+    if (quarterStatusSection) {
+      const rect = quarterStatusSection.getBoundingClientRect();
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      
+      // Calculate position to show modal over the Quarter Overall Status section
+      const modalTopPosition = rect.top + scrollTop + 20; // 20px below the start of the section
+      
+      modal.style.paddingTop = Math.max(modalTopPosition, 20) + 'px';
+      console.log('Set modal position to:', modalTopPosition + 'px');
+    }
+    
+    console.log('Removing hidden class from modal');
     modal.classList.remove("hidden");
+    modal.style.display = "flex"; // Force display flex
     document.body.style.overflow = 'hidden'; // Prevent background scroll
 
     if (actionType === "approve") {
       window.l1ModalData.currentActionUrl = "<%= approve_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "Approve with Remarks";
+      console.log('Set action URL for approve:', window.l1ModalData.currentActionUrl);
       
     } else {
       window.l1ModalData.currentActionUrl = "<%= return_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "Return with Remarks";
+      console.log('Set action URL for reject:', window.l1ModalData.currentActionUrl);
       
     }
 
     // Clear form
-    document.getElementById('remarks').value = '';
-    document.getElementById('percentage').value = '';
+    const remarksField = document.getElementById('remarks');
+    const percentageField = document.getElementById('percentage');
+    
+    if (remarksField) remarksField.value = '';
+    if (percentageField) percentageField.value = '';
+    
+    console.log('Modal should now be visible');
+    console.log('Modal classes:', modal.className);
+    console.log('Modal display style:', modal.style.display);
   }
 
   function closeModal() {
-    document.getElementById("decisionModal").classList.add("hidden");
+    const modal = document.getElementById("decisionModal");
+    modal.classList.add("hidden");
+    modal.style.display = "none"; // Force hide
+    modal.style.paddingTop = ""; // Reset padding
     document.body.style.overflow = 'auto'; // Restore background scroll
     window.l1ModalData.currentActionType = '';
     window.l1ModalData.currentActionUrl = '';
@@ -609,7 +654,13 @@
     // Add action_type to indicate this is an AJAX request
     formData.append('action_type', window.l1ModalData.currentActionType);
     
-
+    // Debug logging
+    console.log('Submitting decision:', {
+      actionType: window.l1ModalData.currentActionType,
+      actionUrl: window.l1ModalData.currentActionUrl,
+      formData: Object.fromEntries(formData),
+      csrfToken: document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+    });
     
     // Show loading state
     modalLoading.classList.remove('hidden');
@@ -624,6 +675,12 @@
       }
     })
     .then(response => {
+      console.log('Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+      
       if (!response.ok) {
         if (response.status === 404) {
           // Handle 404 - employee detail not found
@@ -646,6 +703,8 @@
       return response.json();
     })
     .then(data => {
+      console.log('Data received:', data);
+      
       if (!data) return; // Skip if we already handled the error
       
       modalLoading.classList.add('hidden');
@@ -664,9 +723,11 @@
           updateQuarterStatus(data.updated_status);
         }
         
-        // Update L1 summary immediately with form values
+        // Update ONLY L1 summary immediately with form values (DO NOT update L2)
         const percentage = document.getElementById('percentage').value;
         const remarks = document.getElementById('remarks').value;
+        
+        console.log('Form values - Percentage:', percentage, 'Remarks:', remarks);
         
         if (percentage || remarks) {
           updateL1Summary(percentage, remarks);
@@ -675,34 +736,11 @@
         // Ensure summary sections are visible immediately
         showSummarySections();
         
-        if (percentage || remarks) {
-          // Update both L1 and L2 summaries if they exist
-          updateL1Summary(percentage, remarks);
-          updateL2Summary(percentage, remarks);
-          
-          // Force show all summary sections
-          setTimeout(() => {
-            showSummarySections();
-          }, 100);
-        }
-        
-        // Refresh the page data to show latest information
-        setTimeout(() => {
-          // Force one more update before reload
-          showSummarySections();
-          window.location.reload();
-        }, 2000);
-        
         // Scroll to status message
         document.getElementById('statusMessage').scrollIntoView({ 
           behavior: 'smooth', 
           block: 'center' 
         });
-        
-        // Show success feedback
-        setTimeout(() => {
-          showStatusMessage('✅ Action completed successfully! The page will refresh to show updated data.', true);
-        }, 1000);
         
       } else {
         // Show error message but keep modal open
@@ -711,7 +749,11 @@
     })
     .catch(error => {
       modalLoading.classList.add('hidden');
-      console.error('Error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      });
       
       // More specific error messages
       if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
@@ -768,9 +810,12 @@
 
   // Function to update L1 summary section immediately
   function updateL1Summary(percentage, remarks) {
+    console.log('Updating L1 Summary with:', { percentage, remarks });
+    
     // Find the L1 Quarter Summary section by looking for the heading text
     const l1Heading = Array.from(document.querySelectorAll('h3')).find(h3 => h3.textContent.includes('L1 Quarter Summary'));
     if (!l1Heading) {
+      console.log('L1 heading not found');
       return;
     }
     
@@ -781,6 +826,7 @@
         // Try finding by parent div
         l1SummarySection = l1Heading.parentElement;
         if (!l1SummarySection) {
+          console.log('L1 summary section not found');
           return;
         }
       }
@@ -790,6 +836,7 @@
     const l1PercentageElement = l1SummarySection.querySelector('.text-3xl.font-bold.text-blue-800');
     if (l1PercentageElement && percentage !== undefined && percentage !== null && percentage !== '') {
       l1PercentageElement.textContent = parseFloat(percentage).toFixed(1) + '%';
+      console.log('Updated L1 percentage display to:', percentage + '%');
     }
     
     // Update L1 remarks display - find the remarks container by ID first, then by class
@@ -810,12 +857,14 @@
             </div>
           </div>
         `;
+        console.log('Updated L1 remarks display with:', remarks);
       }
     }
   }
 
   // Function to update quarter status immediately
   function updateQuarterStatus(newStatus) {
+    console.log('Updating quarter status to:', newStatus);
     
     // Update the status badge
     updateStatusBadge(newStatus);
@@ -938,14 +987,18 @@
   
   // Function to update L2 summary section immediately (if needed)
   function updateL2Summary(percentage, remarks) {
+    console.log('Updating L2 Summary with:', { percentage, remarks });
+    
     // Find the L2 Quarter Summary section by looking for the heading text
     const l2Heading = Array.from(document.querySelectorAll('h3')).find(h3 => h3.textContent.includes('L2 Quarter Summary'));
     if (!l2Heading) {
+      console.log('L2 heading not found');
       return;
     }
     
     const l2SummarySection = l2Heading.closest('.bg-gradient-to-r.from-green-50');
     if (!l2SummarySection) {
+      console.log('L2 summary section not found');
       return;
     }
     
@@ -953,6 +1006,7 @@
     const l2PercentageElement = l2SummarySection.querySelector('.text-3xl.font-bold.text-green-800');
     if (l2PercentageElement && percentage !== undefined && percentage !== null && percentage !== '') {
       l2PercentageElement.textContent = parseFloat(percentage).toFixed(1) + '%';
+      console.log('Updated L2 percentage display to:', percentage + '%');
     }
     
     // Update L2 remarks display - find the remarks container by ID first, then by class
@@ -973,12 +1027,12 @@
             </div>
           </div>
         `;
+        console.log('Updated L2 remarks display with:', remarks);
       }
     }
   }
 </script>
 
-<!-- Keep existing styles -->
 <style>
 .main-content {
   margin-left: 240px;
@@ -1095,14 +1149,18 @@ button:hover {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* Enhanced modal styles */
+/* FIXED: Modal positioning to show over Quarter Overall Status section (same as L2 code) */
 #decisionModal {
   backdrop-filter: blur(4px);
   transition: all 0.3s ease;
+  align-items: flex-start !important;
+  padding-top: 80px; /* Default top padding */
 }
 
 #decisionModal .bg-white {
   animation: modalSlideIn 0.3s ease-out;
+  position: relative;
+  z-index: 60;
 }
 
 @keyframes modalSlideIn {
@@ -1233,6 +1291,10 @@ input:valid, textarea:valid {
   #decisionModal .bg-white {
     margin: 1rem;
     width: calc(100% - 2rem);
+  }
+  
+  #decisionModal {
+    padding-top: 40px; /* Reduced padding for mobile */
   }
 }
 
@@ -1382,8 +1444,8 @@ body.modal-open {
 }
 </style>
 
+<!-- CSRF token meta tag -->
 <div style="display: none;">
-  <!-- CSRF token meta tag (add this to your layout if not already present) -->
   <meta name="csrf-token" content="<%= form_authenticity_token %>">
 </div>
 

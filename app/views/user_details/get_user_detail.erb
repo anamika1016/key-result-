@@ -525,6 +525,58 @@ document.addEventListener('DOMContentLoaded', function() {
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
+              <% 
+                # Calculate quarter statuses based on ALL activities across ALL rows
+                all_q1_statuses = []
+                all_q2_statuses = []
+                all_q3_statuses = []
+                all_q4_statuses = []
+                
+                @user_details.each do |detail|
+                  achievements = detail.achievements.index_by(&:month)
+                  # Q1 (APR-JUN)
+                  ['april', 'may', 'june'].each do |month|
+                    all_q1_statuses << achievements[month]&.status if achievements[month]&.status.present?
+                  end
+                  # Q2 (JUL-SEP)
+                  ['july', 'august', 'september'].each do |month|
+                    all_q2_statuses << achievements[month]&.status if achievements[month]&.status.present?
+                  end
+                  # Q3 (OCT-DEC)
+                  ['october', 'november', 'december'].each do |month|
+                    all_q3_statuses << achievements[month]&.status if achievements[month]&.status.present?
+                  end
+                  # Q4 (JAN-MAR)
+                  ['january', 'february', 'march'].each do |month|
+                    all_q4_statuses << achievements[month]&.status if achievements[month]&.status.present?
+                  end
+                end
+                
+                # Determine overall quarter statuses based on highest priority
+                def calculate_overall_quarter_status(statuses)
+                  return "pending" if statuses.empty?
+                  # Priority: L2 Returned > L1 Returned > L2 Approved > L1 Approved > Submitted > Pending
+                  if statuses.include?("l2_returned")
+                    "l2_returned"
+                  elsif statuses.include?("l1_returned")
+                    "l1_returned"
+                  elsif statuses.include?("l2_approved")
+                    "l2_approved"
+                  elsif statuses.include?("l1_approved")
+                    "l1_approved"
+                  elsif statuses.include?("submitted")
+                    "submitted"
+                  else
+                    "pending"
+                  end
+                end
+                
+                overall_q1_status = calculate_overall_quarter_status(all_q1_statuses)
+                overall_q2_status = calculate_overall_quarter_status(all_q2_statuses)
+                overall_q3_status = calculate_overall_quarter_status(all_q3_statuses)
+                overall_q4_status = calculate_overall_quarter_status(all_q4_statuses)
+              %>
+              
               <% @user_details.each_with_index do |detail, index| %>
                 <% existing_achievements = detail.achievements.index_by(&:month) %>
                 <% if existing_achievements.values.any? { |a| a.achievement.present? } %>
@@ -538,19 +590,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <!-- Q1 (APR-JUN) -->
                     <%
                       q1_months = ['april', 'may', 'june']
-                      q1_statuses = q1_months.map { |month| existing_achievements[month]&.status }.compact
-                      q1_status = "pending"
-                      if q1_statuses.include?("l2_approved")
-                        q1_status = "l2_approved"
-                      elsif q1_statuses.include?("l1_approved")
-                        q1_status = "l1_approved"
-                      elsif q1_statuses.include?("l2_returned")
-                        q1_status = "l2_returned"
-                      elsif q1_statuses.include?("l1_returned")
-                        q1_status = "l1_returned"
-                      elsif q1_statuses.include?("submitted")
-                        q1_status = "submitted"
-                      end
+                      # Use overall quarter status instead of calculating per row
+                      q1_status = overall_q1_status
                       
                       q1_targets = []
                       q1_achievements = []
@@ -638,19 +679,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <!-- Q2 (JUL-SEP) -->
                     <%
                       q2_months = ['july', 'august', 'september']
-                      q2_statuses = q2_months.map { |month| existing_achievements[month]&.status }.compact
-                      q2_status = "pending"
-                      if q2_statuses.include?("l2_approved")
-                        q2_status = "l2_approved"
-                      elsif q2_statuses.include?("l1_approved")
-                        q2_status = "l1_approved"
-                      elsif q2_statuses.include?("l2_returned")
-                        q2_status = "l2_returned"
-                      elsif q2_statuses.include?("l1_returned")
-                        q2_status = "l1_returned"
-                      elsif q2_statuses.include?("submitted")
-                        q2_status = "submitted"
-                      end
+                      # Use overall quarter status instead of calculating per row
+                      q2_status = overall_q2_status
                       
                       q2_targets = []
                       q2_achievements = []
@@ -738,19 +768,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <!-- Q3 (OCT-DEC) -->
                     <%
                       q3_months = ['october', 'november', 'december']
-                      q3_statuses = q3_months.map { |month| existing_achievements[month]&.status }.compact
-                      q3_status = "pending"
-                      if q3_statuses.include?("l2_approved")
-                        q3_status = "l2_approved"
-                      elsif q3_statuses.include?("l1_approved")
-                        q3_status = "l1_approved"
-                      elsif q3_statuses.include?("l2_returned")
-                        q3_status = "l2_returned"
-                      elsif q3_statuses.include?("l1_returned")
-                        q3_status = "l1_returned"
-                      elsif q3_statuses.include?("submitted")
-                        q3_status = "submitted"
-                      end
+                      # Use overall quarter status instead of calculating per row
+                      q3_status = overall_q3_status
                       
                       q3_targets = []
                       q3_achievements = []
@@ -838,19 +857,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <!-- Q4 (JAN-MAR) -->
                     <%
                       q4_months = ['january', 'february', 'march']
-                      q4_statuses = q4_months.map { |month| existing_achievements[month]&.status }.compact
-                      q4_status = "pending"
-                      if q4_statuses.include?("l2_approved")
-                        q4_status = "l2_approved"
-                      elsif q4_statuses.include?("l1_approved")
-                        q4_status = "l1_approved"
-                      elsif q4_statuses.include?("l2_returned")
-                        q4_status = "l2_returned"
-                      elsif q4_statuses.include?("l1_returned")
-                        q4_status = "l1_returned"
-                      elsif q4_statuses.include?("submitted")
-                        q4_status = "submitted"
-                      end
+                      # Use overall quarter status instead of calculating per row
+                      q4_status = overall_q4_status
                       
                       q4_targets = []
                       q4_achievements = []

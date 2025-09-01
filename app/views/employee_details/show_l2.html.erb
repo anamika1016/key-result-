@@ -1,4 +1,5 @@
 <!-- L2 Employee Detail Quarterly View with Fixed L2 Remarks Display -->
+<meta name="csrf-token" content="<%= form_authenticity_token %>">
 <div class="main-content bg-gray-50 min-h-screen">
 <div class="p-8 bg-white rounded-xl shadow-lg border border-gray-200 mx-4">
   <div class="border-b border-gray-200 pb-6 mb-8">
@@ -229,7 +230,7 @@
 <!-- Single Overall Status Display for Quarter -->
 <% if params[:quarter].present? %>
   <% if quarterly_statuses.any? %>
-    <div class="mt-8 pt-6 border-t border-gray-200">
+    <div class="mt-8 pt-6 border-t border-gray-200" id="quarterStatusSection">
       <div class="text-center mb-6">
         <h3 class="text-xl font-bold text-gray-800 mb-4">
            Quarter Overall Status
@@ -367,7 +368,7 @@
   <% if can_take_action %>
     <div class="mt-8 pt-6 border-t border-gray-200">
       <div class="flex flex-col sm:flex-row gap-4 justify-center" id="actionButtons">
-        <button onclick="alert('Button clicked!'); openModal('l2_approve')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+        <button onclick="openModal('l2_approve')" class="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
           L2 Approve Quarter
         </button>
         <button onclick="openModal('l2_reject')" class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
@@ -386,9 +387,9 @@
   <% end %>
 <% end %>
 
-<!-- Modal for L2 Actions -->
-<div id="decisionModal" class="hidden fixed inset-0 flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative">
+<!-- Modal for L2 Actions - FIXED POSITIONING -->
+<div id="decisionModal" class="hidden fixed inset-0 flex items-start justify-center z-50 pt-20">
+  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative mx-4" style="margin-top: 0;">
     <!-- Loading overlay -->
     <div id="modalLoading" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
       <div class="flex items-center space-x-2">
@@ -424,7 +425,7 @@
   </div>
 </div>
 
-<!-- FIXED JavaScript with improved update logic -->
+<!-- FIXED JavaScript with improved update logic and modal positioning -->
 <script>
   let currentActionType = '';
   let currentActionUrl = '';
@@ -434,9 +435,11 @@
     
     const modal = document.getElementById("decisionModal");
     const modalTitle = document.getElementById("modalTitle");
+    const quarterStatusSection = document.getElementById("quarterStatusSection");
     
     console.log('Modal element found:', modal);
     console.log('Modal title element found:', modalTitle);
+    console.log('Quarter status section found:', quarterStatusSection);
     
     if (!modal) {
       console.error('Modal element not found!');
@@ -451,6 +454,18 @@
     }
     
     currentActionType = actionType;
+    
+    // Position modal over Quarter Overall Status section (not above it)
+    if (quarterStatusSection) {
+      const rect = quarterStatusSection.getBoundingClientRect();
+      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+      
+      // Calculate position to show modal over the Quarter Overall Status section
+      const modalTopPosition = rect.top + scrollTop + 20; // 20px below the start of the section
+      
+      modal.style.paddingTop = Math.max(modalTopPosition, 20) + 'px';
+      console.log('Set modal position to:', modalTopPosition + 'px');
+    }
     
     console.log('Removing hidden class from modal');
     modal.classList.remove("hidden");
@@ -483,6 +498,7 @@
     const modal = document.getElementById("decisionModal");
     modal.classList.add("hidden");
     modal.style.display = "none"; // Force hide
+    modal.style.paddingTop = ""; // Reset padding
     document.body.style.overflow = 'auto';
     currentActionType = '';
     currentActionUrl = '';
@@ -763,13 +779,18 @@ button:hover {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
+/* FIXED: Modal positioning to show above Quarter Overall Status */
 #decisionModal {
   backdrop-filter: blur(4px);
   transition: all 0.3s ease;
+  align-items: flex-start !important;
+  padding-top: 80px; /* Default top padding */
 }
 
 #decisionModal .bg-white {
   animation: modalSlideIn 0.3s ease-out;
+  position: relative;
+  z-index: 60;
 }
 
 @keyframes modalSlideIn {
@@ -868,6 +889,10 @@ input:valid, textarea:valid {
   #decisionModal .bg-white {
     margin: 1rem;
     width: calc(100% - 2rem);
+  }
+  
+  #decisionModal {
+    padding-top: 40px; /* Reduced padding for mobile */
   }
 }
 
