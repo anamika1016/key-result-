@@ -1,6 +1,7 @@
 class EmployeeDetail < ApplicationRecord
   has_many :user_details, dependent: :destroy
-  has_many :target_submissions
+  has_many :target_submissions, dependent: :destroy
+  has_many :sms_logs, dependent: :destroy
   belongs_to :user, optional: true
   after_initialize :set_default_status, if: :new_record?
   # belongs_to :department  # only if you have a departments table and department_id column
