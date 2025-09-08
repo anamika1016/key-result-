@@ -236,32 +236,41 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <% @user_details.each do |detail| %>
+                  <% 
+                    toggle_activities = (@employee_activities.present? ? @employee_activities : (Department.find_by(id: params[:department_id])&.activities || []))
+                    details_by_activity = @user_details.index_by(&:activity_id)
+                  %>
+                  <% toggle_activities.each do |activity| %>
+                    <% detail = details_by_activity[activity.id] %>
                     <tr>
-                      <td><%= detail.department.department_type %></td>
-                      <td><%= detail.employee_detail ? detail.employee_detail.employee_name : 'N/A' %></td>
-                      <td><%= detail.activity.activity_name %></td>
-                      <td><%= detail.activity.theme_name.present? ? detail.activity.theme_name : 'No Theme' %></td>
-                      <td><%= detail.activity.unit.present? ? detail.activity.unit : "" %></td>
-                      <td><%= detail.april.present? ? detail.april : '-' %></td>
-                      <td><%= detail.may.present? ? detail.may : '-' %></td>
-                      <td><%= detail.june.present? ? detail.june : '-' %></td>
-                      <td><%= detail.july.present? ? detail.july : '-' %></td>
-                      <td><%= detail.august.present? ? detail.august : '-' %></td>
-                      <td><%= detail.september.present? ? detail.september : '-' %></td>
-                      <td><%= detail.october.present? ? detail.october : '-' %></td>
-                      <td><%= detail.november.present? ? detail.november : '-' %></td>
-                      <td><%= detail.december.present? ? detail.december : '-' %></td>
-                      <td><%= detail.january.present? ? detail.january : '-' %></td>
-                      <td><%= detail.february.present? ? detail.february : '-' %></td>
-                      <td><%= detail.march.present? ? detail.march : '-' %></td>
+                      <td><%= activity.department&.department_type || '-' %></td>
+                      <td><%= @selected_employee&.employee_name || (detail&.employee_detail ? detail.employee_detail.employee_name : 'N/A') %></td>
+                      <td><%= activity.activity_name %></td>
+                      <td><%= activity.theme_name.present? ? activity.theme_name : 'No Theme' %></td>
+                      <td><%= activity.unit.present? ? activity.unit : "" %></td>
+                      <td><%= detail&.april.presence || '-' %></td>
+                      <td><%= detail&.may.presence || '-' %></td>
+                      <td><%= detail&.june.presence || '-' %></td>
+                      <td><%= detail&.july.presence || '-' %></td>
+                      <td><%= detail&.august.presence || '-' %></td>
+                      <td><%= detail&.september.presence || '-' %></td>
+                      <td><%= detail&.october.presence || '-' %></td>
+                      <td><%= detail&.november.presence || '-' %></td>
+                      <td><%= detail&.december.presence || '-' %></td>
+                      <td><%= detail&.january.presence || '-' %></td>
+                      <td><%= detail&.february.presence || '-' %></td>
+                      <td><%= detail&.march.presence || '-' %></td>
                       <td>
-                        <%= link_to "Edit", edit_user_detail_path(detail), class: "btn btn-sm btn-outline-gray me-1" %>
-                        <%= button_to "Delete", user_detail_path(detail),
-                            method: :delete,
-                            class: "btn btn-sm btn-outline-danger",
-                            form: { style: 'display: inline;' },
-                            onclick: "return confirm('Are you sure you want to delete this record?');" %>
+                        <% if detail %>
+                          <%= link_to "Edit", edit_user_detail_path(detail), class: "btn btn-sm btn-outline-gray me-1" %>
+                          <%= button_to "Delete", user_detail_path(detail),
+                              method: :delete,
+                              class: "btn btn-sm btn-outline-danger",
+                              form: { style: 'display: inline;' },
+                              onclick: "return confirm('Are you sure you want to delete this record?');" %>
+                        <% else %>
+                          -
+                        <% end %>
                       </td>
                     </tr>
                   <% end %>

@@ -217,7 +217,7 @@
                           </span>
                         </td>
                         <td class="px-6 py-4 text-sm font-medium text-gray-900">
-                          <button type="button" class="edit-btn text-blue-600 hover:text-blue-900 mr-4" data-department-id="<%= data[:id] %>">Edit</button>
+                          <button type="button" class="edit-btn text-blue-600 hover:text-blue-900 mr-4" data-employee-id="<%= data[:employee_id] %>">Edit</button>
                           <div class="flex space-x-2">
                             <button type="button" class="delete-user-btn bg-orange-100 hover:bg-orange-200 text-orange-700 hover:text-orange-800 px-2 py-1 rounded text-xs font-medium border border-orange-300" 
                                     data-department-id="<%= data[:id] %>" 
@@ -452,7 +452,7 @@ class DepartmentManager {
       if (e.target.classList.contains('edit-btn')) {
         e.preventDefault();
         e.stopPropagation();
-        this.editDepartment(e.target.dataset.departmentId);
+        this.editDepartment(e.target.dataset.employeeId);
       }
 
       if (e.target.classList.contains('delete-btn')) {
@@ -677,22 +677,46 @@ class DepartmentManager {
 
     if (container.children.length > 1) {
       const idInput = activityElement.querySelector('input[name*="[id]"]');
-      if (idInput && idInput.value) {
-        // This is an existing activity, mark it for destruction
-        const destroyInput = activityElement.querySelector('input[name*="[_destroy]"]');
-        if (destroyInput) {
-          destroyInput.value = 'true';
-          // Hide the element but don't remove it so it's included in form submission
-          activityElement.style.display = 'none';
-          // Also add a visual indicator that this activity is marked for deletion
-          activityElement.style.opacity = '0.5';
-          activityElement.style.backgroundColor = '#fee2e2';
-          console.log('Marked activity for destruction:', idInput.value);
+      
+      // Check if we're in employee editing mode
+      if (this.isEditing && this.editingId) {
+        // When editing an employee, we need to remove the UserDetail record, not the activity
+        if (idInput && idInput.value) {
+          // This is an existing activity for this employee, mark it for removal from employee
+          const destroyInput = activityElement.querySelector('input[name*="[_destroy]"]');
+          if (destroyInput) {
+            destroyInput.value = 'true';
+            // Hide the element but don't remove it so it's included in form submission
+            activityElement.style.display = 'none';
+            // Add visual indicator that this activity is marked for removal from employee
+            activityElement.style.opacity = '0.5';
+            activityElement.style.backgroundColor = '#fef3c7'; // Yellow background to indicate employee-specific removal
+            console.log('Marked activity for removal from employee:', idInput.value);
+          }
+        } else {
+          // This is a new activity, just remove it from DOM
+          activityElement.remove();
+          console.log('Removed new activity from DOM');
         }
       } else {
-        // This is a new activity, just remove it from DOM
-        activityElement.remove();
-        console.log('Removed new activity from DOM');
+        // When editing a department (not employee), use the original logic
+        if (idInput && idInput.value) {
+          // This is an existing activity, mark it for destruction
+          const destroyInput = activityElement.querySelector('input[name*="[_destroy]"]');
+          if (destroyInput) {
+            destroyInput.value = 'true';
+            // Hide the element but don't remove it so it's included in form submission
+            activityElement.style.display = 'none';
+            // Also add a visual indicator that this activity is marked for deletion
+            activityElement.style.opacity = '0.5';
+            activityElement.style.backgroundColor = '#fee2e2'; // Red background for department activity deletion
+            console.log('Marked activity for destruction:', idInput.value);
+          }
+        } else {
+          // This is a new activity, just remove it from DOM
+          activityElement.remove();
+          console.log('Removed new activity from DOM');
+        }
       }
     } else {
       // At least one activity is required
@@ -852,8 +876,8 @@ class DepartmentManager {
     return;
   }
 
-  async editDepartment(departmentId) {
-    console.log('editDepartment called with ID:', departmentId);
+  async editDepartment(employeeId) {
+    console.log('editDepartment called with Employee ID:', employeeId);
     try {
       const csrfToken = document.querySelector('input[name="authenticity_token"]')?.value || 
                        document.querySelector('meta[name="csrf-token"]')?.content || '';
@@ -863,7 +887,7 @@ class DepartmentManager {
         return;
       }
       
-      const response = await fetch(`/departments/${departmentId}/edit_data`, {
+      const response = await fetch(`/departments/${employeeId}/edit_data`, {
         headers: {
           'X-CSRF-Token': csrfToken,
           'Accept': 'application/json' // Request JSON response
@@ -1206,7 +1230,7 @@ class DepartmentManager {
             </span>
           </td>
           <td class="px-6 py-4 text-sm font-medium">
-            <button type="button" class="edit-btn text-blue-600 hover:text-blue-900 mr-4" data-department-id="${dept.id}">Edit</button>
+            <button type="button" class="edit-btn text-blue-600 hover:text-blue-900 mr-4" data-employee-id="${dept.employee_reference}">Edit</button>
             <div class="flex space-x-2">
               <button type="button" class="delete-user-btn bg-orange-100 hover:bg-orange-200 text-orange-700 hover:text-orange-800 px-2 py-1 rounded text-xs font-medium border border-orange-300" 
                       data-department-id="${dept.id}" 
