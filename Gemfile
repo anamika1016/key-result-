@@ -63,17 +63,17 @@ group :test do
 end
 
 gem "tailwindcss-rails", "~> 4.2"
-gem 'devise'
-gem 'letter_opener'
-gem 'kaminari'
-gem 'csv', require: false  # ✅ Fix for Ruby 3.4+
-gem 'ransack'
-gem 'cancancan', '~> 3.6'
+gem "devise"
+gem "letter_opener"
+gem "kaminari"
+gem "csv", require: false  # ✅ Fix for Ruby 3.4+
+gem "ransack"
+gem "cancancan", "~> 3.6"
 gem "byebug"
-gem 'roo'
-gem 'caxlsx_rails'
+gem "roo"
+gem "caxlsx_rails"
 
 
 
-gem 'roo-xls'
-gem 'httparty'
+gem "roo-xls"
+gem "httparty"

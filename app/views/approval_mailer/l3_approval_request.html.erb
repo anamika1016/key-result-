@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+      .header { background: #7c3aed; color: white; padding: 20px; text-align: center; }
+      .content { padding: 20px; background: #f8f9fa; }
+      .footer { padding: 15px; text-align: center; color: #666; font-size: 12px; }
+      .achievement-box { background: white; border-left: 4px solid #7c3aed; padding: 15px; margin: 15px 0; }
+      .button { background: #7c3aed; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 5px; }
+      .info-row { margin: 8px 0; }
+      .label { font-weight: bold; color: #555; }
+      .approval-info { background: #faf5ff; border: 1px solid #7c3aed; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🎯 L3 Final Achievement Approval Required</h2>
+        <p>Already Approved by L1 & L2</p>
+      </div>
+      
+      <div class="content">
+        <p>Dear L3 Manager,</p>
+        
+        <p>An achievement has been approved by both L1 and L2 and now requires your final L3 approval. Please review and approve/return the submission.</p>
+        
+        <div class="achievement-box">
+          <div class="info-row">
+            <span class="label">Employee:</span> <%= @employee.employee_name %>
+          </div>
+          <div class="info-row">
+            <span class="label">Employee Code:</span> <%= @employee.employee_code %>
+          </div>
+          <div class="info-row">
+            <span class="label">Email:</span> <%= @employee.employee_email %>
+          </div>
+          <div class="info-row">
+            <span class="label">Department:</span> <%= @department.department_name %>
+          </div>
+          <div class="info-row">
+            <span class="label">Activity:</span> <%= @user_detail.activity.activity_name %>
+          </div>
+          <div class="info-row">
+            <span class="label">Month:</span> <%= @achievement.month.capitalize %>
+          </div>
+          <div class="info-row">
+            <span class="label">Status:</span> Achievement approved by L1 & L2, ready for final L3 approval
+          </div>
+        </div>
+        
+        <div class="approval-info">
+          <h4>Previous Approval Details:</h4>
+          <div class="info-row">
+            <span class="label">L1 & L2 Status:</span> Approved - Please log in to view L1 and L2 remarks and percentages
+          </div>
+        </div>
+        
+        <p>Please log in to the system to review and approve this achievement.</p>
+        
+        <p><strong>Next Steps:</strong></p>
+        <ul>
+          <li>Review the employee's achievement submission and L1/L2 feedback</li>
+          <li>Add your L3 remarks and percentage if needed</li>
+          <li>Final Approve or Return with feedback</li>
+        </ul>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated notification from KRA App</p>
+        <p>Please do not reply to this email</p>
+      </div>
+    </div>
+  </body>
+</html>

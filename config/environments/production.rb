@@ -77,11 +77,11 @@ Rails.application.configure do
   config.action_mailer.delivery_method = :smtp
 
   config.action_mailer.smtp_settings = {
-    address: "smtp.ploughmanagro.com", # agar hosting provider ka smtp server yehi hai
+    address: "smtp.ploughmanagro.com",
     port: 587,
     domain: "kra.ploughmanagro.com",
     user_name: "notification@ploughmanagro.com",
-    password: "qtxqykbyjuyinwri", # yaha app password use karna better hai (normal password se issues aate hain)
+    password: "qtxqykbyjuyinwri", # App password provided by user
     authentication: :plain,
     enable_starttls_auto: true
   }

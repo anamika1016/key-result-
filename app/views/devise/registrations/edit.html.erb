@@ -196,9 +196,9 @@
                 <%= f.label :role, "Select Role", class: "form-label" %>
                 <%= f.select :role, options_for_select([
                     ["Employee", "employee"],
-                    ["HOD", "hod"],
+                    ["Super Admin", "hod"],
                     ["Admin", "admin"],
-                    ["L1 Employer", "l1_employer"],
+                    ["L1 Manager", "l1_employer"],
                     ["L2 Employer", "l2_employer"]
                   ]),
                   { prompt: "Choose your role" },

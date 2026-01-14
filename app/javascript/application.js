@@ -3,11 +3,13 @@ import "controllers";
 
 // Flash message functionality
 document.addEventListener('DOMContentLoaded', function() {
-  // Clear any existing flash messages after a short delay to prevent persistence
-  setTimeout(function() {
-    const alerts = document.querySelectorAll('.alert');
-    if (alerts.length > 0) {
-      alerts.forEach(function(alert) {
+  // Auto-hide flash messages after 15 seconds (increased for better readability)
+  const alerts = document.querySelectorAll('.alert');
+  alerts.forEach(function(alert) {
+    // Don't auto-hide error messages immediately - let them stay visible
+    if (alert.classList.contains('alert-danger')) {
+      // Error messages stay for 20 seconds
+      setTimeout(function() {
         if (alert && alert.parentNode) {
           alert.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
           alert.style.opacity = '0';
@@ -18,25 +20,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
           }, 500);
         }
-      });
+      }, 20000); // 20 seconds for error messages
+    } else {
+      // Success messages stay for 4 seconds
+      setTimeout(function() {
+        if (alert && alert.parentNode) {
+          alert.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
+          alert.style.opacity = '0';
+          alert.style.transform = 'translateY(-100%) translateX(-50%)';
+          setTimeout(function() {
+            if (alert && alert.parentNode) {
+              alert.parentNode.removeChild(alert);
+            }
+          }, 500);
+        }
+      }, 4000); // 4 seconds for success messages
     }
-  }, 100);
-
-  // Auto-hide flash messages after 10 seconds (increased from 5)
-  const alerts = document.querySelectorAll('.alert');
-  alerts.forEach(function(alert) {
-    setTimeout(function() {
-      if (alert && alert.parentNode) {
-        alert.style.transition = 'opacity 0.5s ease-out, transform 0.5s ease-out';
-        alert.style.opacity = '0';
-        alert.style.transform = 'translateY(-100%) translateX(-50%)';
-        setTimeout(function() {
-          if (alert && alert.parentNode) {
-            alert.parentNode.removeChild(alert);
-          }
-        }, 500);
-      }
-    }, 10000); // Changed from 5000 to 10000 (10 seconds)
   });
 
   // Handle close button clicks

@@ -2,9 +2,11 @@ class User < ApplicationRecord
   # Devise modules for authentication
   devise :database_authenticatable, :registerable,
          :recoverable, :rememberable, :validatable
-         
-  has_many :target_submissions
+
   has_one :employee_detail
+  has_one_attached :avatar
+
+  # Avatar validation will be handled in JavaScript for better UX
 
   ROLES = %w[employee hod l1_employer l2_employer]
 
@@ -17,15 +19,15 @@ class User < ApplicationRecord
 
   # Role helpers
   def employee?
-    role == 'employee'
+    role == "employee"
   end
 
   def hod?
-    role == 'hod'
+    role == "hod"
   end
 
   def l1_employer?
-    role == 'l1_employer'
+    role == "l1_employer"
   end
 
   def l2_employer?
@@ -35,8 +37,13 @@ class User < ApplicationRecord
   def self.find_for_database_authentication(warden_conditions)
     conditions = warden_conditions.dup
     login = conditions.delete(:login)
-    value = login.strip.downcase # 👈 Also strip and downcase login input
-    where(conditions).where(["lower(email) = :value OR lower(employee_code) = :value", { value: value }]).first
+    if login.present?
+      value = login.strip.downcase
+      where(conditions).where([ "lower(email) = :value OR lower(employee_code) = :value", { value: value } ]).first
+    else
+      # Fallback to standard email lookup if no login parameter
+      where(conditions).first
+    end
   end
 
   def name

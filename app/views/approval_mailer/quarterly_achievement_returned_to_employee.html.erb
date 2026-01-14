@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+      .header { background: #f59e0b; color: white; padding: 20px; text-align: center; }
+      .content { padding: 20px; background: #f8f9fa; }
+      .footer { padding: 15px; text-align: center; color: #666; font-size: 12px; }
+      .achievement-box { background: white; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; }
+      .button { background: #f59e0b; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 5px; }
+      .info-row { margin: 8px 0; }
+      .label { font-weight: bold; color: #555; }
+      .return-info { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; margin: 15px 0; border-radius: 5px; }
+      .highlight { background: #fef3c7; padding: 10px; border-radius: 5px; margin: 15px 0; }
+      .quarter-info { background: #e5e7eb; padding: 15px; margin: 15px 0; border-radius: 5px; }
+      .achievement-list { background: white; border: 1px solid #d1d5db; border-radius: 5px; padding: 15px; margin: 15px 0; }
+      .achievement-item { padding: 10px; border-bottom: 1px solid #e5e7eb; }
+      .achievement-item:last-child { border-bottom: none; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🔄 KRA Returned for Refilling</h2>
+        <p>Returned by L1 Manager</p>
+      </div>
+      
+      <div class="content">
+        <p>Dear <%= @employee.employee_name %>,</p>
+        
+        <div class="highlight">
+          <p><strong>Your KRA for <%= @quarter %> has been returned by your L1 Manager for refilling.</strong> Please review the feedback and resubmit your achievement data.</p>
+        </div>
+        
+        <div class="quarter-info">
+          <h3><%= @quarter %> Quarter Details</h3>
+          <div class="info-row">
+            <span class="label">Employee:</span> <%= @employee.employee_name %> (<%= @employee.employee_code %>)
+          </div>
+          <div class="info-row">
+            <span class="label">Department:</span> <%= @achievements.first&.user_detail&.department&.department_type || 'N/A' %>
+          </div>
+          <div class="info-row">
+            <span class="label">Total Activities:</span> <%= @achievements.map { |a| a.user_detail.activity.activity_name }.uniq.count %>
+          </div>
+        </div>
+        
+        
+        <% 
+          # Get unique L1 remarks for the quarter
+          unique_remarks = @achievements.map { |a| a.achievement_remark&.l1_remarks }.compact.uniq
+          if unique_remarks.any?
+        %>
+        <div class="return-info">
+          <h4>L1 Manager Feedback for <%= @quarter %>:</h4>
+          <% unique_remarks.each do |remark| %>
+            <p><strong>Remarks:</strong> <%= remark %></p>
+          <% end %>
+          <% 
+            # Get average percentage for the quarter
+            percentages = @achievements.map { |a| a.achievement_remark&.l1_percentage }.compact
+            if percentages.any?
+              avg_percentage = (percentages.sum / percentages.size).round(1)
+          %>
+          <p><strong>Average Percentage Given:</strong> <%= avg_percentage %>%</p>
+          <% end %>
+        </div>
+        <% end %>
+        
+        <p><strong>Action Required:</strong></p>
+        <ul>
+          <li>Review the L1 Manager's feedback above</li>
+          <li>Update your achievement data for <%= @quarter %> as needed</li>
+          <li>Resubmit for L1 approval</li>
+        </ul>
+        
+        <p>Please log in to the system to refill and resubmit your KRA:</p>
+        
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="https://kra.ploughmanagro.com/" class="button">
+            Refill KRA for <%= @quarter %>
+          </a>
+        </div>
+        
+        <p><strong>Important Notes:</strong></p>
+        <ul>
+          <li>Your KRA for <%= @quarter %> has been returned to you for refilling</li>
+          <li>Please address all feedback provided by your L1 Manager</li>
+          <li>Once refilled, your KRA will go back to L1 for approval</li>
+          <li>Contact your L1 Manager if you need clarification on the feedback</li>
+        </ul>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated notification from KRA App</p>
+        <p>Please do not reply to this email</p>
+      </div>
+    </div>
+  </body>
+</html>

@@ -8,17 +8,17 @@ default: &default
 
 development:
   <<: *default
-  database: 11_development1
+  database: myapp_development   # 🔄 changed
 
 test:
   <<: *default
-  database: 11_test
+  database: myapp_test          # 🔄 changed
 
 production:
   primary:
     adapter: postgresql
     encoding: unicode
-    database: myapp_production
+    database: myapp_primary_production   # 🔄 changed
     pool: 5
     username: myuser
     password: <%= ENV['MYAPP_DATABASE_PASSWORD'] %>
@@ -27,13 +27,14 @@ production:
   cable:
     adapter: postgresql
     encoding: unicode
-    database: myapp_production
+    database: myapp_cable_production     # 🔄 changed
     pool: 5
     username: myuser
     password: <%= ENV['MYAPP_DATABASE_PASSWORD'] %>
     host: localhost
 
+  # Optional: remove this block if not needed
   <<: *default
-  database: avoblog_production
+  database: myapp_production             # 🔄 changed
   username: <%= ENV['PG_USERNAME'] || 'postgres' %>
   password: <%= ENV['PG_PASSWORD'] || 'postgres' %>

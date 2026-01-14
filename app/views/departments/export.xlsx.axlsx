@@ -2,22 +2,17 @@ wb = xlsx_package.workbook
 
 wb.add_worksheet(name: "Departments") do |sheet|
   # Updated headers to include Employee Name and proper column mapping
-  sheet.add_row ["Department", "Employee Name", "Theme Name", "Activity Name", "Unit", "Weight"]
+  sheet.add_row [ "Department", "Employee Name", "Employee Code", "Theme Name", "Activity Name", "Unit", "Weight" ]
 
-  @departments.each do |department|
-    # Get employee name from employee_reference
-    employee = EmployeeDetail.find_by(employee_id: department.employee_reference)
-    employee_name = employee&.employee_name || 'N/A'
-    
-    department.activities.each do |activity|
-      sheet.add_row [
-        department.department_type,
-        employee_name,
-        activity.theme_name,
-        activity.activity_name,
-        activity.unit,
-        activity.weight
-      ]
-    end
+  @user_details.each do |user_detail|
+    sheet.add_row [
+      user_detail.department_type,
+      user_detail.employee_name,
+      user_detail.employee_code,
+      user_detail.theme_name,
+      user_detail.activity_name,
+      user_detail.unit,
+      user_detail.weight
+    ]
   end
 end

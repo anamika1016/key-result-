@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+      .header { background: #dc2626; color: white; padding: 20px; text-align: center; }
+      .content { padding: 20px; background: #f8f9fa; }
+      .footer { padding: 15px; text-align: center; color: #666; font-size: 12px; }
+      .achievement-box { background: white; border-left: 4px solid #dc2626; padding: 15px; margin: 15px 0; }
+      .button { background: #dc2626; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 5px; }
+      .info-row { margin: 8px 0; }
+      .label { font-weight: bold; color: #555; }
+      .return-info { background: #fef2f2; border: 1px solid #dc2626; padding: 15px; margin: 15px 0; border-radius: 5px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>❌ Achievement Returned</h2>
+        <p>Returned by <%= @returned_by %></p>
+      </div>
+      
+      <div class="content">
+        <p>Dear <%= @employee.employee_name %>,</p>
+        
+        <p>Your achievement submission has been returned by <%= @returned_by %> for revision. Please review the feedback and resubmit.</p>
+        
+        <div class="achievement-box">
+          <div class="info-row">
+            <span class="label">Month:</span> <%= @achievement.month.capitalize %>
+          </div>
+          <div class="info-row">
+            <span class="label">Department:</span> <%= @department.department_name %>
+          </div>
+          <div class="info-row">
+            <span class="label">Activity:</span> <%= @user_detail.activity.activity_name %>
+          </div>
+          <% if @achievement.achievement.present? %>
+          <div class="info-row">
+            <span class="label">Your Achievement:</span> <%= @achievement.achievement %>
+          </div>
+          <% end %>
+        </div>
+        
+        <% if @return_remarks.present? %>
+        <div class="return-info">
+          <h4><%= @returned_by %> Feedback:</h4>
+          <p><strong>Remarks:</strong> <%= @return_remarks %></p>
+        </div>
+        <% end %>
+        
+        <p>Please log in to the system to revise and resubmit your achievement:</p>
+        
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="<%= url_for(controller: 'user_details', action: 'index', only_path: false) %>" class="button">
+            Revise Achievement
+          </a>
+        </div>
+        
+        <p><strong>Next Steps:</strong></p>
+        <ul>
+          <li>Review the feedback provided by <%= @returned_by %></li>
+          <li>Revise your achievement submission accordingly</li>
+          <li>Resubmit for approval</li>
+        </ul>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated notification from KRA App</p>
+        <p>Please do not reply to this email</p>
+      </div>
+    </div>
+  </body>
+</html>

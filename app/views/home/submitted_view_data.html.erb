@@ -1,0 +1,1679 @@
+<div class="main-content bg-gray-50 min-h-screen">
+<% if @user_details.any? %>
+  <script>
+    // Initialize dynamic update listener without auto-refresh
+    document.addEventListener('DOMContentLoaded', function() {
+      // Clear any cached data if needed (without auto-refresh)
+      if ('caches' in window) {
+        caches.keys().then(function(names) {
+          names.forEach(function(name) {
+            caches.delete(name);
+          });
+        });
+      }
+      
+      // DYNAMIC UPDATE: Listen for real-time updates from edit form
+      setupDynamicUpdateListener();
+    });
+    
+    // Function to set up dynamic update listener
+    function setupDynamicUpdateListener() {
+      try {
+        // Listen for localStorage changes (from other tabs)
+        window.addEventListener('storage', function(e) {
+          if (e.key === 'dynamic_quarterly_update') {
+            const updateData = JSON.parse(e.newValue);
+            updateViewDynamically(updateData);
+          }
+        });
+        
+        // Listen for custom events (same tab)
+        window.addEventListener('quarterlyDataUpdated', function(e) {
+          updateViewDynamically(e.detail);
+        });
+        
+        // Check for immediate updates on page load
+        const liveUpdateData = sessionStorage.getItem('live_update_data');
+        if (liveUpdateData) {
+          const updateData = JSON.parse(liveUpdateData);
+          updateViewDynamically(updateData);
+          sessionStorage.removeItem('live_update_data');
+        }
+        
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+    
+    // Function to update view dynamically with new data
+    function updateViewDynamically(updateData) {
+      try {
+        const { quarter, detailId, achievement, inputValue } = updateData;
+        
+        // Find the corresponding display element in this view
+        const quarterSelector = `[data-quarter="${quarter}"]`;
+        const achievementDisplay = document.querySelector(`${quarterSelector} [data-detail-id="${detailId}"]`);
+        
+        if (achievementDisplay) {
+          // Update the display value
+          const cleanValue = parseFloat(inputValue) || 0;
+          achievementDisplay.textContent = cleanValue > 0 ? `${cleanValue}%` : '-';
+          
+          // Add visual feedback
+          achievementDisplay.style.backgroundColor = '#d4edda';
+          achievementDisplay.style.transition = 'background-color 0.3s ease';
+          
+          // Remove highlight after 2 seconds
+          setTimeout(() => {
+            achievementDisplay.style.backgroundColor = '';
+          }, 2000);
+          
+          // Show update notification
+          showDynamicUpdateNotification(`Updated ${quarter.toUpperCase()} achievement: ${cleanValue}%`);
+        }
+        
+        // Update totals if they exist
+        updateTotalsIfPresent();
+        
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+    
+    // Function to update totals if present
+    function updateTotalsIfPresent() {
+      try {
+        // Try to find and update total elements
+        const totalElements = document.querySelectorAll('[id*="total"], [class*="total"]');
+        totalElements.forEach(element => {
+          if (element.textContent.includes('%')) {
+            element.style.backgroundColor = '#fff3cd';
+            setTimeout(() => {
+              element.style.backgroundColor = '';
+            }, 1000);
+          }
+        });
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+    
+    // Function to show dynamic update notification
+    function showDynamicUpdateNotification(message) {
+      try {
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white font-medium bg-green-500 transition-all duration-300 text-sm';
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 2000);
+      } catch (error) {
+        // Ignore errors
+      }
+    }
+  </script>
+   <!-- Update this section in your existing index.html.erb file -->
+<div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
+  <div class="flex justify-between items-center">
+    <div>
+      <h2 class="text-4xl font-bold text-gray-800 flex items-center">
+        <i class="fas fa-check-circle me-3 text-green-600 text-2xl"></i>
+        Submitted View Data
+      </h2>
+      <p class="text-gray-600 mt-2">
+        <i class="fas fa-info-circle me-2"></i>
+        <% case current_user.role %>
+        <% when "employee" %>
+          Your submitted quarterly achievements and targets (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
+        <% when "hod" %>
+          All submitted quarterly achievements and targets in your department (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
+        <% when "l1_employer" %>
+          Submitted quarterly achievements and targets for employees under your supervision (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
+        <% when "l2_employer" %>
+          Submitted quarterly achievements and targets for employees under your supervision (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
+        <% else %>
+          Showing <%= @user_details.count %> record<%= 's' if @user_details.count != 1 %> with submitted quarterly achievements and targets
+        <% end %>
+      </p>
+    </div>
+    
+    <!-- Edit Button -->
+    <div class="flex justify-end mb-4">
+      <button id="edit-quarterly-btn" 
+              class="bg-gray-400 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center shadow-md hover:shadow-lg transform hover:scale-105"
+              disabled
+              onclick="handleEditButtonClick(event)">
+        <i class="fas fa-edit me-2"></i>
+        <span class="font-semibold">Edit Selected Quarters</span>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+    <%
+      # Helper method to calculate quarterly achievement percentage
+      def calculate_quarterly_achievement_percentage(user_detail, months)
+        return "" unless user_detail
+
+        total_target = 0
+        total_achievement = 0
+
+        months.each do |month|
+          target_value = user_detail.send(month.to_sym) if user_detail.respond_to?(month.to_sym)
+          if target_value.present?
+            begin
+              total_target += target_value.to_f
+            rescue
+              # Skip invalid values
+            end
+          end
+
+          # Get achievement from achievements table
+          achievement = user_detail.achievements.find_by(month: month)
+          if achievement&.achievement.present?
+            begin
+              total_achievement += achievement.achievement.to_f
+            rescue
+              # Skip invalid values
+            end
+          end
+        end
+
+        return "" if total_target == 0
+
+        percentage = (total_achievement / total_target * 100).round(1)
+        percentage.to_s
+      end
+
+      # Helper method to calculate weightage score
+      def calculate_weightage_score(weightage, achievement_percentage)
+        return "" if weightage.blank? || achievement_percentage.blank?
+        
+        weight = weightage.to_f
+        achievement = achievement_percentage.to_f
+        
+        # Convert weightage to decimal if it's a percentage (e.g., 25 -> 0.25)
+        weight_decimal = weight > 1 ? weight / 100 : weight
+        weightage_score = (weight_decimal * achievement).round(2)
+        weightage_score.to_s
+      end
+
+      # Helper method to get quarterly remarks
+      def get_quarterly_remarks(user_detail, months)
+        remarks = []
+        months.each do |month|
+          achievement = user_detail.achievements.find_by(month: month)
+          if achievement&.employee_remarks.present?
+            remarks << achievement.employee_remarks
+          end
+        end
+        remarks.uniq.join('; ').presence || '-'
+      end
+    %>
+    <div class="p-6">
+      <div class="table-wrapper overflow-auto bg-white rounded-lg border border-gray-200 shadow-sm">
+        <table class="table table-hover w-full min-w-full">
+          <thead class="bg-gray-800">
+            <tr>
+              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Department</th>
+              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Name</th>
+              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Indicator</th>
+              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">KPI</th>
+              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
+              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage</th>
+              <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-orange-700">Q1</th>
+              <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-purple-700">Q2</th>
+              <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-blue-700">Q3</th>
+              <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-green-700">Q4</th>
+            </tr>
+            <tr class="bg-gray-700">
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Score</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Score</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Score</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
+              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Score</th>
+            </tr>
+            <tr class="bg-gray-600">
+              <th colspan="6" class="px-3 py-2 text-center border-r border-gray-600">
+                <span class="text-white text-xs font-medium">Select Quarters to Edit:</span>
+              </th>
+              <th colspan="3" class="px-3 py-2 text-center border-r border-gray-600">
+                <div class="flex items-center justify-center space-x-2">
+                  <input type="checkbox" id="table_q1_checkbox" class="table-quarter-checkbox" data-quarter="Q1" onchange="handleCheckboxChange(this)">
+                  <label for="table_q1_checkbox" class="text-white text-xs">Select Q1</label>
+                  <button type="button" class="eye-icon-btn text-white hover:text-yellow-300 transition-colors ml-2 px-2 py-1 rounded" data-quarter="Q1" onclick="showQuarterlyDetails('Q1')" title="View Q1 Details">
+                    <i class="fas fa-eye text-sm"></i>
+                  </button>
+                </div>
+              </th>
+              <th colspan="3" class="px-3 py-2 text-center border-r border-gray-600">
+                <div class="flex items-center justify-center space-x-2">
+                  <input type="checkbox" id="table_q2_checkbox" class="table-quarter-checkbox" data-quarter="Q2" onchange="handleCheckboxChange(this)">
+                  <label for="table_q2_checkbox" class="text-white text-xs">Select Q2</label>
+                  <button type="button" class="eye-icon-btn text-white hover:text-yellow-300 transition-colors ml-2 px-2 py-1 rounded" data-quarter="Q2" onclick="showQuarterlyDetails('Q2')" title="View Q2 Details">
+                    <i class="fas fa-eye text-sm"></i>
+                  </button>
+                </div>
+              </th>
+              <th colspan="3" class="px-3 py-2 text-center border-r border-gray-600">
+                <div class="flex items-center justify-center space-x-2">
+                  <input type="checkbox" id="table_q3_checkbox" class="table-quarter-checkbox" data-quarter="Q3" onchange="handleCheckboxChange(this)">
+                  <label for="table_q3_checkbox" class="text-white text-xs">Select Q3</label>
+                  <button type="button" class="eye-icon-btn text-white hover:text-yellow-300 transition-colors ml-2 px-2 py-1 rounded" data-quarter="Q3" onclick="showQuarterlyDetails('Q3')" title="View Q3 Details">
+                    <i class="fas fa-eye text-sm"></i>
+                  </button>
+                </div>
+              </th>
+              <th colspan="3" class="px-3 py-2 text-center border-r border-gray-600">
+                <div class="flex items-center justify-center space-x-2">
+                  <input type="checkbox" id="table_q4_checkbox" class="table-quarter-checkbox" data-quarter="Q4" onchange="handleCheckboxChange(this)">
+                  <label for="table_q4_checkbox" class="text-white text-xs">Select Q4</label>
+                  <button type="button" class="eye-icon-btn text-white hover:text-yellow-300 transition-colors ml-2 px-2 py-1 rounded" data-quarter="Q4" onclick="showQuarterlyDetails('Q4')" title="View Q4 Details">
+                    <i class="fas fa-eye text-sm"></i>
+                  </button>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% 
+              # Show each user_detail as a separate row (each activity gets its own row)
+              row_index = 0
+            %>
+            <% @user_details.each do |detail| %>
+              <% 
+                existing_achievements = detail.achievements.index_by(&:month)
+              %>
+              <% row_index += 1 %>
+              <tr class="<%= row_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200 submitted-activity-row" 
+                  data-detail-id="<%= detail.id %>"
+                  data-department="<%= detail.department.department_type %>">
+                <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department.department_type %></td>
+                <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200">
+                  <%= detail.activity.activity_name %>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200">
+                  <%= detail.activity.theme_name.present? ? detail.activity.theme_name : 'No Theme' %>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center">
+                  <%= detail.activity.unit %>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
+                  <%= detail.activity.weight.present? ? "#{detail.activity.weight.to_i}%" : '0%' %>
+                </td>
+
+                <!-- Q1 Columns -->
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Check for quarterly achievement first (month = 'q1'), then quarterly target, then calculated achievement
+                    q1_quarterly_achievement = detail.achievements.find_by(month: 'q1')
+                    if q1_quarterly_achievement&.achievement.present?
+                      q1_display = q1_quarterly_achievement.achievement.to_f.to_i
+                      q1_is_target = false
+                      q1_is_quarterly_achievement = true
+                    elsif detail.q1.present?
+                      q1_display = detail.q1
+                      q1_is_target = true
+                      q1_is_quarterly_achievement = false
+                    else
+                      q1_display = calculate_quarterly_achievement_percentage(detail, ['april', 'may', 'june'])
+                      q1_is_target = false
+                      q1_is_quarterly_achievement = false
+                    end
+                  %>
+                  <span class="<%= q1_display.present? ? (q1_is_quarterly_achievement ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : (q1_is_target ? 'text-blue-700 font-semibold bg-blue-50 px-3 py-1 rounded-full' : 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full')) : 'text-gray-400' %>" 
+                        data-quarter="q1" 
+                        data-detail-id="<%= detail.id %>"
+                        data-achievement-value="<%= q1_display %>">
+                    <%= q1_display.present? ? (q1_is_quarterly_achievement ? "#{q1_display}%" : (q1_is_target ? q1_display : "#{q1_display}%")) : '-' %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Check for quarterly achievement remarks first, then monthly remarks
+                    q1_quarterly_achievement = detail.achievements.find_by(month: 'q1')
+                    if q1_quarterly_achievement&.employee_remarks.present?
+                      q1_remarks = q1_quarterly_achievement.employee_remarks
+                    else
+                      q1_remarks = get_quarterly_remarks(detail, ['april', 'may', 'june'])
+                    end
+                  %>
+                  <span class="<%= q1_remarks != '-' ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                    <%= q1_remarks %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # For weightage score calculation, we need the percentage value, not the raw target
+                    q1_achievement_for_score = q1_is_target ? nil : (q1_is_quarterly_achievement ? q1_display : q1_display)
+                    q1_weightage_score = calculate_weightage_score(detail.activity.weight, q1_achievement_for_score) 
+                  %>
+                  <span class="<%= q1_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
+                    <%= q1_weightage_score.present? ? q1_weightage_score : '-' %>
+                  </span>
+                </td>
+
+                <!-- Q2 Columns -->
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Check for quarterly achievement first (month = 'q2'), then quarterly target, then calculated achievement
+                    q2_quarterly_achievement = detail.achievements.find_by(month: 'q2')
+                    if q2_quarterly_achievement&.achievement.present?
+                      q2_display = q2_quarterly_achievement.achievement.to_f.to_i
+                      q2_is_target = false
+                      q2_is_quarterly_achievement = true
+                    elsif detail.q2.present?
+                      q2_display = detail.q2
+                      q2_is_target = true
+                      q2_is_quarterly_achievement = false
+                    else
+                      q2_display = calculate_quarterly_achievement_percentage(detail, ['july', 'august', 'september'])
+                      q2_is_target = false
+                      q2_is_quarterly_achievement = false
+                    end
+                  %>
+                  <span class="<%= q2_display.present? ? (q2_is_quarterly_achievement ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : (q2_is_target ? 'text-blue-700 font-semibold bg-blue-50 px-3 py-1 rounded-full' : 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full')) : 'text-gray-400' %>" 
+                        data-quarter="q2" 
+                        data-detail-id="<%= detail.id %>"
+                        data-achievement-value="<%= q2_display %>">
+                    <%= q2_display.present? ? (q2_is_quarterly_achievement ? "#{q2_display}%" : (q2_is_target ? q2_display : "#{q2_display}%")) : '-' %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Check for quarterly achievement remarks first, then monthly remarks
+                    q2_quarterly_achievement = detail.achievements.find_by(month: 'q2')
+                    if q2_quarterly_achievement&.employee_remarks.present?
+                      q2_remarks = q2_quarterly_achievement.employee_remarks
+                    else
+                      q2_remarks = get_quarterly_remarks(detail, ['july', 'august', 'september'])
+                    end
+                  %>
+                  <span class="<%= q2_remarks != '-' ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                    <%= q2_remarks %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # For weightage score calculation, we need the percentage value, not the raw target
+                    q2_achievement_for_score = q2_is_target ? nil : (q2_is_quarterly_achievement ? q2_display : q2_display)
+                    q2_weightage_score = calculate_weightage_score(detail.activity.weight, q2_achievement_for_score) 
+                  %>
+                  <span class="<%= q2_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
+                    <%= q2_weightage_score.present? ? q2_weightage_score : '-' %>
+                  </span>
+                </td>
+
+                <!-- Q3 Columns -->
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Check for quarterly achievement first (month = 'q3'), then quarterly target, then calculated achievement
+                    q3_quarterly_achievement = detail.achievements.find_by(month: 'q3')
+                    if q3_quarterly_achievement&.achievement.present?
+                      q3_display = q3_quarterly_achievement.achievement.to_f.to_i
+                      q3_is_target = false
+                      q3_is_quarterly_achievement = true
+                    elsif detail.q3.present?
+                      q3_display = detail.q3
+                      q3_is_target = true
+                      q3_is_quarterly_achievement = false
+                    else
+                      q3_display = calculate_quarterly_achievement_percentage(detail, ['october', 'november', 'december'])
+                      q3_is_target = false
+                      q3_is_quarterly_achievement = false
+                    end
+                  %>
+                  <span class="<%= q3_display.present? ? (q3_is_quarterly_achievement ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : (q3_is_target ? 'text-blue-700 font-semibold bg-blue-50 px-3 py-1 rounded-full' : 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full')) : 'text-gray-400' %>" 
+                        data-quarter="q3" 
+                        data-detail-id="<%= detail.id %>"
+                        data-achievement-value="<%= q3_display %>">
+                    <%= q3_display.present? ? (q3_is_quarterly_achievement ? "#{q3_display}%" : (q3_is_target ? q3_display : "#{q3_display}%")) : '-' %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Check for quarterly achievement remarks first, then monthly remarks
+                    q3_quarterly_achievement = detail.achievements.find_by(month: 'q3')
+                    if q3_quarterly_achievement&.employee_remarks.present?
+                      q3_remarks = q3_quarterly_achievement.employee_remarks
+                    else
+                      q3_remarks = get_quarterly_remarks(detail, ['october', 'november', 'december'])
+                    end
+                  %>
+                  <span class="<%= q3_remarks != '-' ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                    <%= q3_remarks %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # For weightage score calculation, we need the percentage value, not the raw target
+                    q3_achievement_for_score = q3_is_target ? nil : (q3_is_quarterly_achievement ? q3_display : q3_display)
+                    q3_weightage_score = calculate_weightage_score(detail.activity.weight, q3_achievement_for_score) 
+                  %>
+                  <span class="<%= q3_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
+                    <%= q3_weightage_score.present? ? q3_weightage_score : '-' %>
+                  </span>
+                </td>
+
+                <!-- Q4 Columns -->
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Check for quarterly achievement first (month = 'q4'), then quarterly target, then calculated achievement
+                    q4_quarterly_achievement = detail.achievements.find_by(month: 'q4')
+                    if q4_quarterly_achievement&.achievement.present?
+                      q4_display = q4_quarterly_achievement.achievement.to_f.to_i
+                      q4_is_target = false
+                      q4_is_quarterly_achievement = true
+                    elsif detail.q4.present?
+                      q4_display = detail.q4
+                      q4_is_target = true
+                      q4_is_quarterly_achievement = false
+                    else
+                      q4_display = calculate_quarterly_achievement_percentage(detail, ['january', 'february', 'march'])
+                      q4_is_target = false
+                      q4_is_quarterly_achievement = false
+                    end
+                  %>
+                  <span class="<%= q4_display.present? ? (q4_is_quarterly_achievement ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : (q4_is_target ? 'text-blue-700 font-semibold bg-blue-50 px-3 py-1 rounded-full' : 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full')) : 'text-gray-400' %>" 
+                        data-quarter="q4" 
+                        data-detail-id="<%= detail.id %>"
+                        data-achievement-value="<%= q4_display %>">
+                    <%= q4_display.present? ? (q4_is_quarterly_achievement ? "#{q4_display}%" : (q4_is_target ? q4_display : "#{q4_display}%")) : '-' %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Check for quarterly achievement remarks first, then monthly remarks
+                    q4_quarterly_achievement = detail.achievements.find_by(month: 'q4')
+                    if q4_quarterly_achievement&.employee_remarks.present?
+                      q4_remarks = q4_quarterly_achievement.employee_remarks
+                    else
+                      q4_remarks = get_quarterly_remarks(detail, ['january', 'february', 'march'])
+                    end
+                  %>
+                  <span class="<%= q4_remarks != '-' ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                    <%= q4_remarks %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # For weightage score calculation, we need the percentage value, not the raw target
+                    q4_achievement_for_score = q4_is_target ? nil : (q4_is_quarterly_achievement ? q4_display : q4_display)
+                    q4_weightage_score = calculate_weightage_score(detail.activity.weight, q4_achievement_for_score) 
+                  %>
+                  <span class="<%= q4_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
+                    <%= q4_weightage_score.present? ? q4_weightage_score : '-' %>
+                  </span>
+                </td>
+              </tr>
+            <% end %>
+              
+              <!-- TOTAL COUNT ROW -->
+              <tr class="bg-green-100 border-t-2 border-green-300">
+                <td class="px-4 py-3 text-sm font-bold text-green-800 border-r border-gray-200" colspan="5">
+                  TOTAL COUNT
+                </td>
+                <td class="px-4 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Calculate total weightage
+                    total_weightage = 0
+                    @user_details.each do |detail|
+                      if detail.activity.weight.present?
+                        total_weightage += detail.activity.weight.to_f
+                      end
+                    end
+                  %>
+                  <span id="total-weightage-display" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                    <%= total_weightage.to_i %>%
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Calculate total Q1 achievements
+                    total_q1_achievements = 0
+                    total_q1_count = 0
+                    @user_details.each do |detail|
+                      q1_quarterly_achievement = detail.achievements.find_by(month: 'q1')
+                      if q1_quarterly_achievement&.achievement.present?
+                        total_q1_achievements += q1_quarterly_achievement.achievement.to_f
+                        total_q1_count += 1
+                      end
+                    end
+                    total_q1_sum = total_q1_achievements
+                  %>
+                  <span id="q1-achievement-total" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                    <%= total_q1_sum.to_i %>%
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <span class="text-blue-700 font-bold bg-blue-50 px-3 py-1 rounded-full">
+                    <%= total_q1_count %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    # Calculate total Q1 weightage score
+                    total_q1_weightage = 0
+                    @user_details.each do |detail|
+                      q1_quarterly_achievement = detail.achievements.find_by(month: 'q1')
+                      if q1_quarterly_achievement&.achievement.present? && detail.activity.weight.present?
+                        weight = detail.activity.weight.to_f
+                        achievement = q1_quarterly_achievement.achievement.to_f
+                        weight_decimal = weight > 1 ? weight / 100 : weight
+                        total_q1_weightage += (weight_decimal * achievement)
+                      end
+                    end
+                  %>
+                  <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                    <%= total_q1_weightage.round(2) %>%
+                  </span>
+                </td>
+                
+                <!-- Q2 Totals -->
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    total_q2_achievements = 0
+                    total_q2_count = 0
+                    @user_details.each do |detail|
+                      q2_quarterly_achievement = detail.achievements.find_by(month: 'q2')
+                      if q2_quarterly_achievement&.achievement.present?
+                        total_q2_achievements += q2_quarterly_achievement.achievement.to_f
+                        total_q2_count += 1
+                      end
+                    end
+                    total_q2_sum = total_q2_achievements
+                  %>
+                  <span id="q2-achievement-total" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                    <%= total_q2_sum.round(1) %>%
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <span class="text-blue-700 font-bold bg-blue-50 px-3 py-1 rounded-full">
+                    <%= total_q2_count %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    total_q2_weightage = 0
+                    @user_details.each do |detail|
+                      q2_quarterly_achievement = detail.achievements.find_by(month: 'q2')
+                      if q2_quarterly_achievement&.achievement.present? && detail.activity.weight.present?
+                        weight = detail.activity.weight.to_f
+                        achievement = q2_quarterly_achievement.achievement.to_f
+                        weight_decimal = weight > 1 ? weight / 100 : weight
+                        total_q2_weightage += (weight_decimal * achievement)
+                      end
+                    end
+                  %>
+                  <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                    <%= total_q2_weightage.round(2) %>
+                  </span>
+                </td>
+                
+                <!-- Q3 Totals -->
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    total_q3_achievements = 0
+                    total_q3_count = 0
+                    @user_details.each do |detail|
+                      q3_quarterly_achievement = detail.achievements.find_by(month: 'q3')
+                      if q3_quarterly_achievement&.achievement.present?
+                        total_q3_achievements += q3_quarterly_achievement.achievement.to_f
+                        total_q3_count += 1
+                      end
+                    end
+                    total_q3_sum = total_q3_achievements
+                  %>
+                  <span id="q3-achievement-total" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                    <%= total_q3_sum.round(1) %>%
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <span class="text-blue-700 font-bold bg-blue-50 px-3 py-1 rounded-full">
+                    <%= total_q3_count %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    total_q3_weightage = 0
+                    @user_details.each do |detail|
+                      q3_quarterly_achievement = detail.achievements.find_by(month: 'q3')
+                      if q3_quarterly_achievement&.achievement.present? && detail.activity.weight.present?
+                        weight = detail.activity.weight.to_f
+                        achievement = q3_quarterly_achievement.achievement.to_f
+                        weight_decimal = weight > 1 ? weight / 100 : weight
+                        total_q3_weightage += (weight_decimal * achievement)
+                      end
+                    end
+                  %>
+                  <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                    <%= total_q3_weightage.round(2) %>
+                  </span>
+                </td>
+                
+                <!-- Q4 Totals -->
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    total_q4_achievements = 0
+                    total_q4_count = 0
+                    @user_details.each do |detail|
+                      q4_quarterly_achievement = detail.achievements.find_by(month: 'q4')
+                      if q4_quarterly_achievement&.achievement.present?
+                        total_q4_achievements += q4_quarterly_achievement.achievement.to_f
+                        total_q4_count += 1
+                      end
+                    end
+                    total_q4_sum = total_q4_achievements
+                  %>
+                  <span id="q4-achievement-total" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                    <%= total_q4_sum.round(1) %>%
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <span class="text-blue-700 font-bold bg-blue-50 px-3 py-1 rounded-full">
+                    <%= total_q4_count %>
+                  </span>
+                </td>
+                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
+                  <% 
+                    total_q4_weightage = 0
+                    @user_details.each do |detail|
+                      q4_quarterly_achievement = detail.achievements.find_by(month: 'q4')
+                      if q4_quarterly_achievement&.achievement.present? && detail.activity.weight.present?
+                        weight = detail.activity.weight.to_f
+                        achievement = q4_quarterly_achievement.achievement.to_f
+                        weight_decimal = weight > 1 ? weight / 100 : weight
+                        total_q4_weightage += (weight_decimal * achievement)
+                      end
+                    end
+                  %>
+                  <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                    <%= total_q4_weightage.round(2) %>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    </div>
+<% else %>
+  <!-- No data message -->
+  <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
+    <div class="flex justify-between items-center">
+      <h2 class="text-4xl font-bold text-gray-800 flex items-center">
+        <i class="fas fa-check-circle me-3 text-green-600 text-2xl"></i>
+        Submitted View Data
+      </h2>
+    </div>
+  </div>
+  <div class="p-6">
+    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-8 text-center">
+      <div class="text-gray-500">
+        <i class="fas fa-clipboard-list text-6xl mb-4 text-blue-500"></i>
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">No Submitted Data Available</h3>
+        <p class="text-gray-500 mb-4">
+          <% case current_user.role %>
+          <% when "employee" %>
+            You haven't submitted any quarterly achievements yet. Please submit your achievements first to view them here.
+          <% when "hod" %>
+            No employees in your department have submitted their quarterly achievements yet.
+          <% when "l1_employer" %>
+            No employees under your supervision have submitted their quarterly achievements yet.
+          <% when "l2_employer" %>
+            No employees under your supervision have submitted their quarterly achievements yet.
+          <% else %>
+            There are no submitted quarterly achievements to display at this time.
+          <% end %>
+        </p>
+        <% if current_user.employee? %>
+          <div class="mt-6">
+            <%= link_to get_user_detail_user_details_path, 
+                        class: "text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center justify-center mx-auto w-fit shadow-md hover:shadow-lg transform hover:scale-105", style: "background-color: #2d374b;", onmouseover: "this.style.backgroundColor='#1a202c'", onmouseout: "this.style.backgroundColor='#2d374b'" do %>
+              <i class="fas fa-plus me-2"></i>
+              <span class="font-semibold">Submit Your Achievements</span>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+<% end %>
+
+
+<style>
+.main-content {
+  margin-left: 240px;
+  padding: 2rem;
+  overflow-x: auto;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.table {
+  min-width: 1800px; /* Increased width for 3 columns per quarter */
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table th, .table td {
+  padding: 12px 16px;
+  text-align: center;
+  border-right: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.table th {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.table tbody tr:hover {
+  background-color: #f9fafb !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.achievement-input {
+  width: 100%;
+  min-width: 120px;
+  padding: 8px 12px;
+  font-size: 14px;
+  border: 2px solid #d1d5db;
+  border-radius: 8px;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  background-color: #f9fafb;
+}
+
+.remarks-textarea {
+  width: 100%;
+  min-width: 120px;
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 2px solid #d1d5db;
+  border-radius: 6px;
+  box-sizing: border-box;
+  transition: all 0.3s ease;
+  background-color: #f9fafb;
+  resize: vertical;
+  min-height: 24px;
+}
+
+.achievement-input:focus, .remarks-textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+  transform: scale(1.02);
+}
+
+.achievement-input:hover, .remarks-textarea:hover {
+  border-color: #9ca3af;
+  background-color: white;
+}
+
+.main-content h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Enhanced card styling */
+.bg-white {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+/* Button enhancements */
+input[type="submit"]:hover, button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Achievement badges */
+.bg-green-50 {
+  background-color: #f0fdf4;
+  border: 1px solid #bbf7d0;
+}
+
+.bg-blue-50 {
+  background-color: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+
+/* Status badge styling */
+.inline-flex {
+  white-space: nowrap;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+}
+
+/* Subtle animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.bg-white {
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* Form input focus animations */
+.achievement-input::placeholder, .remarks-textarea::placeholder {
+  color: #9ca3af;
+  transition: color 0.3s ease;
+}
+
+.achievement-input:focus::placeholder, .remarks-textarea:focus::placeholder {
+  color: #6b7280;
+}
+
+/* Enhanced hover effects for table rows */
+tbody tr {
+  transition: all 0.2s ease;
+}
+
+tbody tr:hover {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%) !important;
+}
+
+/* Submit button additional styling */
+input[type="submit"] {
+  cursor: pointer;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+}
+
+/* Message display styling */
+#successMessage, #errorMessage, #warningMessage {
+  animation: slideDown 0.3s ease-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Enhanced button states */
+#submitBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+#submitBtn:disabled:hover {
+  transform: none !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
+
+/* Loading spinner animation */
+.fa-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Checkbox styling */
+.quarter-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #f59e0b;
+  cursor: pointer;
+}
+
+.quarter-checkbox:checked {
+  background-color: #f59e0b;
+}
+
+/* Table checkbox styling */
+.table-quarter-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: #f59e0b;
+  cursor: pointer;
+  margin-right: 4px;
+}
+
+.table-quarter-checkbox:checked {
+  background-color: #f59e0b;
+}
+
+.table-quarter-checkbox + label {
+  cursor: pointer;
+  user-select: none;
+}
+
+/* Edit button styling */
+#edit-quarterly-btn {
+  transition: all 0.3s ease;
+  border: none;
+  outline: none;
+}
+
+#edit-quarterly-btn:not(:disabled) {
+  background-color: #eab308 !important; /* yellow-500 */
+  color: #000000 !important; /* black text */
+  cursor: pointer !important;
+  opacity: 1 !important;
+}
+
+#edit-quarterly-btn:not(:disabled):hover {
+  background-color: #ca8a04 !important; /* yellow-600 */
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+#edit-quarterly-btn:disabled {
+  background-color: #9ca3af !important; /* gray-400 */
+  color: #ffffff !important; /* white text */
+  cursor: not-allowed !important;
+  opacity: 0.6 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+</style>
+
+<script>
+// Global function to handle checkbox changes (called by inline onchange)
+function handleCheckboxChange(checkbox) {
+  console.log('Inline handler - Checkbox changed:', checkbox.dataset.quarter, 'checked:', checkbox.checked);
+  
+  const editButton = document.getElementById('edit-quarterly-btn');
+  if (!editButton) {
+    console.error('Edit button not found in inline handler');
+    return;
+  }
+  
+  const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
+  console.log('Inline handler - Checked boxes:', checkedBoxes.length);
+  
+  if (checkedBoxes.length > 0) {
+    // Enable button
+    editButton.disabled = false;
+    editButton.style.backgroundColor = '#eab308'; // yellow-500
+    editButton.style.color = '#000000'; // black text
+    editButton.style.cursor = 'pointer';
+    editButton.style.opacity = '1';
+    console.log('Inline handler - Button enabled');
+    
+    // Ensure click handler is attached
+    if (!editButton._clickHandlerAttached) {
+      console.log('Attaching click handler to button');
+      editButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('Edit button clicked!');
+        
+        const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
+        console.log('Checked boxes on click:', checkedBoxes.length);
+        
+        if (checkedBoxes.length === 0) {
+          alert('Please select at least one quarter to edit.');
+          return false;
+        }
+        
+        // Get selected quarters
+        const selectedQuarters = Array.from(checkedBoxes).map(cb => cb.dataset.quarter);
+        console.log('Selected quarters:', selectedQuarters);
+        
+        // Redirect to quarterly edit page with the first selected quarter
+        const selectedQuarter = selectedQuarters[0];
+        const editUrl = '<%= quarterly_edit_all_user_details_path %>?quarter=' + selectedQuarter;
+        
+        console.log('Redirecting to:', editUrl);
+        window.location.href = editUrl;
+        
+        return false;
+      });
+      editButton._clickHandlerAttached = true;
+    }
+  } else {
+    // Disable button
+    editButton.disabled = true;
+    editButton.style.backgroundColor = '#9ca3af'; // gray-400
+    editButton.style.color = '#ffffff'; // white text
+    editButton.style.cursor = 'not-allowed';
+    editButton.style.opacity = '0.6';
+    console.log('Inline handler - Button disabled');
+  }
+}
+
+// Global function to handle edit button clicks (called by inline onclick)
+function handleEditButtonClick(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  console.log('Inline button click handler triggered');
+  
+  const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
+  console.log('Button clicked - checked boxes:', checkedBoxes.length);
+  
+  if (checkedBoxes.length === 0) {
+    alert('Please select at least one quarter to edit.');
+    return false;
+  }
+  
+  // Get selected quarters
+  const selectedQuarters = Array.from(checkedBoxes).map(cb => cb.dataset.quarter);
+  console.log('Selected quarters:', selectedQuarters);
+  
+  // Redirect to quarterly edit page with the first selected quarter
+  const selectedQuarter = selectedQuarters[0];
+  const editUrl = '<%= quarterly_edit_all_user_details_path %>?quarter=' + selectedQuarter;
+  
+  console.log('Redirecting to:', editUrl);
+  window.location.href = editUrl;
+  
+  return false;
+}
+
+// Wait for DOM to be fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('DOM loaded, initializing quarterly edit functionality...');
+  
+  // Get elements
+  const tableCheckboxes = document.querySelectorAll('.table-quarter-checkbox');
+  const editButton = document.getElementById('edit-quarterly-btn');
+  
+  console.log('Found checkboxes:', tableCheckboxes.length);
+  console.log('Found edit button:', editButton);
+  
+  if (!editButton) {
+    console.error('Edit button not found!');
+    return;
+  }
+  
+  // Function to update edit button state
+  function updateEditButton() {
+    const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
+    console.log('Updating button state. Checked boxes:', checkedBoxes.length);
+    
+    if (checkedBoxes.length > 0) {
+      // Enable button - make it yellow and clickable
+      editButton.disabled = false;
+      editButton.style.backgroundColor = '#eab308'; // yellow-500
+      editButton.style.color = '#000000'; // black text
+      editButton.style.cursor = 'pointer';
+      editButton.style.opacity = '1';
+      console.log('Button enabled');
+    } else {
+      // Disable button - make it gray and not clickable
+      editButton.disabled = true;
+      editButton.style.backgroundColor = '#9ca3af'; // gray-400
+      editButton.style.color = '#ffffff'; // white text
+      editButton.style.cursor = 'not-allowed';
+      editButton.style.opacity = '0.6';
+      console.log('Button disabled');
+    }
+  }
+  
+  // Add event listeners to table checkboxes
+  tableCheckboxes.forEach((checkbox, index) => {
+    console.log(`Adding listener to checkbox ${index}:`, checkbox.dataset.quarter);
+    
+    // Remove any existing listeners first
+    checkbox.removeEventListener('change', checkbox._changeHandler);
+    
+    // Create new change handler
+    checkbox._changeHandler = function() {
+      console.log('Checkbox changed:', this.dataset.quarter, 'checked:', this.checked);
+      updateEditButton();
+    };
+    
+    // Add the event listener
+    checkbox.addEventListener('change', checkbox._changeHandler);
+    
+    // Also add click event as backup
+    checkbox.addEventListener('click', function() {
+      console.log('Checkbox clicked:', this.dataset.quarter, 'checked:', this.checked);
+      setTimeout(updateEditButton, 10); // Small delay to ensure state is updated
+    });
+  });
+  
+  // Add click event listener to edit button
+  editButton.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('Edit button clicked!');
+    
+    const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
+    console.log('Checked boxes on click:', checkedBoxes.length);
+    
+    if (checkedBoxes.length === 0) {
+      alert('Please select at least one quarter to edit.');
+      return false;
+    }
+    
+    // Get selected quarters
+    const selectedQuarters = Array.from(checkedBoxes).map(cb => cb.dataset.quarter);
+    console.log('Selected quarters:', selectedQuarters);
+    
+    // Redirect to quarterly edit page with the first selected quarter
+    const selectedQuarter = selectedQuarters[0];
+    const editUrl = '<%= quarterly_edit_all_user_details_path %>?quarter=' + selectedQuarter;
+    
+    console.log('Redirecting to:', editUrl);
+    window.location.href = editUrl;
+    
+    return false;
+  });
+  
+  // Initialize button state
+  updateEditButton();
+  
+  // Run additional checks to ensure everything is working
+  setTimeout(function() {
+    console.log('Running delayed check...');
+    updateEditButton();
+    
+    // Test if button is properly set up
+    console.log('Button disabled state:', editButton.disabled);
+    console.log('Button background color:', editButton.style.backgroundColor);
+    
+    // Re-attach event listeners in case they weren't attached properly
+    const checkboxes = document.querySelectorAll('.table-quarter-checkbox');
+    checkboxes.forEach((checkbox, index) => {
+      if (!checkbox._changeHandler) {
+        console.log(`Re-attaching listener to checkbox ${index}`);
+        checkbox._changeHandler = function() {
+          console.log('Checkbox changed (re-attached):', this.dataset.quarter, 'checked:', this.checked);
+          updateEditButton();
+        };
+        checkbox.addEventListener('change', checkbox._changeHandler);
+      }
+    });
+  }, 200);
+  
+  // Final check after everything should be loaded
+  setTimeout(function() {
+    console.log('Final initialization check...');
+    updateEditButton();
+    
+    // Force update button state
+    const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
+    console.log('Final check - checked boxes:', checkedBoxes.length);
+    if (checkedBoxes.length > 0) {
+      editButton.disabled = false;
+      editButton.style.backgroundColor = '#eab308';
+      editButton.style.cursor = 'pointer';
+    }
+  }, 1000);
+});
+
+// Also run on window load as backup
+window.addEventListener('load', function() {
+  console.log('Window loaded, running backup initialization...');
+  setTimeout(function() {
+    const editButton = document.getElementById('edit-quarterly-btn');
+    if (editButton) {
+      const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
+      if (checkedBoxes.length > 0) {
+        editButton.disabled = false;
+        editButton.style.backgroundColor = '#eab308';
+        editButton.style.cursor = 'pointer';
+      } else {
+        editButton.disabled = true;
+        editButton.style.backgroundColor = '#9ca3af';
+        editButton.style.cursor = 'not-allowed';
+      }
+    }
+  }, 100);
+});
+</script>
+
+<!-- Quarterly Achievement Details Modal -->
+<div id="quarterlyDetailsModal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <!-- Modal Header -->
+    <div class="bg-gray-700 text-white px-6 py-4 rounded-t-lg flex justify-between items-center">
+      <div>
+        <h3 class="text-lg font-semibold">Quarterly Achievement Details</h3>
+        <span id="modalQuarterTitle" class="text-sm font-medium"></span>
+      </div>
+      <button onclick="refreshQuarterlyDetails()" class="text-white hover:text-gray-200 transition-colors" title="Refresh Data">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Modal Body -->
+    <div class="p-6">
+      <div class="text-xs text-gray-500 text-center mb-4" id="lastUpdated">
+        Auto-refreshing every 10 seconds
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- L1 Summary -->
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h4 class="text-red-600 font-semibold text-lg mb-3">L1 Summary</h4>
+          <div class="space-y-2">
+            <div>
+              <span class="font-medium">Percentage: </span>
+              <span id="l1Percentage" class="font-bold text-lg text-red-600">--</span>
+            </div>
+            <div>
+              <span class="font-medium">Remarks: </span>
+              <span id="l1Remarks" class="font-bold text-red-600">--</span>
+            </div>
+            <div>
+              <span class="font-medium">Status: </span>
+              <span id="l1Status" class="font-bold text-green-600">--</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- L2 Summary -->
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <h4 class="text-purple-600 font-semibold text-lg mb-3">L2 Summary</h4>
+          <div class="space-y-2">
+            <div>
+              <span class="font-medium">Percentage: </span>
+              <span id="l2Percentage" class="font-bold text-lg text-purple-600">--</span>
+            </div>
+            <div>
+              <span class="font-medium">Remarks: </span>
+              <span id="l2Remarks" class="font-bold text-purple-600">--</span>
+            </div>
+            <div>
+              <span class="font-medium">Status: </span>
+              <span id="l2Status" class="font-bold text-green-600">--</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- L3 Summary -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 md:col-span-2">
+          <h4 class="text-blue-600 font-semibold text-lg mb-3">L3 Summary</h4>
+          <div class="space-y-2">
+            <div>
+              <span class="font-medium">Percentage: </span>
+              <span id="l3Percentage" class="font-bold text-lg text-blue-600">--</span>
+            </div>
+            <div>
+              <span class="font-medium">Remarks: </span>
+              <span id="l3Remarks" class="font-bold text-blue-600">--</span>
+            </div>
+            <div>
+              <span class="font-medium">Status: </span>
+              <span id="l3Status" class="font-bold text-green-600">--</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Modal Footer -->
+    <div class="bg-gray-100 px-6 py-4 rounded-b-lg flex justify-center gap-3">
+      <button onclick="refreshQuarterlyDetails()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+        </svg>
+        Refresh
+      </button>
+      <button onclick="closeQuarterlyDetails()" class="bg-gray-700 text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors">
+        Close Details
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Global variable to store modal refresh interval
+let modalRefreshInterval = null;
+let currentModalQuarter = null;
+
+// Function to fetch and update quarterly details
+function fetchQuarterlyDetails(quarter, showLoading = true) {
+  // Update modal title with correct months for each quarter
+  const quarterMonths = {
+    'Q1': 'Q1 (APR-MAY-JUN)',
+    'Q2': 'Q2 (JUL-AUG-SEP)', 
+    'Q3': 'Q3 (OCT-NOV-DEC)',
+    'Q4': 'Q4 (JAN-FEB-MAR)'
+  };
+  document.getElementById('modalQuarterTitle').textContent = quarterMonths[quarter] || quarter;
+  
+  // Show loading state if requested
+  if (showLoading) {
+    document.getElementById('l1Percentage').textContent = 'Loading...';
+    document.getElementById('l1Remarks').textContent = 'Loading...';
+    document.getElementById('l1Status').textContent = 'Loading...';
+    document.getElementById('l2Percentage').textContent = 'Loading...';
+    document.getElementById('l2Remarks').textContent = 'Loading...';
+    document.getElementById('l2Status').textContent = 'Loading...';
+    document.getElementById('l3Percentage').textContent = 'Loading...';
+    document.getElementById('l3Remarks').textContent = 'Loading...';
+    document.getElementById('l3Status').textContent = 'Loading...';
+  }
+  
+  // Fetch real data from server with cache busting
+  const timestamp = new Date().getTime();
+  fetch(`/quarterly_details?quarter=${quarter}&t=${timestamp}`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+      'Cache-Control': 'no-cache'
+    }
+  })
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    return response.json();
+  })
+    .then(data => {
+    console.log('Received data:', data);
+    
+    // Update last updated timestamp
+    const now = new Date();
+    const timeString = now.toLocaleTimeString();
+    const lastUpdatedEl = document.getElementById('lastUpdated');
+    if (lastUpdatedEl) {
+      lastUpdatedEl.textContent = `Last updated: ${timeString} (Auto-refreshing every 10 seconds)`;
+    }
+    
+    // Update the modal content with real data
+    document.getElementById('l1Percentage').textContent = data.l1.percentage || '0.0%';
+    document.getElementById('l1Remarks').textContent = data.l1.remarks || 'No remarks';
+    document.getElementById('l1Status').textContent = data.l1.status || 'Pending';
+    document.getElementById('l2Percentage').textContent = data.l2.percentage || '0.0%';
+    document.getElementById('l2Remarks').textContent = data.l2.remarks || 'No remarks';
+    document.getElementById('l2Status').textContent = data.l2.status || 'Pending';
+    document.getElementById('l3Percentage').textContent = data.l3.percentage || '0.0%';
+    document.getElementById('l3Remarks').textContent = data.l3.remarks || 'No remarks';
+    document.getElementById('l3Status').textContent = data.l3.status || 'Pending';
+    
+    // Add visual feedback for update (brief highlight)
+    ['l1Percentage', 'l1Remarks', 'l1Status', 'l2Percentage', 'l2Remarks', 'l2Status', 
+     'l3Percentage', 'l3Remarks', 'l3Status'].forEach(id => {
+      const element = document.getElementById(id);
+      if (element) {
+        element.style.transition = 'background-color 0.3s ease';
+        element.style.backgroundColor = '#dbeafe';
+        setTimeout(() => {
+          element.style.backgroundColor = '';
+        }, 300);
+      }
+    });
+  })
+  .catch(error => {
+    console.error('Error fetching quarterly details:', error);
+    
+    // Show error state
+    document.getElementById('l1Percentage').textContent = 'Error';
+    document.getElementById('l1Remarks').textContent = 'Failed to load';
+    document.getElementById('l1Status').textContent = 'Error';
+    document.getElementById('l2Percentage').textContent = 'Error';
+    document.getElementById('l2Remarks').textContent = 'Failed to load';
+    document.getElementById('l2Status').textContent = 'Error';
+    document.getElementById('l3Percentage').textContent = 'Error';
+    document.getElementById('l3Remarks').textContent = 'Failed to load';
+    document.getElementById('l3Status').textContent = 'Error';
+  });
+}
+
+// Function to show quarterly details modal
+function showQuarterlyDetails(quarter) {
+  console.log('Showing details for quarter:', quarter);
+  currentModalQuarter = quarter;
+  
+  // Show the modal first
+  document.getElementById('quarterlyDetailsModal').classList.remove('hidden');
+  
+  // Fetch initial data
+  fetchQuarterlyDetails(quarter, true);
+  
+  // Start auto-refresh every 10 seconds while modal is open
+  if (modalRefreshInterval) {
+    clearInterval(modalRefreshInterval);
+  }
+  modalRefreshInterval = setInterval(() => {
+    if (!document.getElementById('quarterlyDetailsModal').classList.contains('hidden')) {
+      console.log('Auto-refreshing quarterly details for:', quarter);
+      fetchQuarterlyDetails(quarter, false); // Don't show loading on auto-refresh
+    }
+  }, 10000); // Refresh every 10 seconds
+  
+  // Listen for real-time updates from other tabs/pages
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'quarterly_details_updated' && e.newValue === quarter) {
+      console.log('Quarterly details updated from another tab, refreshing...');
+      fetchQuarterlyDetails(quarter, false);
+    }
+  });
+  
+  // Listen for custom events (same tab updates)
+  window.addEventListener('quarterlyDetailsUpdated', function(e) {
+    if (e.detail.quarter === quarter) {
+      console.log('Quarterly details updated, refreshing...');
+      fetchQuarterlyDetails(quarter, false);
+    }
+  });
+}
+
+// Function to manually refresh modal data
+function refreshQuarterlyDetails() {
+  if (currentModalQuarter) {
+    console.log('Manually refreshing quarterly details for:', currentModalQuarter);
+    fetchQuarterlyDetails(currentModalQuarter, true);
+  }
+}
+
+// Function to close quarterly details modal
+function closeQuarterlyDetails() {
+  document.getElementById('quarterlyDetailsModal').classList.add('hidden');
+  
+  // Stop auto-refresh when modal is closed
+  if (modalRefreshInterval) {
+    clearInterval(modalRefreshInterval);
+    modalRefreshInterval = null;
+  }
+  currentModalQuarter = null;
+}
+
+// Close modal when clicking outside
+document.getElementById('quarterlyDetailsModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    closeQuarterlyDetails();
+  }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeQuarterlyDetails();
+  }
+});
+
+// Function to calculate and update total weightage dynamically
+function updateTotalWeightage() {
+  let totalWeightage = 0;
+  
+  // Get all weightage values from the table (6th column)
+  const weightageCells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(6)');
+  weightageCells.forEach(cell => {
+    const weightageText = cell.textContent.trim();
+    if (weightageText && !isNaN(parseFloat(weightageText))) {
+      totalWeightage += parseFloat(weightageText);
+    }
+  });
+  
+  // Update the display
+  const totalWeightageDisplay = document.getElementById('total-weightage-display');
+  if (totalWeightageDisplay) {
+    totalWeightageDisplay.textContent = Math.round(totalWeightage) + '%';
+    
+    // Add animation effect
+    totalWeightageDisplay.style.transform = 'scale(1.1)';
+    totalWeightageDisplay.style.transition = 'transform 0.2s ease';
+    
+    setTimeout(() => {
+      totalWeightageDisplay.style.transform = 'scale(1)';
+    }, 200);
+  }
+}
+
+// Function to calculate and update achievement totals dynamically
+function updateAchievementTotals() {
+  // Calculate Q1 achievement total
+  let q1Total = 0;
+  const q1Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(7)'); // Q1 achievement column
+  q1Cells.forEach(cell => {
+    const cellText = cell.textContent.trim();
+    const percentage = cellText.replace('%', '');
+    if (percentage && !isNaN(parseFloat(percentage))) {
+      q1Total += parseFloat(percentage);
+    }
+  });
+  
+  // Update Q1 total
+  const q1Display = document.getElementById('q1-achievement-total');
+  if (q1Display) {
+    q1Display.textContent = Math.round(q1Total) + '%';
+    animateUpdate(q1Display);
+  }
+  
+  // Calculate Q2 achievement total
+  let q2Total = 0;
+  const q2Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(10)'); // Q2 achievement column
+  q2Cells.forEach(cell => {
+    const cellText = cell.textContent.trim();
+    const percentage = cellText.replace('%', '');
+    if (percentage && !isNaN(parseFloat(percentage))) {
+      q2Total += parseFloat(percentage);
+    }
+  });
+  
+  // Update Q2 total
+  const q2Display = document.getElementById('q2-achievement-total');
+  if (q2Display) {
+    q2Display.textContent = Math.round(q2Total) + '%';
+    animateUpdate(q2Display);
+  }
+  
+  // Calculate Q3 achievement total
+  let q3Total = 0;
+  const q3Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(13)'); // Q3 achievement column
+  q3Cells.forEach(cell => {
+    const cellText = cell.textContent.trim();
+    const percentage = cellText.replace('%', '');
+    if (percentage && !isNaN(parseFloat(percentage))) {
+      q3Total += parseFloat(percentage);
+    }
+  });
+  
+  // Update Q3 total
+  const q3Display = document.getElementById('q3-achievement-total');
+  if (q3Display) {
+    q3Display.textContent = Math.round(q3Total) + '%';
+    animateUpdate(q3Display);
+  }
+  
+  // Calculate Q4 achievement total
+  let q4Total = 0;
+  const q4Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(16)'); // Q4 achievement column
+  q4Cells.forEach(cell => {
+    const cellText = cell.textContent.trim();
+    const percentage = cellText.replace('%', '');
+    if (percentage && !isNaN(parseFloat(percentage))) {
+      q4Total += parseFloat(percentage);
+    }
+  });
+  
+  // Update Q4 total
+  const q4Display = document.getElementById('q4-achievement-total');
+  if (q4Display) {
+    q4Display.textContent = Math.round(q4Total) + '%';
+    animateUpdate(q4Display);
+  }
+}
+
+// Helper function for animation
+function animateUpdate(element) {
+  element.style.transform = 'scale(1.1)';
+  element.style.transition = 'transform 0.2s ease';
+  
+  setTimeout(() => {
+    element.style.transform = 'scale(1)';
+  }, 200);
+}
+
+// Initialize dynamic weightage calculation on page load
+document.addEventListener('DOMContentLoaded', function() {
+  // Update total weightage when page loads
+  updateTotalWeightage();
+  
+  // Update achievement totals when page loads
+  updateAchievementTotals();
+  
+  // Add event listeners for any dynamic changes
+  const table = document.querySelector('.table');
+  if (table) {
+    // Use MutationObserver to watch for changes in the table
+    const observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.type === 'childList' || mutation.type === 'characterData') {
+          updateTotalWeightage();
+          updateAchievementTotals();
+        }
+      });
+    });
+    
+    observer.observe(table, {
+      childList: true,
+      subtree: true,
+      characterData: true
+    });
+  }
+});
+</script>
+
+

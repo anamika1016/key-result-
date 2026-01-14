@@ -6,7 +6,7 @@
         <i class="fas fa-exclamation-triangle text-6xl text-red-500 mb-4"></i>
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Employee Detail Not Found</h2>
         <p class="text-gray-600 mb-6">The employee detail you're looking for may have been deleted or doesn't exist.</p>
-        <%= link_to "← Back to Employee List", employee_details_path, class: "inline-flex items-center px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition duration-200" %>
+        <%= link_to "← Back to Employee List", employee_details_path, class: "inline-flex items-center px-6 py-3 text-white font-semibold rounded-lg transition duration-200", style: "background-color: #2d374b;", onmouseover: "this.style.backgroundColor='#1a202c'", onmouseout: "this.style.backgroundColor='#2d374b'" %>
       </div>
     </div>
   </div>
@@ -16,125 +16,197 @@
   <div class="border-b border-gray-200 pb-6 mb-8">
     <h2 class="text-3xl font-bold text-gray-800 flex items-center">
       <i class="fas fa-user-circle mr-3 text-gray-600"></i>
-      Employee Detail
+      Employee Detail - <%= @employee_detail.employee_name %>
     </h2>
+    
+    <!-- Vertical Filter - Only show if coming from specific vertical -->
+    <% if @selected_department.present? %>
+      <% 
+        # Get the specific department being viewed
+        current_department = Department.find(@selected_department)
+      %>
+      <div class="mt-4">
+        <div class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
+          <i class="fas fa-building mr-2"></i>
+          Vertical: <%= current_department.department_type %>
+        </div>
+      </div>
+    <% end %>
   </div>
 
   <!-- Status Message Container -->
   <div id="statusMessage" class="hidden mb-4 p-4 rounded-lg"></div>
+  
+  
 
-  <% if @user_details.any? && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
+
+  <!-- NEW: Simplified Table Format matching the screen you described -->
+  <% if @user_details.any? %>
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm mt-8">
       <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
         <h2 class="text-2xl font-bold text-gray-800 flex items-center">
           <i class="fas fa-trophy mr-3 text-gray-600"></i>
-          <% if params[:quarter].present? %>
-            Quarter Achievement Details
-          <% else %>
-            Submitted Achievements
-          <% end %>
+          <%= @selected_quarter %> Quarter Achievement Details
         </h2>
       </div>
 
       <div class="p-6">
+        <%
+          # Define months to display based on selected quarter
+          display_months = case @selected_quarter
+                          when 'Q1'
+                            [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']]
+                          when 'Q2'
+                            [[:july, 'Jul'], [:august, 'Aug'], [:september, 'Sep']]
+                          when 'Q3'
+                            [[:october, 'Oct'], [:november, 'Nov'], [:december, 'Dec']]
+                          when 'Q4'
+                            [[:january, 'Jan'], [:february, 'Feb'], [:march, 'Mar']]
+                          else
+                            # Default to Q2
+                            [[:july, 'Jul'], [:august, 'Aug'], [:september, 'Sep']]
+                          end
+        %>
+        
+        
         <div class="table-wrapper overflow-auto bg-white rounded-lg border border-gray-200">
-          <%
-            # Define months to display based on quarter or all months if no quarter is specified
-            display_months = if params[:quarter].present?
-                              case params[:quarter]
-                              when 'Q1'
-                                [[:january, 'Jan'], [:february, 'Feb'], [:march, 'Mar']]
-                              when 'Q2'
-                                [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']]
-                              when 'Q3'
-                                [[:july, 'Jul'], [:august, 'Aug'], [:september, 'Sep']]
-                              when 'Q4'
-                                [[:october, 'Oct'], [:november, 'Nov'], [:december, 'Dec']]
-                              else
-                                []
-                              end
-                            else
-                              # Fallback to a default or all months if no quarter is specified
-                              [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']] # Defaulting to Q2 for example
-                            end
-          %>
-          <table class="table table-hover w-full min-w-full">
-            <thead class="bg-gray-800">
+          
+          <!-- NEW: Simplified table matching your screen format -->
+          <table class="min-w-full divide-y divide-gray-300 text-sm">
+            <thead class="bg-gradient-to-r from-gray-800 to-gray-700">
               <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Department</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Name</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Activity</th>
-                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
-
-                <!-- DYNAMIC MONTH COLUMNS -->
-                <% display_months.each do |month_symbol, month_name| %>
-                  <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Target</th>
-                  <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Achievement</th>
-                  <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Remarks</th>
-                <% end %>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Indicator</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">KPI</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Weightage</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600" colspan="3">
+                  <%= @selected_quarter %> (<%= display_months.map(&:last).join('-') %>)
+                </th>
+              </tr>
+              <tr class="bg-gray-700">
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Weightage Score</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <% @user_details.each_with_index do |detail, detail_index| %>
+              <% 
+                total_weightage = 0
+                total_achievement = 0
+                total_weightage_score = 0
+                row_count = 0
+                
+                # FIXED: Group user_details by activity name to prevent duplicates
+                grouped_details = @user_details.group_by { |detail| detail.activity&.activity_name }
+                processed_activities = Set.new
+              %>
+              <% grouped_details.each_with_index do |(activity_name, details), detail_index| %>
                 <% 
-                  existing_achievements = detail.achievements.index_by(&:month)
-                  # Only render the row if there is at least one achievement in the selected quarter for this activity
-                  has_quarterly_data = display_months.any? do |month_symbol, _|
-                    existing_achievements[month_symbol.to_s]&.achievement.present? || detail.send(month_symbol).present?
-                  end
+                  # Skip if we've already processed this activity
+                  next if processed_activities.include?(activity_name)
+                  processed_activities.add(activity_name)
+                  
+                  # Use the first detail for this activity (they should all have the same activity data)
+                  detail = details.first
                 %>
-                <% if has_quarterly_data %>
-                  <tr class="<%= detail_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
-                    <!-- Static Columns -->
-                    <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200">
-                      <%= detail.department&.department_type || 'N/A' %>
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200">
-                      <%= detail.employee_detail&.employee_name || 'N/A' %>
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200">
-                      <%= detail.activity&.activity_name || 'N/A' %>
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center">
-                      <%= detail.activity&.unit || '' %>
-                    </td>
-
-                    <!-- Dynamic Month Data Columns -->
-                    <% display_months.each do |month_symbol, month_name| %>
-                      <%
-                        target_value = detail.send(month_symbol)
-                        achievement_record = existing_achievements[month_symbol.to_s]
-                        achievement_value = achievement_record&.achievement
-                        employee_remarks = achievement_record&.employee_remarks
-                      %>
-                      <!-- Target -->
-                      <td class="px-4 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-gray-50">
-                        <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
-                          <%= target_value.presence || '-' %>
-                        </span>
-                      </td>
-                      
-                      <!-- Achievement -->
-                      <td class="px-4 py-3 text-sm text-center border-r border-gray-200 achievement-cell">
-                        <span class="<%= achievement_value.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
-                          <%= achievement_value.presence || '-' %>
-                        </span>
-                      </td>
-                      
-                      <!-- Remarks -->
-                      <td class="px-4 py-3 text-sm text-center border-r border-gray-200 remarks-cell">
-                        <% if employee_remarks.present? %>
-                          <div class="text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs break-words max-w-full overflow-hidden" style="word-wrap: break-word; word-break: break-word; hyphens: auto; max-width: 300px;">
-                            <%= employee_remarks %>
-                          </div>
-                        <% else %>
-                          <span class="text-gray-400 text-xs">-</span>
-                        <% end %>
-                      </td>
+                <% 
+                  # FIXED: Calculate quarterly data for this activity
+                  quarter_achievements = detail.achievements.select { |a| display_months.map(&:first).map(&:to_s).include?(a.month) }
+                  
+                  
+                  # Get weightage from the activity (using 'weight' attribute)
+                  weightage = detail.activity&.weight || 0
+                  total_weightage += weightage
+                  
+                  # FIXED: Calculate average achievement for the quarter
+                  quarter_achievement_values = quarter_achievements.map { |a| a.achievement.to_f rescue 0 }.compact
+                  avg_achievement = quarter_achievement_values.any? ? (quarter_achievement_values.sum / quarter_achievement_values.size) : 0
+                  
+                  # FIXED: If no quarter achievements found, try to get any achievements for this activity
+                  if avg_achievement == 0 && detail.achievements.any?
+                    all_achievement_values = detail.achievements.map { |a| a.achievement.to_f rescue 0 }.compact
+                    avg_achievement = all_achievement_values.any? ? (all_achievement_values.sum / all_achievement_values.size) : 0
+                  end
+                  
+                  
+                  # Calculate weightage score
+                  weightage_score = (weightage * avg_achievement / 100).round(2)
+                  total_weightage_score += weightage_score
+                  
+                  # FIXED: Get remarks (use the first available remark)
+                  remarks = quarter_achievements.map { |a| a.employee_remarks }.compact.first
+                  
+                  # If no quarter remarks, try to get any remarks for this activity
+                  if remarks.blank? && detail.achievements.any?
+                    remarks = detail.achievements.map { |a| a.employee_remarks }.compact.first
+                  end
+                  
+                  # Don't set default remarks - show empty if no remarks provided
+                  remarks = remarks.present? ? remarks : ""
+                  
+                  row_count += 1
+                %>
+                <tr class="<%= detail_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
+                  <td class="px-6 py-4 text-sm text-gray-800 font-medium border-r border-gray-200">
+                    <%= detail.activity&.activity_name || 'N/A' %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= detail.activity&.theme_name || 'N/A' %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= detail.activity&.unit || 'N/A' %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= weightage %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                    <span class="text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
+                      <%= avg_achievement.round(0) %>%
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                    <% if remarks.present? %>
+                      <span class="text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs">
+                        <%= remarks %>
+                      </span>
+                    <% else %>
+                      <span class="text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded text-xs">
+                        No remarks
+                      </span>
                     <% end %>
-                  </tr>
-                <% end %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center">
+                    <span class="text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
+                      <%= weightage_score %>
+                    </span>
+                  </td>
+                </tr>
               <% end %>
+              
+              <!-- TOTAL COUNT ROW -->
+              <tr class="bg-green-100 font-semibold">
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">TOTAL COUNT</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200"><%= total_weightage.round(2) %></td>
+                <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                  <span class="text-green-800 font-bold">
+                    <%= total_weightage > 0 ? ((total_weightage_score / total_weightage) * 100).round(2) : 0 %>%
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                  <span class="text-gray-600">-</span>
+                </td>
+                <td class="px-6 py-4 text-sm text-center">
+                  <span class="text-green-800 font-bold">
+                    <%= total_weightage_score.round(2) %>
+                  </span>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
@@ -147,13 +219,13 @@
   <%
     quarter_months = case params[:quarter]
                    when 'Q1'
-                     ['january', 'february', 'march']
+                     ['april', 'may', 'june']  # Q1 = Apr-May-Jun (Financial Year)
                    when 'Q2'
-                     ['april', 'may', 'june']
+                     ['july', 'august', 'september']  # Q2 = Jul-Aug-Sep
                    when 'Q3'
-                     ['july', 'august', 'september']
+                     ['october', 'november', 'december']  # Q3 = Oct-Nov-Dec
                    when 'Q4'
-                     ['october', 'november', 'december']
+                     ['january', 'february', 'march']  # Q4 = Jan-Feb-Mar
                    else
                      []
                    end
@@ -166,10 +238,44 @@
     quarter_remarks_l1 = Set.new
     quarter_remarks_l2 = Set.new
     
-    @user_details.each do |detail|
+    # FIXED: Collect statuses from ALL achievements, not just those with data
+    # This ensures we capture L1 approved achievements even if achievement value is empty
+    Rails.logger.info "Show View: Processing #{@user_details.count} user_details for department #{params[:department_id]}"
+    
+    # FIXED: Only process user_details that belong to the selected department
+    filtered_user_details = if params[:department_id].present?
+      @user_details.select { |ud| ud.department_id.to_s == params[:department_id].to_s }
+    else
+      @user_details
+    end
+    
+    # FIXED: If no user_details found for this department, force pending status
+    if filtered_user_details.empty?
+      Rails.logger.info "Show View: No user_details found for department #{params[:department_id]}, forcing pending status"
+      overall_quarter_status = "pending"
+      return
+    end
+    
+    Rails.logger.info "Show View: Filtered to #{filtered_user_details.count} user_details for department #{params[:department_id]}"
+    Rails.logger.info "Show View: All user_details department IDs: #{@user_details.map(&:department_id)}"
+    Rails.logger.info "Show View: Filtered user_details department IDs: #{filtered_user_details.map(&:department_id)}"
+    
+    filtered_user_details.each do |detail|
+      Rails.logger.info "Show View: Processing user_detail #{detail.id} for department #{detail.department_id}"
+      
+      # FIXED: Double-check that this user_detail belongs to the correct department
+      next unless detail.department_id.to_s == params[:department_id].to_s
+      
       quarter_achievements = detail.achievements.select { |a| quarter_months.include?(a.month) }
-      quarter_achievements.each do |achievement|
-        quarterly_statuses << (achievement.status || "pending")
+      
+      # FIXED: Use ALL achievements, not just those with achievement values
+      # This ensures we capture L1 approved achievements even if achievement value is empty
+      quarter_achievements_with_data = quarter_achievements
+      
+      Rails.logger.info "Show View: Found #{quarter_achievements_with_data.count} achievements for this user_detail"
+      quarter_achievements_with_data.each do |achievement|
+        status = achievement.status || "pending"
+        quarterly_statuses << status
         
         
         
@@ -199,60 +305,74 @@
       end
     end
     
-    # Determine overall quarter status (single status for entire quarter)
-    overall_quarter_status = "pending"
-    if quarterly_statuses.any?
-      # FIXED: Quarter status logic - check for actual approval data, not just status strings
-      
-      
-      
-      # FIXED: L2 statuses should take highest priority
-      # If ANY month has L2 approved, the quarter is L2 approved
-      if quarterly_statuses.include?("l2_approved")
-        overall_quarter_status = "l2_approved"
-
-      # If ANY month has L2 returned, the quarter is L2 returned
+    # FIXED: Calculate overall quarter status based on achievement statuses
+    # This ensures status persists after page refresh and works with department-wise approvals
+    Rails.logger.info "Show View: Quarterly statuses: #{quarterly_statuses.uniq}"
+    Rails.logger.info "Show View: Department filter: #{params[:department_id]}"
+    Rails.logger.info "Show View: Filtered user_details count: #{filtered_user_details.count}"
+    
+    # FIXED: Check if L1 has actually provided remarks and percentage for this department
+    has_l1_remarks = quarter_remarks_l1.any? { |remark| remark.present? && remark != "No remarks for this quarter" }
+    has_l1_percentage = quarter_l1_total > 0
+    
+    Rails.logger.info "Show View: L1 remarks present: #{has_l1_remarks}, L1 percentage: #{quarter_l1_total}"
+    
+    # FIXED: If no achievements found for this department, default to pending
+    if quarterly_statuses.empty?
+      Rails.logger.info "Show View: No achievements found for this department, defaulting to pending"
+      overall_quarter_status = "pending"
+    elsif filtered_user_details.empty?
+      Rails.logger.info "Show View: No user_details found for this department, defaulting to pending"
+      overall_quarter_status = "pending"
+    elsif !has_l1_remarks && !has_l1_percentage
+      Rails.logger.info "Show View: No L1 remarks or percentage provided, defaulting to pending"
+      overall_quarter_status = "pending"
+    else
+      # FIXED: Calculate the most appropriate status for this specific department
+      # Use the highest status that actually applies to this department's achievements
+      # But prioritize returned_to_employee over l3_approved for department-specific status
+      overall_quarter_status = if quarterly_statuses.include?("returned_to_employee")
+        "returned_to_employee"
+      elsif quarterly_statuses.include?("l3_approved")
+        "l3_approved"
+      elsif quarterly_statuses.include?("l3_returned")
+        "l3_returned"
+      elsif quarterly_statuses.include?("l2_approved")
+        "l2_approved"
       elsif quarterly_statuses.include?("l2_returned")
-        overall_quarter_status = "l2_returned"
-
-      # If ALL months are L1 approved, the quarter is L1 approved
-      elsif quarterly_statuses.all? { |s| s == "l1_approved" }
-        overall_quarter_status = "l1_approved"
-
-      # If ANY month has L1 returned, the quarter is L1 returned
-      elsif quarterly_statuses.any? { |s| s == "l1_returned" }
-        overall_quarter_status = "l1_returned"
-
-      # Check if L1 has approved the quarter (has percentage and remarks) even if some months are pending
-      # BUT only if no months are returned
-      elsif quarter_l1_total > 0 && quarter_remarks_l1.any? && !quarterly_statuses.any? { |s| ["l1_returned", "l2_returned"].include?(s) }
-        overall_quarter_status = "l1_approved"
-
-      # Check for submitted status
-      elsif quarterly_statuses.any? { |s| s == "submitted" }
-        overall_quarter_status = "submitted"
-
-      # If any month is pending, the quarter is pending
-      elsif quarterly_statuses.any? { |s| s == "pending" }
-        # FIXED: If ANY month is pending, the entire quarter is pending
-        overall_quarter_status = "pending"
-
+        "l2_returned"
+      elsif quarterly_statuses.include?("l1_returned")
+        "l1_returned"
+      elsif quarterly_statuses.include?("l1_approved")
+        "l1_approved"
+      elsif quarterly_statuses.include?("submitted")
+        "submitted"
+      elsif quarterly_statuses.include?("pending")
+        "pending"
+      else
+        "pending"
       end
-      
-  
     end
+    
+    Rails.logger.info "Show View: Final overall_quarter_status: #{overall_quarter_status}"
 
     status_config = case overall_quarter_status
     when "pending"
       { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
     when "l1_approved"
       { color: "bg-green-100 text-green-800 border-green-300", text: "L1 Approved", icon: "fas fa-check-circle" }
+    when "returned_to_employee"
+      { color: "bg-orange-100 text-orange-800 border-orange-300", text: "Returned to Employee", icon: "fas fa-undo" }
     when "l1_returned"
       { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
     when "l2_approved"
       { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
     when "l2_returned"
       { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+    when "l3_approved"
+      { color: "bg-green-100 text-green-800 border-green-300", text: "L3 Approved", icon: "fas fa-crown" }
+    when "l3_returned"
+      { color: "bg-red-100 text-red-800 border-red-300", text: "L3 Returned", icon: "fas fa-exclamation-triangle" }
     when "submitted"
       { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
     else
@@ -284,7 +404,7 @@
   <% end %>
 
   <!-- FIXED: Single L1 & L2 Summary for Quarter - NO DUPLICATES -->
-  <% if @user_details.any? { |detail| detail.achievements.any? { |a| quarter_months.include?(a.month) } } %>
+  <% if @user_details.any? %>
     <%
       # Calculate SINGLE average for entire quarter (not per month)
       all_quarter_achievements = []
@@ -310,24 +430,60 @@
 
       <!-- L1 Quarterly Summary - SINGLE DISPLAY -->
       <div class="bg-gradient-to-r from-blue-50 via-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-md">
-        <h3 class="text-xl font-bold text-blue-700 mb-6 flex items-center gap-2">
-          <i class="fas fa-user-check text-blue-500"></i>
-          L1 Quarter Summary
-        </h3>
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold text-blue-700 flex items-center gap-2">
+            <i class="fas fa-user-check text-blue-500"></i>
+            L1 Quarter Summary
+          </h3>
+          
+          <!-- Edit Button - Show when L2 returned to L1, L3 returned to L1, or L1 returned -->
+          <% if (overall_quarter_status == 'l2_returned' || overall_quarter_status == 'l3_returned' || overall_quarter_status == 'l1_returned') && @can_approve_or_return %>
+            <button onclick="toggleL1EditMode()" id="l1-edit-button" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+              <i class="fas fa-edit mr-2"></i>Edit
+            </button>
+          <% end %>
+        </div>
 
         <!-- SINGLE Quarter Average Percentage -->
         <div class="mb-6 text-center">
           <div class="bg-blue-200 p-4 rounded-lg inline-block">
-            <p class="text-blue-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
-            <p class="text-3xl font-bold text-blue-800"><%= final_l1_average %>%</p>
+            <p class="text-gray-700 font-semibold text-sm mb-1">Quarter Average Percentage</p>
+            <p class="text-3xl font-bold text-blue-800" id="l1-percentage-display"><%= final_l1_average %>%</p>
           </div>
+        </div>
+
+        <!-- L1 Edit Form - Hidden by default -->
+        <div id="l1-edit-form" class="hidden mb-6 p-4 bg-white rounded-lg border-2 border-blue-300">
+          <h4 class="text-lg font-semibold text-blue-700 mb-4">Edit L1 Quarter Details</h4>
+          <form id="l1-edit-form-element" onsubmit="submitL1Edit(event)">
+            <div class="mb-4">
+              <label for="l1-edit-percentage" class="block text-sm font-medium text-gray-700 mb-2">L1 Percentage:</label>
+              <input type="number" id="l1-edit-percentage" name="l1_percentage" step="0.1" min="0" max="100" 
+                     value="<%= final_l1_average %>" 
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+            </div>
+            <div class="mb-4">
+              <label for="l1-edit-remarks" class="block text-sm font-medium text-gray-700 mb-2">L1 Remarks:</label>
+              <textarea id="l1-edit-remarks" name="l1_remarks" rows="3" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        placeholder="Enter L1 remarks..."><%= unique_l1_remarks.first %></textarea>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button type="button" onclick="cancelL1Edit()" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded-lg transition duration-200">
+                Cancel
+              </button>
+              <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition duration-200">
+                Update
+              </button>
+            </div>
+          </form>
         </div>
 
         <!-- UNIQUE L1 Remarks - NO DUPLICATES -->
         <div class="space-y-3">
-          <h4 class="text-blue-600 font-semibold text-sm">Quarter Remarks:</h4>
+          <h4 class="style="color: #2d374b;" font-semibold text-sm">Quarter Remarks:</h4>
           <% if unique_l1_remarks.any? %>
-            <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto">
+            <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto" id="l1-remarks-container">
               <% unique_l1_remarks.each_with_index do |remark, index| %>
                 <div class="text-gray-700 text-sm mb-3 pb-3 <%= 'border-b border-gray-100' unless index == unique_l1_remarks.length - 1 %>">
                   <div class="flex items-start gap-2">
@@ -391,16 +547,22 @@
 <% end %>
 
   <!-- FIXED: Quarterly Approval/Return Process -->
-<% if @can_approve_or_return && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } && params[:quarter].present? %>
+<% if @can_approve_or_return && @user_details.any? && params[:quarter].present? %>
   <%
     # Use the already calculated overall_quarter_status to determine button visibility
     can_take_action = false
     
-    # Only show buttons if status is pending
-    # Hide buttons if status is l1_approved, l1_returned, l2_approved, l2_returned, or submitted
+    Rails.logger.info "Show View: Overall quarter status: #{overall_quarter_status}"
+    Rails.logger.info "Show View: Quarterly statuses: #{quarterly_statuses.uniq}"
+    Rails.logger.info "Show View: L1 total: #{quarter_l1_total}, L1 remarks: #{quarter_remarks_l1.to_a}"
+    
+    # FIXED: Only show buttons if status is pending
+    # Hide buttons if status is l1_approved, l1_returned, returned_to_employee, l2_approved, l2_returned, l3_approved, l3_returned, or submitted
     if overall_quarter_status == 'pending'
       can_take_action = true
     end
+    
+    Rails.logger.info "Show View: Can take action: #{can_take_action}"
   %>
   
   <% if can_take_action %>
@@ -416,7 +578,7 @@
     </div>
   <% end %>
 
-<% elsif @can_approve_or_return && @user_details.any? { |detail| detail.achievements.any?(&:achievement?) } %>
+<% elsif @can_approve_or_return && @user_details.any? %>
   <%
     # For bulk actions, check if any achievement is still pending only
     can_take_bulk_action = false
@@ -435,19 +597,19 @@
     <div class="mt-8 pt-6 border-t border-gray-200">
       <div class="flex flex-col sm:flex-row gap-4 justify-center" id="actionButtons">
         <button onclick="openModal('approve')" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          Approve All Activities
+          Approve All KPI
         </button>
         <button onclick="openModal('reject')" class="px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-          Return All Activities
+          Return All KPI
         </button>
       </div>
     </div>
   <% end %>
 <% end %>
 
-<!-- FIXED Modal with Correct Positioning - Modal will show OVER Quarter Overall Status -->
-<div id="decisionModal" class="hidden fixed inset-0 flex items-start justify-center z-50 pt-20">
-  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative mx-4" style="margin-top: 0;">
+<!-- FIXED Modal with Correct Positioning - Lower Position -->
+<div id="decisionModal" class="hidden fixed inset-0 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative mx-4" style="margin-top: 350px;">
     <!-- Loading overlay -->
     <div id="modalLoading" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
       <div class="flex items-center space-x-2">
@@ -459,6 +621,15 @@
     <h2 class="text-xl font-bold mb-4" id="modalTitle">Decision</h2>
 
     <form id="modalForm" onsubmit="submitDecision(event)">
+      <!-- Return Level Dropdown - Only show for return actions -->
+      <div id="returnLevelSection" class="mb-4" style="display: none; background-color: #fef2f2; padding: 10px; border: 2px solid #fca5a5; border-radius: 8px;">
+        <label for="return_level" class="block font-semibold mb-1 text-red-700">Return to:</label>
+        <select id="return_level" name="return_level" class="w-full border border-gray-300 rounded-md p-2">
+          <option value="">Select return level...</option>
+          <option value="employee">Return to Employee</option>
+        </select>
+      </div>
+      
       <div class="mb-4">
         <label for="remarks" class="block font-semibold mb-1">Remarks</label>
         <textarea id="remarks" name="remarks" rows="3" class="w-full border border-gray-300 rounded-md p-2" required></textarea>
@@ -474,6 +645,8 @@
       <% if params[:quarter].present? %>
         <input type="hidden" name="selected_quarter" value="<%= params[:quarter] %>">
       <% end %>
+      <!-- Always include department_id if present in URL params -->
+      <input type="hidden" name="department_id" value="<%= params[:department_id] %>" id="department_id_field">
 
       <div class="flex justify-end gap-2">
         <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
@@ -518,18 +691,7 @@
     
     window.l1ModalData.currentActionType = actionType;
     
-    // Position modal over Quarter Overall Status section (not above it)
-    if (quarterStatusSection) {
-      const rect = quarterStatusSection.getBoundingClientRect();
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      
-      // Calculate position to show modal over the Quarter Overall Status section
-      const modalTopPosition = rect.top + scrollTop + 20; // 20px below the start of the section
-      
-      modal.style.paddingTop = Math.max(modalTopPosition, 20) + 'px';
-      console.log('Set modal position to:', modalTopPosition + 'px');
-    }
-    
+    // Modal is always centered - no dynamic positioning needed
     console.log('Removing hidden class from modal');
     modal.classList.remove("hidden");
     modal.style.display = "flex"; // Force display flex
@@ -540,19 +702,33 @@
       modalTitle.innerText = "Approve with Remarks";
       console.log('Set action URL for approve:', window.l1ModalData.currentActionUrl);
       
+      // Hide return level dropdown for approve action
+      const returnLevelSection = document.getElementById('returnLevelSection');
+      if (returnLevelSection) {
+        returnLevelSection.style.display = 'none';
+      }
+      
     } else {
       window.l1ModalData.currentActionUrl = "<%= return_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "Return with Remarks";
       console.log('Set action URL for reject:', window.l1ModalData.currentActionUrl);
+      
+      // Show return level dropdown for return action
+      const returnLevelSection = document.getElementById('returnLevelSection');
+      if (returnLevelSection) {
+        returnLevelSection.style.display = 'block';
+      }
       
     }
 
     // Clear form
     const remarksField = document.getElementById('remarks');
     const percentageField = document.getElementById('percentage');
+    const returnLevelField = document.getElementById('return_level');
     
     if (remarksField) remarksField.value = '';
     if (percentageField) percentageField.value = '';
+    if (returnLevelField) returnLevelField.value = '';
     
     console.log('Modal should now be visible');
     console.log('Modal classes:', modal.className);
@@ -563,7 +739,6 @@
     const modal = document.getElementById("decisionModal");
     modal.classList.add("hidden");
     modal.style.display = "none"; // Force hide
-    modal.style.paddingTop = ""; // Reset padding
     document.body.style.overflow = 'auto'; // Restore background scroll
     window.l1ModalData.currentActionType = '';
     window.l1ModalData.currentActionUrl = '';
@@ -595,6 +770,13 @@
           icon: 'fas fa-check-circle'
         };
         break;
+      case 'returned_to_employee':
+        statusConfig = {
+          color: 'bg-orange-100 text-orange-800 border-orange-300',
+          text: 'Returned to Employee',
+          icon: 'fas fa-undo'
+        };
+        break;
       case 'l1_returned':
         statusConfig = {
           color: 'bg-red-100 text-red-800 border-red-300',
@@ -613,6 +795,20 @@
         statusConfig = {
           color: 'bg-orange-100 text-orange-800 border-orange-300',
           text: 'L2 Returned',
+          icon: 'fas fa-exclamation-triangle'
+        };
+        break;
+      case 'l3_approved':
+        statusConfig = {
+          color: 'bg-green-100 text-green-800 border-green-300',
+          text: 'L3 Approved',
+          icon: 'fas fa-crown'
+        };
+        break;
+      case 'l3_returned':
+        statusConfig = {
+          color: 'bg-red-100 text-red-800 border-red-300',
+          text: 'L3 Returned',
           icon: 'fas fa-exclamation-triangle'
         };
         break;
@@ -649,12 +845,66 @@
     
     const modalLoading = document.getElementById('modalLoading');
     const form = document.getElementById('modalForm');
+    
+    // Client-side validation
+    const remarksField = document.getElementById('remarks');
+    const percentageField = document.getElementById('percentage');
+    
+    // Remove previous error styling
+    if (remarksField) {
+      remarksField.classList.remove('border-red-500');
+    }
+    if (percentageField) {
+      percentageField.classList.remove('border-red-500');
+    }
+    
+    let hasErrors = false;
+    
+    // Validate remarks
+    if (!remarksField || !remarksField.value || remarksField.value.trim() === '') {
+      if (remarksField) {
+        remarksField.classList.add('border-red-500');
+        remarksField.focus();
+      }
+      showStatusMessage('❌ Please enter remarks before submitting.', false);
+      hasErrors = true;
+    }
+    
+    // Validate percentage
+    if (!percentageField || !percentageField.value || percentageField.value.trim() === '') {
+      if (percentageField) {
+        percentageField.classList.add('border-red-500');
+        if (!hasErrors) percentageField.focus();
+      }
+      if (!hasErrors) {
+        showStatusMessage('❌ Please enter a percentage before submitting.', false);
+      }
+      hasErrors = true;
+    }
+    
+    // Validate percentage is a valid number
+    if (percentageField && percentageField.value) {
+      const percentageValue = parseFloat(percentageField.value);
+      if (isNaN(percentageValue) || percentageValue < 0 || percentageValue > 100) {
+        percentageField.classList.add('border-red-500');
+        if (!hasErrors) percentageField.focus();
+        if (!hasErrors) {
+          showStatusMessage('❌ Percentage must be a number between 0 and 100.', false);
+        }
+        hasErrors = true;
+      }
+    }
+    
+    if (hasErrors) {
+      return; // Stop submission if validation fails
+    }
+    
     const formData = new FormData(form);
     
     // Add action_type to indicate this is an AJAX request
     formData.append('action_type', window.l1ModalData.currentActionType);
     
-    // Debug logging
+    // Logging
     console.log('Submitting decision:', {
       actionType: window.l1ModalData.currentActionType,
       actionUrl: window.l1ModalData.currentActionUrl,
@@ -674,31 +924,59 @@
         'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
       }
     })
-    .then(response => {
+    .then(async response => {
       console.log('Response received:', {
         status: response.status,
         statusText: response.statusText,
         headers: Object.fromEntries(response.headers.entries())
       });
       
+      // Clone response to read it multiple times if needed
+      const responseClone = response.clone();
+      
       if (!response.ok) {
-        if (response.status === 404) {
-          // Handle 404 - employee detail not found
-          showStatusMessage('❌ Employee detail not found. The record may have been deleted. Please refresh the page.', false);
-          closeModal();
-          // Redirect to employee list after a delay
-          setTimeout(() => {
-            window.location.href = '<%= employee_details_path %>';
-          }, 3000);
-          return;
-        } else if (response.status === 500) {
-          showStatusMessage('❌ Server error occurred. Please try again or contact support.', false);
-          return;
-        } else if (response.status === 403) {
-          showStatusMessage('❌ Access denied. You are not authorized to perform this action.', false);
-          return;
+        // Try to parse JSON error response for better error messages
+        try {
+          const errorData = await response.json();
+          console.log('Error response data:', errorData);
+          
+          if (response.status === 404) {
+            // Handle 404 - employee detail not found
+            showStatusMessage('❌ Employee detail not found. The record may have been deleted. Please refresh the page.', false);
+            closeModal();
+            // Redirect to employee list after a delay
+            setTimeout(() => {
+              window.location.href = '<%= employee_details_path %>';
+            }, 3000);
+            return null;
+          } else if (response.status === 422) {
+            // Handle 422 - Validation errors
+            const errorMessage = errorData.message || errorData.error || 'Validation failed. Please check your input and try again.';
+            showStatusMessage(errorMessage, false);
+            modalLoading.classList.add('hidden');
+            return null;
+          } else if (response.status === 500) {
+            showStatusMessage('❌ Server error occurred. Please try again or contact support.', false);
+            modalLoading.classList.add('hidden');
+            return null;
+          } else if (response.status === 403) {
+            showStatusMessage('❌ Access denied. You are not authorized to perform this action.', false);
+            modalLoading.classList.add('hidden');
+            return null;
+          }
+          
+          // For other errors, show the error message from server if available
+          const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
+          showStatusMessage(errorMessage, false);
+          modalLoading.classList.add('hidden');
+          return null;
+        } catch (parseError) {
+          // If JSON parsing fails, show generic error
+          console.error('Failed to parse error response:', parseError);
+          showStatusMessage(`❌ Server error (${response.status}). Please try again.`, false);
+          modalLoading.classList.add('hidden');
+          return null;
         }
-        throw new Error(`HTTP error! status: ${response.status}`);
       }
       return response.json();
     })
@@ -724,17 +1002,58 @@
         }
         
         // Update ONLY L1 summary immediately with form values (DO NOT update L2)
-        const percentage = document.getElementById('percentage').value;
-        const remarks = document.getElementById('remarks').value;
+        const percentageField = document.getElementById('percentage');
+        const remarksField = document.getElementById('remarks');
         
-        console.log('Form values - Percentage:', percentage, 'Remarks:', remarks);
-        
-        if (percentage || remarks) {
-          updateL1Summary(percentage, remarks);
+        if (!percentageField) {
+          console.error('Percentage field not found!');
+        }
+        if (!remarksField) {
+          console.error('Remarks field not found!');
         }
         
-        // Ensure summary sections are visible immediately
-        showSummarySections();
+        const percentage = percentageField ? percentageField.value : '';
+        const remarks = remarksField ? remarksField.value : '';
+        
+        console.log('Form values - Percentage:', percentage, 'Remarks:', remarks);
+        console.log('Percentage field element:', percentageField);
+        console.log('Remarks field element:', remarksField);
+        
+        if (percentage || remarks) {
+          console.log('Calling updateL1Summary with:', { percentage, remarks });
+          updateL1Summary(percentage, remarks);
+          
+          // Show immediate success message for L1 approval
+          const l1SummarySection = document.querySelector('[class*="bg-gradient-to-r"][class*="from-blue-50"]');
+          if (l1SummarySection) {
+            // Create a temporary success message
+            const successMessage = document.createElement('div');
+            successMessage.className = 'fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-all duration-300';
+            successMessage.style.transform = 'translateX(100%)';
+            successMessage.innerHTML = `
+              <div class="flex items-center">
+                <i class="fas fa-check-circle mr-2"></i>
+              </div>
+            `;
+            document.body.appendChild(successMessage);
+            
+            // Animate in
+            setTimeout(() => {
+              successMessage.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Remove after 3 seconds
+            setTimeout(() => {
+              successMessage.style.transform = 'translateX(100%)';
+              setTimeout(() => {
+                if (successMessage.parentNode) {
+                  successMessage.parentNode.removeChild(successMessage);
+                }
+              }, 300);
+            }, 3000);
+          }
+        }
+        
         
         // Scroll to status message
         document.getElementById('statusMessage').scrollIntoView({ 
@@ -782,16 +1101,7 @@
       modal.classList.add('hidden');
     }
     
-    // Ensure summary sections are visible on page load
-    showSummarySections();
-    
-    // Force show quarter status badge if it exists
-    const statusBadge = document.getElementById('quarterStatusBadge');
-    if (statusBadge) {
-      statusBadge.style.display = 'inline-flex';
-      statusBadge.style.visibility = 'visible';
-      statusBadge.style.opacity = '1';
-    }
+    // Test button removed - functionality working correctly
   });
 
   // Close modal when clicking outside
@@ -810,44 +1120,82 @@
 
   // Function to update L1 summary section immediately
   function updateL1Summary(percentage, remarks) {
-    console.log('Updating L1 Summary with:', { percentage, remarks });
+    console.log('=== updateL1Summary called ===');
+    console.log('Parameters received:', { percentage, remarks });
+    console.log('Percentage type:', typeof percentage, 'Remarks type:', typeof remarks);
     
-    // Find the L1 Quarter Summary section by looking for the heading text
-    const l1Heading = Array.from(document.querySelectorAll('h3')).find(h3 => h3.textContent.includes('L1 Quarter Summary'));
-    if (!l1Heading) {
-      console.log('L1 heading not found');
-      return;
+    // Visual feedback removed as requested
+    
+    // First, ensure the L1 summary section is visible
+    let l1SummarySection = document.querySelector('[class*="bg-gradient-to-r"][class*="from-blue-50"]');
+    console.log('L1 Summary Section found:', l1SummarySection);
+    
+    if (!l1SummarySection) {
+      // Try alternative selectors
+      l1SummarySection = document.querySelector('.bg-gradient-to-r.from-blue-50');
+      console.log('Alternative selector result:', l1SummarySection);
     }
     
-    let l1SummarySection = l1Heading.closest('.bg-gradient-to-r.from-blue-50');
     if (!l1SummarySection) {
-      l1SummarySection = l1Heading.closest('.bg-gradient-to-r');
-      if (!l1SummarySection) {
-        // Try finding by parent div
-        l1SummarySection = l1Heading.parentElement;
-        if (!l1SummarySection) {
-          console.log('L1 summary section not found');
-          return;
-        }
+      // Try finding by heading text
+      const l1Heading = Array.from(document.querySelectorAll('h3')).find(h3 => h3.textContent.includes('L1 Quarter Summary'));
+      if (l1Heading) {
+        l1SummarySection = l1Heading.closest('div');
+        console.log('Found L1 section by heading:', l1SummarySection);
       }
     }
     
-    // Update L1 percentage display - find the percentage text element
-    const l1PercentageElement = l1SummarySection.querySelector('.text-3xl.font-bold.text-blue-800');
-    if (l1PercentageElement && percentage !== undefined && percentage !== null && percentage !== '') {
-      l1PercentageElement.textContent = parseFloat(percentage).toFixed(1) + '%';
-      console.log('Updated L1 percentage display to:', percentage + '%');
+    if (l1SummarySection) {
+      l1SummarySection.style.display = 'block';
+      l1SummarySection.style.visibility = 'visible';
+      l1SummarySection.style.opacity = '1';
+      console.log('Made L1 summary section visible');
+    } else {
+      console.error('L1 summary section not found with any method!');
+      // Create a temporary notification
+      const tempNotification = document.createElement('div');
+      tempNotification.className = 'fixed top-4 right-4 bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+      tempNotification.innerHTML = `
+        <div class="flex items-center">
+          <i class="fas fa-exclamation-triangle mr-2"></i>
+          <span>L1 Summary section not found - values: ${percentage}% - ${remarks}</span>
+        </div>
+      `;
+      document.body.appendChild(tempNotification);
+      setTimeout(() => {
+        if (tempNotification.parentNode) {
+          tempNotification.parentNode.removeChild(tempNotification);
+        }
+      }, 5000);
     }
     
-    // Update L1 remarks display - find the remarks container by ID first, then by class
-    let l1RemarksContainer = document.getElementById('l1-remarks-container');
-    if (!l1RemarksContainer) {
-      l1RemarksContainer = l1SummarySection.querySelector('.bg-white.p-4.rounded.border');
+    // Update L1 percentage display - find by ID first (most reliable)
+    const l1PercentageElement = document.getElementById('l1-percentage-display');
+    console.log('L1 Percentage Element found:', l1PercentageElement);
+    
+    if (l1PercentageElement && percentage !== undefined && percentage !== null && percentage !== '') {
+      const newPercentage = parseFloat(percentage).toFixed(1) + '%';
+      l1PercentageElement.textContent = newPercentage;
+      // Add visual feedback
+      l1PercentageElement.style.backgroundColor = '#dbeafe';
+      l1PercentageElement.style.transition = 'background-color 0.3s ease';
+      setTimeout(() => {
+        l1PercentageElement.style.backgroundColor = '';
+      }, 1000);
+      console.log('✅ Updated L1 percentage display to:', newPercentage);
+    } else {
+      console.log('❌ L1 percentage element not found or percentage is empty');
+      console.log('Element exists:', !!l1PercentageElement);
+      console.log('Percentage value:', percentage);
     }
+    
+    // Update L1 remarks display - find by ID first (most reliable)
+    const l1RemarksContainer = document.getElementById('l1-remarks-container');
+    console.log('L1 Remarks Container found:', l1RemarksContainer);
     
     if (l1RemarksContainer) {
       if (remarks && remarks.trim() !== '') {
-        l1RemarksContainer.innerHTML = `
+        const newRemarksHTML = `
           <div class="text-gray-700 text-sm mb-3 pb-3">
             <div class="flex items-start gap-2">
               <span class="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
@@ -857,9 +1205,42 @@
             </div>
           </div>
         `;
-        console.log('Updated L1 remarks display with:', remarks);
+        l1RemarksContainer.innerHTML = newRemarksHTML;
+        // Add visual feedback
+        l1RemarksContainer.style.backgroundColor = '#dbeafe';
+        l1RemarksContainer.style.transition = 'background-color 0.3s ease';
+        setTimeout(() => {
+          l1RemarksContainer.style.backgroundColor = '';
+        }, 1000);
+        console.log('✅ Updated L1 remarks display with:', remarks);
+      } else {
+        // If no remarks provided, show approved message
+        const approvedMessage = `
+          <p class="text-gray-500 text-sm">
+            <i class="fas fa-check-circle text-blue-500 mr-1"></i>
+            Quarter approved - no additional remarks needed
+          </p>
+        `;
+        l1RemarksContainer.innerHTML = approvedMessage;
+        // Add visual feedback
+        l1RemarksContainer.style.backgroundColor = '#dbeafe';
+        l1RemarksContainer.style.transition = 'background-color 0.3s ease';
+        setTimeout(() => {
+          l1RemarksContainer.style.backgroundColor = '';
+        }, 1000);
+        console.log('✅ Updated L1 remarks display with approved message');
       }
+    } else {
+      console.log('❌ L1 remarks container not found');
     }
+    
+    // Scroll to the L1 summary section to make it visible
+    if (l1SummarySection) {
+      l1SummarySection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      console.log('✅ Scrolled to L1 summary section');
+    }
+    
+    console.log('=== updateL1Summary completed ===');
   }
 
   // Function to update quarter status immediately
@@ -870,7 +1251,9 @@
     updateStatusBadge(newStatus);
     
     // Update the action buttons visibility
-    if (newStatus === 'l1_approved' || newStatus === 'l1_returned') {
+    if (newStatus === 'l1_approved' || newStatus === 'l1_returned' || newStatus === 'returned_to_employee' || 
+        newStatus === 'l2_approved' || newStatus === 'l2_returned' || 
+        newStatus === 'l3_approved' || newStatus === 'l3_returned') {
       hideActionButtons();
     }
     
@@ -880,110 +1263,8 @@
       statusBadge.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
     
-    // Ensure summary sections are visible after status change
-    showSummarySections();
   }
   
-  // Function to ensure summary sections are always visible
-  function showSummarySections() {
-    let summarySections = document.querySelectorAll('.grid.grid-cols-1.lg\\:grid-cols-2.gap-6.mt-6');
-    
-    // If no summary sections found, try to create them dynamically
-    if (summarySections.length === 0) {
-      createSummarySections();
-      // Re-query after creation
-      summarySections = document.querySelectorAll('.grid.grid-cols-1.lg\\:grid-cols-2.gap-6.mt-6');
-    }
-    summarySections.forEach((section, index) => {
-      if (section.style.display === 'none') {
-        section.style.display = 'grid';
-      }
-    });
-    
-    // Also ensure the quarter status section is visible
-    const statusSection = document.querySelector('.mt-8.pt-6.border-t.border-gray-200');
-    if (statusSection) {
-      statusSection.style.display = 'block';
-    }
-    
-    // Force visibility of all summary elements
-    const allSummaryElements = document.querySelectorAll('.bg-gradient-to-r, .bg-blue-50, .bg-green-50');
-    allSummaryElements.forEach((element, index) => {
-      element.style.display = 'block';
-      element.style.visibility = 'visible';
-      element.style.opacity = '1';
-    });
-    
-    // Also check for any hidden elements with specific classes
-    const hiddenElements = document.querySelectorAll('[style*="display: none"], [style*="visibility: hidden"]');
-    hiddenElements.forEach((element, index) => {
-      if (element.classList.contains('bg-gradient-to-r') || 
-          element.classList.contains('bg-blue-50') || 
-          element.classList.contains('bg-green-50') ||
-          element.classList.contains('grid')) {
-        element.style.display = 'block';
-        element.style.visibility = 'visible';
-        element.style.opacity = '1';
-      }
-    });
-  }
-  
-  // Function to create summary sections if they don't exist
-  function createSummarySections() {
-    // Find the table or main content area to insert after
-    const tableSection = document.querySelector('.table-wrapper');
-    if (!tableSection) {
-      return;
-    }
-    
-    // Create the summary sections container
-    const summaryContainer = document.createElement('div');
-    summaryContainer.className = 'grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6';
-    summaryContainer.innerHTML = `
-      <!-- L1 Quarterly Summary -->
-      <div class="bg-gradient-to-r from-blue-50 via-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-md">
-        <h3 class="text-xl font-bold text-blue-700 mb-6 flex items-center gap-2">
-          <i class="fas fa-user-check text-blue-500"></i>
-          L1 Quarter Summary
-        </h3>
-        <div class="mb-6 text-center">
-          <div class="bg-blue-200 p-4 rounded-lg inline-block">
-            <p class="text-blue-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
-            <p class="text-3xl font-bold text-blue-800">0.0%</p>
-          </div>
-        </div>
-        <div class="space-y-3">
-          <h4 class="text-blue-600 font-semibold text-sm">Quarter Remarks:</h4>
-          <div class="bg-white p-4 rounded border" id="l1-remarks-container">
-            <p class="text-gray-500 text-sm">No remarks for this quarter</p>
-          </div>
-        </div>
-      </div>
-      
-      <!-- L2 Quarterly Summary -->
-      <div class="bg-gradient-to-r from-green-50 via-green-50 to-green-100 border border-green-200 rounded-xl p-6 shadow-md">
-        <h3 class="text-xl font-bold text-green-700 mb-6 flex items-center gap-2">
-          <i class="fas fa-user-shield text-green-500"></i>
-          L2 Quarter Summary
-        </h3>
-        <div class="mb-6 text-center">
-          <div class="bg-green-200 p-4 rounded-lg inline-block">
-            <p class="text-green-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
-            <p class="text-3xl font-bold text-green-800">0.0%</p>
-          </div>
-        </div>
-        <div class="space-y-3">
-          <h4 class="text-green-600 font-semibold text-sm">Quarter Remarks:</h4>
-          <div class="bg-white p-4 rounded border" id="l2-remarks-container">
-            <p class="text-gray-500 text-sm">No remarks for this quarter</p>
-          </div>
-        </div>
-      </div>
-    `;
-    
-    // Insert after the table section
-    tableSection.parentNode.insertBefore(summaryContainer, tableSection.nextSibling);
-  }
   
   // Function to update L2 summary section immediately (if needed)
   function updateL2Summary(percentage, remarks) {
@@ -996,7 +1277,7 @@
       return;
     }
     
-    const l2SummarySection = l2Heading.closest('.bg-gradient-to-r.from-green-50');
+    const l2SummarySection = l2Heading.closest('[class*="bg-gradient-to-r"][class*="from-green-50"]');
     if (!l2SummarySection) {
       console.log('L2 summary section not found');
       return;
@@ -1030,6 +1311,143 @@
         console.log('Updated L2 remarks display with:', remarks);
       }
     }
+  }
+
+  // L1 Edit Mode Functions
+  function toggleL1EditMode() {
+    const editForm = document.getElementById('l1-edit-form');
+    const editButton = document.getElementById('l1-edit-button');
+    
+    if (editForm.classList.contains('hidden')) {
+      // Show edit form
+      editForm.classList.remove('hidden');
+      editButton.innerHTML = '<i class="fas fa-times mr-2"></i>Cancel';
+      editButton.onclick = cancelL1Edit;
+      
+      // Focus on percentage field
+      document.getElementById('l1-edit-percentage').focus();
+    } else {
+      // Hide edit form
+      editForm.classList.add('hidden');
+      editButton.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit';
+      editButton.onclick = toggleL1EditMode;
+    }
+  }
+
+  function cancelL1Edit() {
+    const editForm = document.getElementById('l1-edit-form');
+    const editButton = document.getElementById('l1-edit-button');
+    
+    editForm.classList.add('hidden');
+    editButton.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit';
+    editButton.onclick = toggleL1EditMode;
+    
+    // Reset form values to original
+    const originalPercentage = '<%= final_l1_average %>';
+    const originalRemarks = '<%= unique_l1_remarks.first %>';
+    
+    document.getElementById('l1-edit-percentage').value = originalPercentage;
+    document.getElementById('l1-edit-remarks').value = originalRemarks || '';
+  }
+
+  function submitL1Edit(event) {
+    event.preventDefault();
+    
+    const form = document.getElementById('l1-edit-form-element');
+    const formData = new FormData(form);
+    
+    // Add required parameters
+    formData.append('action_type', 'l1_edit');
+    <% if params[:quarter].present? %>
+      formData.append('selected_quarter', '<%= params[:quarter] %>');
+    <% end %>
+    <% if params[:department_id].present? %>
+      formData.append('department_id', '<%= params[:department_id] %>');
+    <% end %>
+    
+    // Show loading state
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+    submitButton.disabled = true;
+    
+    // Make AJAX request
+    fetch('<%= edit_l1_employee_detail_path(@employee_detail) %>', {
+      method: 'PATCH',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // Update UI with new values
+        const percentage = formData.get('l1_percentage');
+        const remarks = formData.get('l1_remarks');
+        
+        // Update percentage display
+        const percentageDisplay = document.getElementById('l1-percentage-display');
+        if (percentageDisplay) {
+          percentageDisplay.textContent = parseFloat(percentage).toFixed(1) + '%';
+        }
+        
+        // Update remarks display
+        const remarksContainer = document.getElementById('l1-remarks-container');
+        if (remarksContainer) {
+          if (remarks && remarks.trim() !== '') {
+            remarksContainer.innerHTML = `
+              <div class="text-gray-700 text-sm mb-3 pb-3">
+                <div class="flex items-start gap-2">
+                  <span class="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                    Remark 1
+                  </span>
+                  <span class="text-gray-700">${remarks}</span>
+                </div>
+              </div>
+            `;
+          } else {
+            remarksContainer.innerHTML = '<p class="text-gray-500 text-sm">No remarks for this quarter</p>';
+          }
+        }
+        
+        // Hide edit form
+        cancelL1Edit();
+        
+        // Update status badge to l1_approved
+        if (data.updated_status) {
+          updateStatusBadge(data.updated_status);
+          hideActionButtons();
+        }
+        
+        // Show success message
+        showStatusMessage(data.message || '✅ L1 details updated successfully!', true);
+        
+        // Scroll to status message
+        document.getElementById('statusMessage').scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        
+      } else {
+        showStatusMessage(data.message || '❌ Failed to update L1 details', false);
+      }
+    })
+    .catch(error => {
+      console.error('Error updating L1 details:', error);
+      showStatusMessage('❌ An error occurred while updating L1 details', false);
+    })
+    .finally(() => {
+      // Reset button state
+      submitButton.innerHTML = originalText;
+      submitButton.disabled = false;
+    });
   }
 </script>
 
@@ -1149,12 +1567,13 @@ button:hover {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* FIXED: Modal positioning to show over Quarter Overall Status section (same as L2 code) */
+/* FIXED: Modal positioning - Lower position */
 #decisionModal {
   backdrop-filter: blur(4px);
   transition: all 0.3s ease;
   align-items: flex-start !important;
-  padding-top: 80px; /* Default top padding */
+  justify-content: center !important;
+  padding-top: 25vh; /* Start from 25% from top, then margin-top pushes it down more */
 }
 
 #decisionModal .bg-white {
@@ -1294,7 +1713,7 @@ input:valid, textarea:valid {
   }
   
   #decisionModal {
-    padding-top: 40px; /* Reduced padding for mobile */
+    /* Modal always centered on mobile too */
   }
 }
 

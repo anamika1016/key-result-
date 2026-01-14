@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body { 
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+        color: #333; 
+        line-height: 1.6; 
+        margin: 0; 
+        padding: 0; 
+        background-color: #f5f5f5;
+      }
+      .container { 
+        max-width: 600px; 
+        margin: 20px auto; 
+        background: white; 
+        border-radius: 8px; 
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        overflow: hidden;
+      }
+      .header { 
+        background: #6f42c1; 
+        color: white; 
+        padding: 25px 30px; 
+        text-align: center; 
+        border-bottom: 3px solid #5a32a3;
+      }
+      .header h2 { 
+        margin: 0 0 10px 0; 
+        font-size: 24px; 
+        font-weight: 600;
+      }
+      .header p { 
+        margin: 0; 
+        font-size: 16px; 
+        opacity: 0.9;
+      }
+      .content { 
+        padding: 30px; 
+      }
+      .employee-info { 
+        background: #f8f9fa; 
+        border: 1px solid #e9ecef; 
+        border-radius: 6px; 
+        padding: 20px; 
+        margin: 20px 0;
+      }
+      .info-row { 
+        margin: 12px 0; 
+        display: flex;
+      }
+      .label { 
+        font-weight: 600; 
+        color: #495057; 
+        min-width: 140px;
+      }
+      .value { 
+        color: #212529;
+      }
+      .approval-info { 
+        background: #e2e3f1; 
+        border-left: 4px solid #6f42c1; 
+        padding: 20px; 
+        margin: 25px 0; 
+        border-radius: 0 6px 6px 0;
+      }
+      .approval-info h4 { 
+        margin: 0 0 15px 0; 
+        color: #4c2a85; 
+        font-size: 16px;
+      }
+      .celebration { 
+        background: #fff3cd; 
+        border-left: 4px solid #ffc107; 
+        padding: 20px; 
+        margin: 25px 0; 
+        border-radius: 0 6px 6px 0;
+      }
+      .celebration h4 { 
+        margin: 0 0 15px 0; 
+        color: #856404; 
+        font-size: 16px;
+      }
+      .footer { 
+        background: #f8f9fa; 
+        padding: 20px 30px; 
+        text-align: center; 
+        color: #6c757d; 
+        font-size: 13px; 
+        border-top: 1px solid #e9ecef;
+      }
+      .footer p { 
+        margin: 5px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🎉 L3 Final Quarterly Approval</h2>
+        <p>Congratulations! Your quarterly achievements have been fully approved</p>
+      </div>
+      
+      <div class="content">
+        <p>Dear <%= @employee.employee_name %>,</p>
+        
+        <p>🎊 Congratulations! Your quarterly achievements have been approved at all levels (L1, L2, and L3) and are now finalized!</p>
+        
+        <div class="employee-info">
+          <div class="info-row">
+            <span class="label">Employee:</span> 
+            <span class="value"><%= @employee.employee_name %></span>
+          </div>
+          <div class="info-row">
+            <span class="label">Employee Code:</span> 
+            <span class="value"><%= @employee.employee_code %></span>
+          </div>
+          <div class="info-row">
+            <span class="label">Quarter:</span> 
+            <span class="value"><%= @quarter %></span>
+          </div>
+          <div class="info-row">
+            <span class="label">Total Achievements:</span> 
+            <span class="value"><%= @achievements.count %> months</span>
+          </div>
+        </div>
+        
+        <div class="approval-info">
+          <h4>✅ Final L3 Approval Status</h4>
+          <p>Your quarterly achievements for <strong><%= @quarter %></strong> have been successfully approved by your L3 manager.</p>
+          <p>All approval levels have been completed and your achievements are now finalized in the system.</p>
+        </div>
+        
+        <div class="celebration">
+          <h4>🎉 Achievement Complete!</h4>
+          <p>Your quarterly KRA submission has been successfully completed and approved at all levels. Great work!</p>
+          <p>You can now view your finalized achievements in the system and use them for your performance records.</p>
+        </div>
+        
+        <p>Thank you for your excellent work and dedication throughout the quarter!</p>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated notification from KRA App</p>
+        <p>Please do not reply to this email</p>
+      </div>
+    </div>
+  </body>
+</html>
+

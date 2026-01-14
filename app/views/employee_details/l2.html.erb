@@ -1,10 +1,33 @@
-<!-- L2 Employee View - Only L1+ Approved Records -->
+<!-- L2 Manager View - L1 Approved, L2 Approved/Returned, and L3 Approved/Returned Records -->
 <div class="main-content sidebar-hidden bg-gray-50 min-h-screen">
   <div class="min-h-screen pl-64 pr-4 pt-4 pb-12 overflow-x-auto bg-gradient-to-br from-gray-50 to-gray-100">
     <div class="w-full max-w-7xl mx-auto bg-white p-8 rounded-xl shadow-xl border border-gray-200">
-      <div class="flex items-center mb-8 pb-4 border-b-2 border-gray-200">
-        <i class="fas fa-user-tie text-2xl text-emerald-600 mr-3"></i>
-        <h2 class="text-3xl font-bold text-gray-800">L2 Employee View - L1+ Approved Activities</h2>
+      <div class="flex items-center justify-between mb-8 pb-4 border-b-2 border-gray-200">
+        <div class="flex items-center">
+          <i class="fas fa-user-tie text-2xl text-emerald-600 mr-3"></i>
+          <h2 class="text-3xl font-bold text-gray-800">L2 Manager View - All L2 Records</h2>
+        </div>
+        
+        <!-- Department Filter and Refresh -->
+        <div class="flex items-center space-x-4">
+          <label for="department_filter" class="text-sm font-medium text-gray-700">Filter by Department:</label>
+          <%= form_with url: l2_employee_details_path, method: :get, local: true, class: "flex items-center space-x-2" do |form| %>
+            <%= form.select :department_filter, 
+                options_for_select([["All Departments", ""]] + Department.distinct.pluck(:department_type).map { |dept| [dept, dept] }, @selected_department),
+                { include_blank: false },
+                { 
+                  id: "department_filter",
+                  class: "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500",
+                  onchange: "this.form.submit()"
+                } %>
+          <% end %>
+          
+          <!-- Refresh Button -->
+          <button onclick="window.location.reload()" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all duration-200 hover:shadow-md transform hover:scale-105">
+            <i class="fas fa-sync-alt mr-2"></i>
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div class="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">  
@@ -13,7 +36,7 @@
             <tr>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Name</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Employee Code</th>
-              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Department</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Vertical</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Months</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L1 Manager</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L2 Manager</th>
@@ -24,87 +47,162 @@
           <tbody class="bg-white divide-y divide-gray-200">
             <% 
               row_index = 0 
+              # FIXED: Use global deduplication hash to prevent duplicate entries across all employees
+              # This must be outside the employee loop to work across all employees
               processed_records = {}
               
               # Define quarters
               quarters = {
-                'Q1' => ['january', 'february', 'march'],
-                'Q2' => ['april', 'may', 'june'], 
-                'Q3' => ['july', 'august', 'september'],
-                'Q4' => ['october', 'november', 'december']
+                'Q1' => ['april', 'may', 'june'],
+                'Q2' => ['july', 'august', 'september'], 
+                'Q3' => ['october', 'november', 'december'],
+                'Q4' => ['january', 'february', 'march']
               }
             %>
             
+            <% 
+              Rails.logger.info "L2 View: Processing #{@employee_details.count} employees"
+              Rails.logger.info "L2 View: Employee details: #{@employee_details.map(&:employee_name)}"
+            %>
             <% @employee_details.each do |emp| %>
               <% 
-                # Group all activities and achievements by employee and quarter
+                Rails.logger.info "L2 View: Processing employee #{emp.employee_name} with #{emp.user_details.count} user_details"
+                # Group all activities and achievements by employee, department, and quarter
                 # ENHANCED: Only process achievements that are L1+ approved
-                employee_quarters = {}
+                employee_department_quarters = {}
                 
                 emp.user_details.each do |ud|
-                  # ENHANCED: Only process user_details with L1+ approved achievements
-                  l1_plus_achievements = ud.achievements.select { |ach| 
-                    ['l1_approved', 'l2_approved', 'l2_returned'].include?(ach.status) 
-                  }
-                  next if l1_plus_achievements.empty?
+                  # FIXED: Don't pre-filter achievements - check quarter-wise approval instead
+                  next if ud.achievements.empty?
+                  
+                  # Group by department
+                  department = ud.department
+                  next unless department
                   
                   quarters.each do |quarter_name, quarter_months|
-                    # ENHANCED: Get only L1+ approved achievements for this quarter
-                    quarter_achievements = l1_plus_achievements.select { |ach| 
-                      quarter_months.include?(ach.month) 
+                    # FIXED: Get achievements for this quarter from THIS specific department only
+                    # This ensures department-wise processing
+                    all_quarter_achievements = ud.achievements.select { |ach| 
+                      (quarter_months.include?(ach.month) || 
+                       (quarter_name == 'Q1' && ach.month == 'q1') ||
+                       (quarter_name == 'Q2' && ach.month == 'q2') ||
+                       (quarter_name == 'Q3' && ach.month == 'q3') ||
+                       (quarter_name == 'Q4' && ach.month == 'q4'))
                     }
-                    next if quarter_achievements.empty?
                     
-                    employee_quarters[quarter_name] ||= {
+                    # FIXED: Double-check that we're only processing achievements from this specific department
+                    # This prevents cross-department contamination
+                    all_quarter_achievements = all_quarter_achievements.select { |ach| 
+                      # Ensure achievement belongs to this department's user_detail
+                      ach.user_detail_id == ud.id
+                    }
+                    
+                    # Show this quarter if it has achievements that L2 should see:
+                    # CRITICAL: L2 can ONLY see records that have been L1 approved
+                    # Check if this specific department/quarter has been L1 approved (same logic as L1 view)
+                    
+                    # First check if L1 has provided remarks and percentage (same as L1 view logic)
+                    quarter_l1_total = 0
+                    quarter_remarks_l1 = Set.new
+                    
+                    all_quarter_achievements.each do |achievement|
+                      if achievement.achievement_remark.present?
+                        # Collect L1 data
+                        if achievement.achievement_remark.l1_percentage.present?
+                          quarter_l1_total += achievement.achievement_remark.l1_percentage.to_f
+                        end
+                        
+                        # Add unique L1 remarks only
+                        if achievement.achievement_remark.l1_remarks.present?
+                          quarter_remarks_l1.add(achievement.achievement_remark.l1_remarks)
+                        end
+                      end
+                    end
+                    
+                    has_l1_remarks = quarter_remarks_l1.any? { |remark| remark.present? && remark != "No remarks for this quarter" }
+                    has_l1_percentage = quarter_l1_total > 0
+                    
+                    # Check achievement statuses
+                    has_l1_approved = all_quarter_achievements.any? { |ach| ach.status == 'l1_approved' }
+                    has_l2_approved = all_quarter_achievements.any? { |ach| ach.status == 'l2_approved' }
+                    has_l2_returned = all_quarter_achievements.any? { |ach| ach.status == 'l2_returned' }
+                    has_l3_approved = all_quarter_achievements.any? { |ach| ach.status == 'l3_approved' }
+                    has_l3_returned = all_quarter_achievements.any? { |ach| ach.status == 'l3_returned' }
+                    
+                    # Only show if L1 has actually approved (provided remarks/percentage) OR if it's already been processed by L2/L3
+                    has_ready_for_l2 = (has_l1_remarks || has_l1_percentage) && (has_l1_approved || has_l2_approved || has_l2_returned || has_l3_approved || has_l3_returned)
+                    
+                    
+                    # Skip this quarter if no achievements are ready for L2
+                    unless has_ready_for_l2
+                      next
+                    end
+                    
+                    # Filter to only show relevant achievements (L1 approved and above)
+                    # L2 can see all records that have gone through L1 approval
+                    all_quarter_achievements = all_quarter_achievements.select { |ach| 
+                      ['l1_approved', 'l1_returned', 'l2_approved', 'l2_returned', 'l3_approved', 'l3_returned'].include?(ach.status)
+                    }
+                    next if all_quarter_achievements.empty?
+                    # No need to check again since we already filtered by status
+                    
+                    # Use the L1 approved achievements for display
+                    quarter_achievements = all_quarter_achievements
+                    
+                    employee_department_quarters[department.id] ||= {
+                      department: department,
+                      quarters: {}
+                    }
+                    
+                    employee_department_quarters[department.id][:quarters][quarter_name] ||= {
                       achievements: [],
                       activities: Set.new,
                       user_details: []
                     }
                     
-                    employee_quarters[quarter_name][:achievements].concat(quarter_achievements)
-                    employee_quarters[quarter_name][:activities].add(ud.activity&.activity_name) if ud.activity&.activity_name
-                    employee_quarters[quarter_name][:user_details] << ud
+                    employee_department_quarters[department.id][:quarters][quarter_name][:achievements].concat(quarter_achievements)
+                    employee_department_quarters[department.id][:quarters][quarter_name][:activities].add(ud.activity&.activity_name) if ud.activity&.activity_name
+                    employee_department_quarters[department.id][:quarters][quarter_name][:user_details] << ud
                   end
                 end
               %>
               
               <!-- ENHANCED: Show only quarters with L1+ approved achievements -->
-              <% employee_quarters.each do |quarter_name, quarter_data| %>
+              <% employee_department_quarters.each do |department_id, department_data| %>
+                <% department = department_data[:department] %>
+                <% department_data[:quarters].each do |quarter_name, quarter_data| %>
                 <% 
-                  # Create unique key for employee + quarter
-                  record_key = "#{emp.id}_#{quarter_name}"
+                  # FIXED: Create unique key for employee name + department + quarter combination
+                  # This prevents duplicates when same employee has multiple EmployeeDetail records
+                  record_key = "#{emp.employee_name}_#{department.department_type}_#{quarter_name}"
                   next if processed_records[record_key]
                   
-                  # FIXED: Enhanced status calculation logic matching show_l2.html.erb
-                  all_statuses = quarter_data[:achievements].map { |ach| ach.status }
+                  # Show quarters that have L1 approved, L2 approved, or L3 approved/returned achievements WITH actual data
+                  quarter_achievements = quarter_data[:achievements]
+                  # Since we already filtered by status AND data content in the quarter selection, we can proceed
                   
-                  # Check for L2 data (percentages and remarks) to determine if L2 has acted
-                  has_l2_data = false
-                  quarter_data[:achievements].each do |ach|
-                    if ach.achievement_remark.present?
-                      if ach.achievement_remark.l2_percentage.present? || ach.achievement_remark.l2_remarks.present?
-                        has_l2_data = true
-                        break
-                      end
-                    end
-                  end
+                  # FIXED: Determine the current status based on the actual achievement statuses for THIS department only
+                  # Show the most relevant status for L2 view
+                  all_statuses = quarter_achievements.map(&:status).uniq
                   
-                  # FIXED: Corrected status logic with L2 data detection
-                  current_status = if has_l2_data
-                                    # L2 has provided data, check if approved or returned
-                                    if all_statuses.any? { |s| s == "l2_approved" }
-                                      "l2_approved"
-                                    elsif all_statuses.any? { |s| s == "l2_returned" }
-                                      "l2_returned"
-                                    else
-                                      "l2_approved" # Default when L2 data exists but status unclear
-                                    end
-                                  elsif all_statuses.any? { |s| s == "l2_returned" }
-                                    "l2_returned"
-                                  elsif all_statuses.all? { |s| s == "l1_approved" }
-                                    "l1_approved" # Ready for L2 review
+                  # FIXED: Determine status based on workflow hierarchy for THIS specific department
+                  # L3 can only approve if L2 has approved
+                  # L2 can only approve if L1 has approved
+                  # Show the most relevant status for L2 view respecting workflow
+                  current_status = if all_statuses.include?('l3_approved')
+                                    'l3_approved'
+                                  elsif all_statuses.include?('l3_returned')
+                                    'l3_returned'
+                                  elsif all_statuses.include?('l2_approved')
+                                    'l2_approved'
+                                  elsif all_statuses.include?('l2_returned')
+                                    'l2_returned'
+                                  elsif all_statuses.include?('l1_approved')
+                                    'l1_approved'
+                                  elsif all_statuses.include?('l1_returned')
+                                    'l1_returned'
                                   else
-                                    "l1_approved" # Default for mixed L1+ statuses
+                                    'l1_approved'  # Default to L1 approved since we already filtered for this
                                   end
                   
                   processed_records[record_key] = true
@@ -117,13 +215,25 @@
                 
                 <% status_config = case current_status
                 when "l1_approved"
-                  { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "L1 Approved - Ready for L2 Review", icon: "fas fa-clock" }
+                  { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Ready for L2 Review", icon: "fas fa-clock" }
+                when "l1_returned"
+                  { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
                 when "l2_approved"
-                  { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
+                  { color: "bg-green-100 text-green-800 border-green-300", text: "L2 Approved", icon: "fas fa-check-double" }
                 when "l2_returned"
-                  { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+                  { color: "bg-red-100 text-red-800 border-red-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+                when "l3_approved"
+                  { color: "bg-blue-100 text-blue-800 border-blue-300", text: "L3 Approved", icon: "fas fa-check-triangle" }
+                when "l3_returned"
+                  { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L3 Returned", icon: "fas fa-undo" }
+                when "returned_to_employee"
+                  { color: "bg-purple-100 text-purple-800 border-purple-300", text: "Returned to Employee", icon: "fas fa-user-undo" }
+                when "submitted"
+                  { color: "bg-indigo-100 text-indigo-800 border-indigo-300", text: "Submitted", icon: "fas fa-paper-plane" }
+                when "pending"
+                  { color: "bg-gray-100 text-gray-800 border-gray-300", text: "Pending", icon: "fas fa-hourglass-half" }
                 else
-                  { color: "bg-gray-100 text-gray-600 border-gray-300", text: "Status: #{current_status}", icon: "fas fa-question-circle" }
+                  { color: "bg-gray-100 text-gray-800 border-gray-300", text: "Pending", icon: "fas fa-hourglass-half" }
                 end %>
 
                 <tr class="<%= row_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-indigo-50 transition-colors duration-200">
@@ -134,11 +244,15 @@
                     <%= emp.employee_code %>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200">
-                    <%= emp.department %>
+                    <%= department.department_type %>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200">
                     <div class="font-semibold text-blue-700 text-base">
-                      <%= quarter_months.map(&:titleize).join(', ') %>
+                      <% 
+                        # Show only quarter names (Q1, Q2, Q3, Q4)
+                        quarter_display = quarter_name
+                      %>
+                      <%= quarter_display %>
                     </div>
                     <div class="text-xs text-gray-500 mt-1">
                       <%= quarter_name %> Quarter
@@ -158,10 +272,11 @@
                   </td>
                   <td class="px-6 py-4 text-sm">
                     <%= link_to "View Details", 
-                        show_l2_employee_detail_path(emp, quarter: quarter_name), 
+                        show_l2_employee_detail_path(emp, quarter: quarter_name, department_id: department.id), 
                         class: "inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all duration-200 hover:shadow-md transform hover:scale-105" %>
                   </td>
                 </tr>
+                <% end %>
               <% end %>
             <% end %>
           </tbody>
@@ -171,110 +286,134 @@
         <% if @employee_details.empty? %>
           <div class="text-center py-12 text-gray-500">
             <i class="fas fa-inbox text-4xl mb-4"></i>
-            <h3 class="text-lg font-semibold mb-2">No L1+ Approved Records Found</h3>
-            <p class="text-sm">There are no employee records with L1 approved achievements for your review.</p>
+            <h3 class="text-lg font-semibold mb-2">No L2 Records Found</h3>
+            <p class="text-sm">There are no employee records that are ready for L2 review. L2 can see records that are ready for L2 approval.</p>
+            <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p class="text-sm text-yellow-800">
+                <strong>Debug Info:</strong> Total employees checked: <%= @employee_details.count rescue 0 %> | 
+                Current user: <%= current_user.email rescue 'Unknown' %> | 
+                User role: <%= current_user.role rescue 'Unknown' %>
+              </p>
+            </div>
           </div>
         <% end %>
       </div>
 
-      <!-- FIXED: Enhanced statistics calculation matching show_l2.html.erb logic -->
+      <!-- DYNAMIC L2 Manager Counting Logic -->
       <%
-        total_quarters = 0
-        l1_approved_count = 0
+        # Initialize counters
+        total_l2_records = 0
+        pending_l2_review_count = 0
         l2_approved_count = 0
         l2_returned_count = 0
-        processed_stats = {}
+        processed_quarters = {}
 
+        # FIXED: Use the same global deduplication hash from the view logic
+        global_processed_combinations = {}
+        
+        # FIXED: Process each employee, department, and quarter combination (same as view logic)
         @employee_details.each do |emp|
-          employee_quarters = {}
+          # Get all departments for this employee
+          employee_departments = emp.user_details.includes(:department).map(&:department).uniq
           
-          emp.user_details.each do |ud|
-            # ENHANCED: Only consider achievements that are L1+ approved
-            l1_plus_achievements = ud.achievements.select { |ach| 
-              ['l1_approved', 'l2_approved', 'l2_returned'].include?(ach.status) 
-            }
-            next if l1_plus_achievements.empty?
-            
+          employee_departments.each do |department|
             quarters.each do |quarter_name, quarter_months|
-              # Get L1+ approved achievements for this quarter
-              quarter_achievements = l1_plus_achievements.select { |ach| quarter_months.include?(ach.month) }
-              next if quarter_achievements.empty?
+              # FIXED: Create unique key for employee name + department + quarter combination (same as view logic)
+              unique_key = "#{emp.employee_name}_#{department.department_type}_#{quarter_name}"
+              next if global_processed_combinations[unique_key]
               
-              employee_quarters[quarter_name] ||= []
-              employee_quarters[quarter_name].concat(quarter_achievements)
-            end
-          end
-          
-          employee_quarters.each do |quarter_name, quarter_achievements|
-            stats_key = "#{emp.id}_#{quarter_name}"
-            next if processed_stats[stats_key]
+              # FIXED: Get achievements for this employee in this department for this quarter
+              department_user_details = emp.user_details.where(department: department)
+              
+              # Get all achievements for this quarter from THIS specific department only
+              quarter_achievements_all = department_user_details.flat_map(&:achievements).select { |ach| 
+                (quarter_months.include?(ach.month) || 
+                 (quarter_name == 'Q1' && ach.month == 'q1') ||
+                 (quarter_name == 'Q2' && ach.month == 'q2') ||
+                 (quarter_name == 'Q3' && ach.month == 'q3') ||
+                 (quarter_name == 'Q4' && ach.month == 'q4'))
+              }
             
-            # FIXED: Enhanced status calculation with L2 data detection
-            all_statuses = quarter_achievements.map { |ach| ach.status }
-            
-            # Check for L2 data
-            has_l2_data = false
-            quarter_achievements.each do |ach|
-              if ach.achievement_remark.present?
-                if ach.achievement_remark.l2_percentage.present? || ach.achievement_remark.l2_remarks.present?
-                  has_l2_data = true
-                  break
+              # Skip if no achievements for this quarter
+              next if quarter_achievements_all.empty?
+              
+              # Show this quarter if it has any achievements that are ready for L2 review
+              # L2 can see records that are ready for L2 approval (regardless of L1 approval status)
+              has_ready_for_l2 = quarter_achievements_all.any? { |ach| 
+                ['l1_approved', 'l2_approved', 'l2_returned', 'l3_approved', 'l3_returned'].include?(ach.status)
+              }
+              
+              # Skip this quarter if no achievements are ready for L2
+              next unless has_ready_for_l2
+              
+              # Filter to only show relevant achievements (L1 approved and above)
+              # L2 can see all records that have gone through L1 approval
+              l2_relevant_achievements = quarter_achievements_all.select { |ach| 
+                ['l1_approved', 'l1_returned', 'l2_approved', 'l2_returned', 'l3_approved', 'l3_returned'].include?(ach.status)
+              }
+              
+              # FIXED: Process quarters that have L1 approved, L2 approved/returned, or L3 approved achievements
+              has_l2_relevant_achievements = l2_relevant_achievements.any?
+              if has_l2_relevant_achievements
+                # Mark this combination as processed (same as view logic)
+                global_processed_combinations[unique_key] = true
+                total_l2_records += 1
+              
+                # Get all statuses for this quarter
+                all_statuses = l2_relevant_achievements.map { |ach| ach.status }
+                
+                # DYNAMIC COUNTING LOGIC FOR L2 MANAGER
+                # Determine what L2 manager needs to see and act on
+                
+                # Check if L2 has already taken action on this record
+                l2_has_acted = all_statuses.any? { |s| ["l2_approved", "l2_returned"].include?(s) }
+                
+                if l2_has_acted
+                  # L2 has already acted - count based on L2's specific action
+                  if all_statuses.any? { |s| s == "l2_returned" }
+                    l2_returned_count += 1
+                  elsif all_statuses.any? { |s| s == "l2_approved" }
+                    l2_approved_count += 1
+                  end
+                else
+                  # L2 has not acted yet - determine if this record needs L2 action
+                  # Check if record has been processed by higher levels (L3)
+                  processed_by_higher_levels = all_statuses.any? { |s| ["l3_approved", "l3_returned"].include?(s) }
+                  
+                  if processed_by_higher_levels
+                    # Record has been processed by higher levels - count as L2 approved since it went through L2
+                    l2_approved_count += 1
+                  else
+                    # Record is truly pending L2 review - L2 needs to act on it
+                    pending_l2_review_count += 1
+                  end
                 end
               end
-            end
-            
-            # Calculate current status for this quarter
-            current_status = if has_l2_data
-                              if all_statuses.any? { |s| s == "l2_approved" }
-                                "l2_approved"
-                              elsif all_statuses.any? { |s| s == "l2_returned" }
-                                "l2_returned"
-                              else
-                                "l2_approved"
-                              end
-                            elsif all_statuses.any? { |s| s == "l2_returned" }
-                              "l2_returned"
-                            elsif all_statuses.all? { |s| s == "l1_approved" }
-                              "l1_approved"
-                            else
-                              "l1_approved"
-                            end
-            
-            processed_stats[stats_key] = true
-            total_quarters += 1
-            
-            case current_status
-            when "l1_approved"
-              l1_approved_count += 1
-            when "l2_approved"
-              l2_approved_count += 1
-            when "l2_returned"
-              l2_returned_count += 1
             end
           end
         end
       %>
 
-      <!-- FIXED: Updated statistics cards with correct status descriptions -->
+      <!-- L2 Manager Summary Cards -->
       <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
-        <!-- Total Quarterly Records with L1+ Approval -->
+        <!-- Total L2 Records -->
         <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
           <div class="flex items-center">
-            <i class="fas fa-calendar-check text-blue-600 mr-3"></i>
+            <i class="fas fa-user-tie mr-3" style="color: #2d374b;"></i>
             <div>
-              <p class="text-sm font-medium text-blue-800">L1+ Approved Quarters</p>
-              <p class="text-2xl font-bold text-blue-900"><%= total_quarters %></p>
+              <p class="text-sm font-medium text-blue-800">Total L2 Records</p>
+              <p class="text-2xl font-bold text-blue-900"><%= total_l2_records %></p>
             </div>
           </div>
         </div>
 
-        <!-- Ready for L2 Review (L1 Approved) -->
+        <!-- Pending L2 Review -->
         <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
           <div class="flex items-center">
             <i class="fas fa-clock text-yellow-600 mr-3"></i>
             <div>
-              <p class="text-sm font-medium text-yellow-800">Ready for L2 Review</p>
-              <p class="text-2xl font-bold text-yellow-900"><%= l1_approved_count %></p>
+              <p class="text-sm font-medium text-yellow-800">Pending L2 Review</p>
+              <p class="text-2xl font-bold text-yellow-900"><%= pending_l2_review_count %></p>
             </div>
           </div>
         </div>
@@ -411,3 +550,70 @@
     border-color: #6ee7b7;
   }
 </style>
+
+<script>
+  // Department filter functionality
+  document.addEventListener('DOMContentLoaded', function() {
+    const departmentFilter = document.getElementById('department_filter');
+    const tableRows = document.querySelectorAll('tbody tr');
+    
+    if (departmentFilter) {
+      departmentFilter.addEventListener('change', function() {
+        const selectedDepartment = this.value;
+        
+        tableRows.forEach(row => {
+          const departmentCell = row.querySelector('td:nth-child(3)'); // Vertical column
+          if (departmentCell) {
+            const departmentText = departmentCell.textContent.trim();
+            
+            if (selectedDepartment === '' || departmentText === selectedDepartment) {
+              row.style.display = '';
+            } else {
+              row.style.display = 'none';
+            }
+          }
+        });
+        
+        // Update counters based on visible rows
+        updateCounters();
+      });
+    }
+    
+    function updateCounters() {
+      const visibleRows = document.querySelectorAll('tbody tr[style=""], tbody tr:not([style*="display: none"])');
+      const totalRecords = visibleRows.length;
+      
+      let l2Approved = 0;
+      let l2Returned = 0;
+      let pendingReview = 0;
+      
+      visibleRows.forEach(row => {
+        const statusCell = row.querySelector('td:nth-child(7)'); // Status column
+        if (statusCell) {
+          const statusText = statusCell.textContent.trim();
+          if (statusText.includes('L2 Approved')) {
+            l2Approved++;
+          } else if (statusText.includes('L2 Returned')) {
+            l2Returned++;
+          } else if (statusText.includes('Pending Review') || statusText.includes('L1 Approved')) {
+            pendingReview++;
+          }
+        }
+      });
+      
+      // Update counter displays
+      const totalElement = document.querySelector('.text-2xl.font-bold.text-blue-900');
+      const approvedElement = document.querySelector('.text-2xl.font-bold.text-green-900');
+      const returnedElement = document.querySelector('.text-2xl.font-bold.text-red-900');
+      const pendingElement = document.querySelector('.text-2xl.font-bold.text-yellow-900');
+      
+      if (totalElement) totalElement.textContent = totalRecords;
+      if (approvedElement) approvedElement.textContent = l2Approved;
+      if (returnedElement) returnedElement.textContent = l2Returned;
+      if (pendingElement) pendingElement.textContent = pendingReview;
+    }
+  });
+  
+  // Manual refresh button available - removed auto-refresh to prevent continuous reloading
+  // Users can manually refresh using the refresh button if needed
+</script>

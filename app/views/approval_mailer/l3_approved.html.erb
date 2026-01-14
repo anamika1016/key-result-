@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+      .header { background: #6f42c1; color: white; padding: 20px; text-align: center; }
+      .content { padding: 20px; background: #f8f9fa; }
+      .footer { padding: 15px; text-align: center; color: #666; font-size: 12px; }
+      .achievement-box { background: white; border-left: 4px solid #6f42c1; padding: 15px; margin: 15px 0; }
+      .button { background: #6f42c1; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 5px; }
+      .info-row { margin: 8px 0; }
+      .label { font-weight: bold; color: #555; }
+      .approval-summary { background: #e2e3f1; border: 1px solid #6f42c1; padding: 15px; margin: 15px 0; border-radius: 5px; }
+      .celebration { background: #fff3cd; border: 1px solid #ffc107; padding: 15px; margin: 15px 0; border-radius: 5px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🎉 L3 Final Achievement Approved!</h2>
+        <p>Congratulations! Fully Approved</p>
+      </div>
+      
+      <div class="content">
+        <p>Dear <%= @employee.employee_name %>,</p>
+        
+        <p>🎊 Congratulations! Your achievement submission has been approved at all levels (L1, L2, and L3) and is now finalized!</p>
+        
+        <div class="achievement-box">
+          <div class="info-row">
+            <span class="label">Month:</span> <%= @achievement.month.capitalize %>
+          </div>
+          <div class="info-row">
+            <span class="label">Department:</span> <%= @user_detail.activity.department.department_type %>
+          </div>
+          <div class="info-row">
+            <span class="label">Activity:</span> <%= @user_detail.activity.activity_name %>
+          </div>
+          <% if @achievement.achievement.present? %>
+          <div class="info-row">
+            <span class="label">Your Achievement:</span> <%= @achievement.achievement %>
+          </div>
+          <% end %>
+        </div>
+        
+        <div class="approval-summary">
+          <h4>Final L3 Approval Status:</h4>
+          <p>Your achievement for <strong><%= @achievement.month.capitalize %></strong> has been successfully approved by your L3 manager.</p>
+          <p>All approval levels have been completed and your achievement is now finalized in the system.</p>
+        </div>
+        
+        <div class="celebration">
+          <h4>🎉 Achievement Complete!</h4>
+          <p>Your KRA submission has been successfully completed and approved at all levels. Great work!</p>
+          <p>You can now view your finalized achievement in the system and use it for your performance records.</p>
+        </div>
+        
+        <p>You can view your finalized achievement in the system:</p>
+        
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="<%= url_for(controller: 'user_details', action: 'index', only_path: false) %>" class="button">
+            View My Achievements
+          </a>
+        </div>
+        
+        <p>Thank you for your excellent work!</p>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated notification from KRA App</p>
+        <p>Please do not reply to this email</p>
+      </div>
+    </div>
+  </body>
+</html>
+

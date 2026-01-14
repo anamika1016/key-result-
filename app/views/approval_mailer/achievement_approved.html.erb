@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+      .header { background: #059669; color: white; padding: 20px; text-align: center; }
+      .content { padding: 20px; background: #f8f9fa; }
+      .footer { padding: 15px; text-align: center; color: #666; font-size: 12px; }
+      .achievement-box { background: white; border-left: 4px solid #059669; padding: 15px; margin: 15px 0; }
+      .button { background: #059669; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 5px; }
+      .info-row { margin: 8px 0; }
+      .label { font-weight: bold; color: #555; }
+      .approval-summary { background: #ecfdf5; border: 1px solid #059669; padding: 15px; margin: 15px 0; border-radius: 5px; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🎉 Achievement Approved!</h2>
+        <p>Final Approval by L3</p>
+      </div>
+      
+      <div class="content">
+        <p>Dear <%= @employee.employee_name %>,</p>
+        
+        <p>Congratulations! Your achievement submission has been approved at all levels (L1, L2, and L3). 🎊</p>
+        
+        <div class="achievement-box">
+          <div class="info-row">
+            <span class="label">Month:</span> <%= @achievement.month.capitalize %>
+          </div>
+          <div class="info-row">
+            <span class="label">Department:</span> <%= @department.department_name %>
+          </div>
+          <div class="info-row">
+            <span class="label">Activity:</span> <%= @user_detail.activity.activity_name %>
+          </div>
+          <% if @achievement.achievement.present? %>
+          <div class="info-row">
+            <span class="label">Your Achievement:</span> <%= @achievement.achievement %>
+          </div>
+          <% end %>
+        </div>
+        
+        <div class="approval-summary">
+          <h4>Approval Summary:</h4>
+          
+          <% if @l1_remarks.present? || @l1_percentage.present? %>
+          <p><strong>L1 Approval:</strong></p>
+          <% if @l1_remarks.present? %>
+          <div class="info-row">
+            <span class="label">L1 Remarks:</span> <%= @l1_remarks %>
+          </div>
+          <% end %>
+          <% if @l1_percentage.present? %>
+          <div class="info-row">
+            <span class="label">L1 Percentage:</span> <%= @l1_percentage %>%
+          </div>
+          <% end %>
+          <% end %>
+          
+          <% if @l2_remarks.present? || @l2_percentage.present? %>
+          <p><strong>L2 Approval:</strong></p>
+          <% if @l2_remarks.present? %>
+          <div class="info-row">
+            <span class="label">L2 Remarks:</span> <%= @l2_remarks %>
+          </div>
+          <% end %>
+          <% if @l2_percentage.present? %>
+          <div class="info-row">
+            <span class="label">L2 Percentage:</span> <%= @l2_percentage %>%
+          </div>
+          <% end %>
+          <% end %>
+          
+          <% if @l3_remarks.present? || @l3_percentage.present? %>
+          <p><strong>L3 Final Approval:</strong></p>
+          <% if @l3_remarks.present? %>
+          <div class="info-row">
+            <span class="label">L3 Remarks:</span> <%= @l3_remarks %>
+          </div>
+          <% end %>
+          <% if @l3_percentage.present? %>
+          <div class="info-row">
+            <span class="label">L3 Percentage:</span> <%= @l3_percentage %>%
+          </div>
+          <% end %>
+          <% end %>
+        </div>
+        
+        <p>You can view your approved achievements in the system:</p>
+        
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="<%= url_for(controller: 'user_details', action: 'index', only_path: false) %>" class="button">
+            View My Achievements
+          </a>
+        </div>
+        
+        <p>Great work on completing your KRA for this month! Keep up the excellent performance.</p>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated notification from KRA App</p>
+        <p>Please do not reply to this email</p>
+      </div>
+    </div>
+  </body>
+</html>

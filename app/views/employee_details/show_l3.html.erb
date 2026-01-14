@@ -1,0 +1,1355 @@
+<!-- L3 Manager Detail Quarterly View with L3 Remarks Display -->
+<meta name="csrf-token" content="<%= form_authenticity_token %>">
+<div class="main-content bg-gray-50 min-h-screen">
+<div class="p-8 bg-white rounded-xl shadow-lg border border-gray-200 mx-4">
+  <div class="border-b border-gray-200 pb-6 mb-8">
+    <h2 class="text-3xl font-bold text-gray-800 flex items-center">
+      <i class="fas fa-user-shield mr-3 text-gray-600"></i>
+      Employee Detail - L3 Review
+    </h2>
+    
+    <!-- Vertical Filter - Only show if coming from specific vertical -->
+    <% if @selected_department.present? %>
+      <% 
+        # Get the specific department being viewed
+        current_department = Department.find(@selected_department)
+      %>
+      <div class="mt-4">
+        <div class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
+          <i class="fas fa-building mr-2"></i>
+          Vertical: <%= current_department.department_type %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+
+  <!-- Status Message Container -->
+  <div id="statusMessage" class="hidden mb-4 p-4 rounded-lg"></div>
+
+  <%
+    # Define months to display based on quarter
+    display_months = case params[:quarter]
+                     when 'Q1'
+                       [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']]
+                     when 'Q2'
+                       [[:july, 'Jul'], [:august, 'Aug'], [:september, 'Sep']]
+                     when 'Q3'
+                       [[:october, 'Oct'], [:november, 'Nov'], [:december, 'Dec']]
+                     when 'Q4'
+                       [[:january, 'Jan'], [:february, 'Feb'], [:march, 'Mar']]
+                     else
+                       []
+                     end
+
+    # FIXED: Calculate quarterly data - collect statuses and data ONLY for the selected department
+    quarterly_statuses = []
+    quarter_l1_total = 0
+    quarter_l2_total = 0
+    quarter_l3_total = 0
+    quarter_achievement_count = 0
+    quarter_remarks_l1 = Set.new
+    quarter_remarks_l2 = Set.new
+    quarter_remarks_l3 = Set.new
+    
+    if @user_details.any? && params[:quarter].present?
+      @user_details.each do |detail|
+        quarter_achievements = detail.achievements.select { |a| display_months.map { |m| m[0].to_s }.include?(a.month) }
+        quarter_achievements.each do |achievement|
+          quarterly_statuses << (achievement.status || "pending")
+          
+          if achievement.achievement_remark.present?
+            quarter_achievement_count += 1
+            
+            # Collect L1 data
+            if achievement.achievement_remark.l1_percentage.present?
+              quarter_l1_total += achievement.achievement_remark.l1_percentage.to_f
+            end
+            
+            # Add unique L1 remarks only
+            if achievement.achievement_remark.l1_remarks.present?
+              quarter_remarks_l1.add(achievement.achievement_remark.l1_remarks)
+            end
+            
+            # Collect L2 data
+            if achievement.achievement_remark.l2_percentage.present?
+              quarter_l2_total += achievement.achievement_remark.l2_percentage.to_f
+            end
+            
+            # Add unique L2 remarks only
+            if achievement.achievement_remark.l2_remarks.present?
+              quarter_remarks_l2.add(achievement.achievement_remark.l2_remarks)
+            end
+
+            # FIXED: Only collect L3 data if L3 has actually acted (approved or returned)
+            if (achievement.status == "l3_approved" || achievement.status == "l3_returned") && achievement.achievement_remark.l3_percentage.present?
+              quarter_l3_total += achievement.achievement_remark.l3_percentage.to_f
+            end
+            
+            # FIXED: Only add L3 remarks if L3 has actually acted (approved or returned)
+            if (achievement.status == "l3_approved" || achievement.status == "l3_returned") && achievement.achievement_remark.l3_remarks.present?
+              quarter_remarks_l3.add(achievement.achievement_remark.l3_remarks)
+            end
+          end
+        end
+      end
+    end
+    
+    # FIXED: Simplified status logic - check achievement status directly
+    overall_quarter_status = "pending"
+    l3_status = "pending"  # Separate L3 status tracking
+    
+    if quarterly_statuses.any?
+      # FIXED: Check achievement status directly, not data availability
+      if quarterly_statuses.any? { |s| s == "l3_approved" }
+        # If any achievement is L3 approved, show as L3 approved
+        overall_quarter_status = "l3_approved"
+        l3_status = "approved"
+      elsif quarterly_statuses.any? { |s| s == "l3_returned" }
+        # If any achievement is L3 returned, show as L3 returned
+        overall_quarter_status = "l3_returned"
+        l3_status = "returned"
+      elsif quarterly_statuses.all? { |s| s == "l2_approved" }
+        # If all achievements are L2 approved, ready for L3 review
+        overall_quarter_status = "l2_approved"
+        l3_status = "pending"
+      elsif quarterly_statuses.any? { |s| s == "l2_returned" }
+        overall_quarter_status = "l2_returned"
+        l3_status = "pending"
+      elsif quarterly_statuses.any? { |s| s == "l1_approved" }
+        overall_quarter_status = "l1_approved"
+        l3_status = "pending"
+      elsif quarterly_statuses.any? { |s| s == "l1_returned" }
+        overall_quarter_status = "l1_returned"
+        l3_status = "pending"
+      elsif quarterly_statuses.any? { |s| s == "submitted" }
+        overall_quarter_status = "submitted"
+        l3_status = "pending"
+      else
+        overall_quarter_status = "pending"
+        l3_status = "pending"
+      end
+    end
+
+    status_config = case overall_quarter_status
+    when "pending"
+      { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
+    when "l1_approved"
+      { color: "bg-sky-100 text-sky-800 border-sky-300", text: "L1 Approved", icon: "fas fa-check-circle" }
+    when "l1_returned"
+      { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+    when "l2_approved"
+      { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
+    when "l2_returned"
+      { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending for L3 Review", icon: "fas fa-clock" }
+    when "l3_approved"
+      { color: "bg-green-100 text-green-800 border-green-300", text: "L3 Approved", icon: "fas fa-crown" }
+    when "l3_returned"
+      { color: "bg-pink-100 text-pink-800 border-pink-300", text: "L3 Returned", icon: "fas fa-exclamation-triangle" }
+    when "submitted"
+      { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
+    else
+      { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status", icon: "fas fa-question-circle" }
+    end
+    
+    # Calculate averages
+    quarter_l1_average = quarter_achievement_count > 0 ? (quarter_l1_total / quarter_achievement_count).round(1) : 0.0
+    quarter_l2_average = quarter_achievement_count > 0 ? (quarter_l2_total / quarter_achievement_count).round(1) : 0.0
+    quarter_l3_average = quarter_achievement_count > 0 ? (quarter_l3_total / quarter_achievement_count).round(1) : 0.0
+    
+    # Convert Sets to Arrays for display
+    quarter_remarks_l1_array = quarter_remarks_l1.to_a
+    quarter_remarks_l2_array = quarter_remarks_l2.to_a
+    quarter_remarks_l3_array = quarter_remarks_l3.to_a
+  %>
+
+  <% if @user_details.any? %>
+    <div class="bg-white border border-gray-200 rounded-xl shadow-sm mt-8">
+      <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
+        <h2 class="text-2xl font-bold text-gray-800 flex items-center">
+          <i class="fas fa-trophy mr-3 text-gray-600"></i>
+          <%= @selected_quarter %> Quarter Achievement Details
+        </h2>
+      </div>
+
+      <div class="p-6">
+        <%
+          # Define months to display based on selected quarter
+          display_months = case @selected_quarter
+                          when 'Q1'
+                            [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']]
+                          when 'Q2'
+                            [[:july, 'Jul'], [:august, 'Aug'], [:september, 'Sep']]
+                          when 'Q3'
+                            [[:october, 'Oct'], [:november, 'Nov'], [:december, 'Dec']]
+                          when 'Q4'
+                            [[:january, 'Jan'], [:february, 'Feb'], [:march, 'Mar']]
+                          else
+                            # Default to Q1
+                            [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']]
+                          end
+        %>
+        
+        <div class="table-wrapper overflow-auto bg-white rounded-lg border border-gray-200">
+          
+          <!-- NEW: Simplified table matching the screen you described -->
+          <table class="min-w-full divide-y divide-gray-300 text-sm">
+            <thead class="bg-gradient-to-r from-gray-800 to-gray-700">
+              <tr>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Indicator</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">KPI</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Weightage</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600" colspan="3">
+                  <%= @selected_quarter %> (<%= display_months.map(&:last).join('-') %>)
+                </th>
+              </tr>
+              <tr class="bg-gray-700">
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Weightage Score</th>
+              </tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% 
+                total_weightage = 0
+                total_achievement = 0
+                total_weightage_score = 0
+                row_count = 0
+                
+                # FIXED: Group user_details by activity name to prevent duplicates
+                grouped_details = @user_details.group_by { |detail| detail.activity&.activity_name }
+                processed_activities = Set.new
+              %>
+              <% grouped_details.each_with_index do |(activity_name, details), detail_index| %>
+                <% 
+                  # Skip if we've already processed this activity
+                  next if processed_activities.include?(activity_name)
+                  processed_activities.add(activity_name)
+                  
+                  # Use the first detail for this activity (they should all have the same activity data)
+                  detail = details.first
+                %>
+                <% 
+                  # FIXED: Calculate quarterly data for this activity
+                  quarter_achievements = detail.achievements.select { |a| display_months.map(&:first).map(&:to_s).include?(a.month) }
+                  
+                  
+                  # Get weightage from the activity (using 'weight' attribute)
+                  weightage = detail.activity&.weight || 0
+                  total_weightage += weightage
+                  
+                  # FIXED: Calculate average achievement for the quarter
+                  quarter_achievement_values = quarter_achievements.map { |a| a.achievement.to_f rescue 0 }.compact
+                  avg_achievement = quarter_achievement_values.any? ? (quarter_achievement_values.sum / quarter_achievement_values.size) : 0
+                  
+                  # FIXED: If no quarter achievements found, try to get any achievements for this activity
+                  if avg_achievement == 0 && detail.achievements.any?
+                    all_achievement_values = detail.achievements.map { |a| a.achievement.to_f rescue 0 }.compact
+                    avg_achievement = all_achievement_values.any? ? (all_achievement_values.sum / all_achievement_values.size) : 0
+                  end
+                  
+                  
+                  # Calculate weightage score
+                  weightage_score = (weightage * avg_achievement / 100).round(2)
+                  total_weightage_score += weightage_score
+                  
+                  # FIXED: Get remarks (use the first available remark)
+                  remarks = quarter_achievements.map { |a| a.employee_remarks }.compact.first
+                  
+                  # If no quarter remarks, try to get any remarks for this activity
+                  if remarks.blank? && detail.achievements.any?
+                    remarks = detail.achievements.map { |a| a.employee_remarks }.compact.first
+                  end
+                  
+                  # Don't set default remarks - show empty if no remarks provided
+                  remarks = remarks.present? ? remarks : ""
+                  
+                  row_count += 1
+                %>
+                <tr class="<%= detail_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
+                  <td class="px-6 py-4 text-sm text-gray-800 font-medium border-r border-gray-200">
+                    <%= detail.activity&.activity_name || 'N/A' %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= detail.activity&.theme_name || 'N/A' %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= detail.activity&.unit || 'N/A' %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= weightage %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                    <span class="text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
+                      <%= avg_achievement.round(0) %>%
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                    <% if remarks.present? %>
+                      <span class="text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs">
+                        <%= remarks %>
+                      </span>
+                    <% else %>
+                      <span class="text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded text-xs">
+                        No remarks
+                      </span>
+                    <% end %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center">
+                    <span class="text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
+                      <%= weightage_score %>
+                    </span>
+                  </td>
+                </tr>
+              <% end %>
+              
+              <!-- TOTAL COUNT ROW -->
+              <tr class="bg-green-100 font-semibold">
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">TOTAL COUNT</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200"><%= total_weightage.round(2) %></td>
+                <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                  <span class="text-green-800 font-bold">
+                    <%= total_weightage > 0 ? ((total_weightage_score / total_weightage) * 100).round(2) : 0 %>%
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                  <span class="text-gray-600">-</span>
+                </td>
+                <td class="px-6 py-4 text-sm text-center">
+                  <span class="text-green-800 font-bold">
+                    <%= total_weightage_score.round(2) %>
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  <% else %>
+    <div class="text-center py-12">
+      <i class="fas fa-exclamation-triangle text-6xl text-gray-400 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-600 mb-2">No Data Available</h3>
+      <p class="text-gray-500">No achievement data found for this quarter.</p>
+    </div>
+  <% end %>
+
+<!-- Single Overall Status Display for Quarter -->
+<% if params[:quarter].present? %>
+  <% if quarterly_statuses.any? %>
+    <div class="mt-8 pt-6 border-t border-gray-200" id="quarterStatusSection">
+      <div class="text-center mb-6">
+        <h3 class="text-xl font-bold text-gray-800 mb-4">
+           Quarter Overall Status
+        </h3>
+        <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border <%= status_config[:color] %>" id="quarterStatusBadge">
+          <i class="<%= status_config[:icon] %> mr-2"></i>
+          <%= status_config[:text] %>
+        </span>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- L1, L2 & L3 Summary for Quarter -->
+  <% if quarter_achievement_count > 0 %>
+    <%
+      # Calculate SINGLE average for entire quarter
+      all_quarter_achievements = []
+      @user_details.each do |detail|
+        quarter_achievements = detail.achievements.select { |a| display_months.map { |m| m[0].to_s }.include?(a.month) && a.achievement_remark.present? }
+        all_quarter_achievements.concat(quarter_achievements)
+      end
+
+      # SINGLE L1 calculation for quarter
+      l1_percentages = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l1_percentage&.to_f }
+      final_l1_average = l1_percentages.any? ? (l1_percentages.sum / l1_percentages.size).round(1) : 0.0
+
+      # SINGLE L2 calculation for quarter  
+      l2_percentages = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l2_percentage&.to_f }
+      final_l2_average = l2_percentages.any? ? (l2_percentages.sum / l2_percentages.size).round(1) : 0.0
+
+      # SINGLE L3 calculation for quarter  
+      l3_percentages = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l3_percentage&.to_f }
+      final_l3_average = l3_percentages.any? ? (l3_percentages.sum / l3_percentages.size).round(1) : 0.0
+
+      # SINGLE remark per level per quarter (take first non-empty remark)
+      unique_l1_remarks = [all_quarter_achievements.filter_map { |a| a.achievement_remark&.l1_remarks }.compact.first].compact
+      unique_l2_remarks = [all_quarter_achievements.filter_map { |a| a.achievement_remark&.l2_remarks }.compact.first].compact
+      unique_l3_remarks = [all_quarter_achievements.filter_map { |a| a.achievement_remark&.l3_remarks }.compact.first].compact
+      
+    %>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+
+      <!-- L1 Quarterly Summary - ALWAYS SHOW -->
+      <div class="bg-gradient-to-r from-blue-50 via-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-md">
+        <h3 class="text-xl font-bold text-blue-700 mb-6 flex items-center gap-2">
+          <i class="fas fa-user-check text-blue-500"></i>
+          L1 Quarter Summary
+        </h3>
+
+        <!-- Quarter Average Percentage -->
+        <div class="mb-6 text-center">
+          <div class="bg-blue-200 p-4 rounded-lg inline-block">
+            <p class="style="color: #2d374b;" font-semibold text-sm mb-1">Quarter Average Percentage</p>
+            <p class="text-3xl font-bold text-blue-800"><%= final_l1_average %>%</p>
+          </div>
+        </div>
+
+        <!-- UNIQUE L1 Remarks -->
+        <div class="space-y-3">
+          <h4 class="style="color: #2d374b;" font-semibold text-sm">Quarter Remarks:</h4>
+          <% if unique_l1_remarks.any? %>
+            <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto">
+              <% unique_l1_remarks.each_with_index do |remark, index| %>
+                <div class="text-gray-700 text-sm mb-3 pb-3 <%= 'border-b border-gray-100' unless index == unique_l1_remarks.length - 1 %>">
+                  <div class="flex items-start gap-2">
+                    <span class="bg-blue-100 style="color: #2d374b;" text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                      Quarter Remark
+                    </span>
+                    <span class="text-gray-700"><%= remark %></span>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="bg-white p-4 rounded border">
+              <p class="text-gray-500 text-sm">No remarks for this quarter</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- L2 Quarterly Summary -->
+      <div class="bg-gradient-to-r from-green-50 via-green-50 to-green-100 border border-green-200 rounded-xl p-6 shadow-md">
+        <h3 class="text-xl font-bold text-green-700 mb-6 flex items-center gap-2">
+          <i class="fas fa-user-shield text-green-500"></i>
+          L2 Quarter Summary
+        </h3>
+
+        <!-- Quarter Average Percentage -->
+        <div class="mb-6 text-center">
+          <div class="bg-green-200 p-4 rounded-lg inline-block">
+            <p class="text-green-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
+            <p class="text-3xl font-bold text-green-800"><%= final_l2_average %>%</p>
+          </div>
+        </div>
+
+        <!-- L2 Remarks Display -->
+        <div class="space-y-3">
+          <h4 class="text-green-600 font-semibold text-sm">Quarter Remarks:</h4>
+          <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto">
+            <% if unique_l2_remarks.any? %>
+              <% unique_l2_remarks.each_with_index do |remark, index| %>
+                <div class="text-gray-700 text-sm mb-3 pb-3 <%= 'border-b border-gray-100' unless index == unique_l2_remarks.length - 1 %>">
+                  <div class="flex items-start gap-2">
+                    <span class="bg-green-100 text-green-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                      Quarter Remark
+                    </span>
+                    <span class="text-gray-700"><%= remark %></span>
+                  </div>
+                </div>
+              <% end %>
+            <% else %>
+              <p class="text-gray-500 text-sm">
+                <% if overall_quarter_status == 'l2_approved' && has_l2_data %>
+                  <i class="fas fa-check-circle text-green-500 mr-1"></i>
+                  Quarter approved - no additional remarks needed
+                <% else %>
+                  No remarks for this quarter
+                <% end %>
+              </p>
+            <% end %>
+          </div>
+        </div>
+      </div>
+
+      <!-- FIXED: L3 Quarterly Summary - Only show if L3 has actually acted (approved or returned) -->
+      <% if overall_quarter_status == "l3_approved" || overall_quarter_status == "l3_returned" %>
+        <div class="bg-gradient-to-r from-purple-50 via-purple-50 to-purple-100 border border-purple-200 rounded-xl p-6 shadow-md">
+          <h3 class="text-xl font-bold text-purple-700 mb-6 flex items-center gap-2">
+            <i class="fas fa-user-crown text-purple-500"></i>
+            L3 Quarter Summary
+          </h3>
+
+          <!-- Quarter Average Percentage -->
+          <div class="mb-6 text-center">
+            <div class="bg-purple-200 p-4 rounded-lg inline-block">
+              <p class="text-purple-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
+              <p class="text-3xl font-bold text-purple-800" id="l3-percentage-display"><%= final_l3_average %>%</p>
+            </div>
+          </div>
+
+          <!-- L3 Remarks Display -->
+          <div class="space-y-3">
+            <h4 class="text-purple-600 font-semibold text-sm">Quarter Remarks:</h4>
+            <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto" id="l3-remarks-container">
+              <% if unique_l3_remarks.any? %>
+                <% unique_l3_remarks.each_with_index do |remark, index| %>
+                  <div class="text-gray-700 text-sm mb-3 pb-3 <%= 'border-b border-gray-100' unless index == unique_l3_remarks.length - 1 %>">
+                    <div class="flex items-start gap-2">
+                      <span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                        Quarter Remark
+                      </span>
+                      <span class="text-gray-700"><%= remark %></span>
+                    </div>
+                  </div>
+                <% end %>
+              <% else %>
+                <p class="text-gray-500 text-sm">
+                  <i class="fas fa-check-circle text-purple-500 mr-1"></i>
+                  Quarter approved - no additional remarks needed
+                </p>
+              <% end %>
+            </div>
+          </div>
+        </div>
+      <% else %>
+        <!-- Show message when L3 data is not available -->
+        <div class="bg-gradient-to-r from-gray-50 via-gray-50 to-gray-100 border border-gray-200 rounded-xl p-6 shadow-md">
+          <h3 class="text-xl font-bold text-gray-700 mb-6 flex items-center gap-2">
+            <i class="fas fa-user-crown text-gray-500"></i>
+            L3 Quarter Summary
+          </h3>
+          <div class="text-center text-gray-600">
+            <p class="text-lg font-medium">L3 data not available</p>
+            <p class="text-sm mt-2">This department is not yet L3 approved</p>
+          </div>
+        </div>
+      <% end %>
+
+    </div>
+  <% end %>
+<% end %>
+
+<!-- FIXED: L3 approve/return buttons - Show when L3 can take action -->
+<% if @can_l3_approve_or_return && @user_details.any? && params[:quarter].present? %>
+  <%
+    # FIXED: Show buttons dynamically based on actual status
+    # Show buttons when L3 can take action (not already processed by L3)
+    can_take_action = overall_quarter_status != "l3_approved" && overall_quarter_status != "l3_returned"
+    show_buttons = can_take_action && (overall_quarter_status == "l2_approved" || overall_quarter_status == "l2_returned" || overall_quarter_status == "l1_approved" || overall_quarter_status == "l1_returned" || overall_quarter_status == "submitted" || overall_quarter_status == "pending")
+  %>
+  
+  <% if show_buttons %>
+    <div class="mt-8 pt-6 border-t border-gray-200">
+      <div class="flex flex-col sm:flex-row gap-4 justify-center" id="actionButtons">
+        <button onclick="openModal('l3_approve')" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+          L3 Approve Quarter
+        </button>
+        <button onclick="openModal('l3_reject')" class="px-6 py-3 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+          L3 Return Quarter
+        </button>
+      </div>
+    </div>
+  <% else %>
+    <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium">
+      <% if overall_quarter_status == "l3_approved" %>
+        <i class="fas fa-check-circle text-green-500 mr-2"></i>
+        This Quarter has been L3 approved and cannot be modified.
+      <% elsif overall_quarter_status != "l2_approved" %>
+        This Quarter is not ready for L3 review (Status: <%= overall_quarter_status %>).
+      <% else %>
+        This Quarter has been processed and cannot be modified.
+      <% end %>
+    </div>
+  <% end %>
+<% end %>
+
+<!-- Modal for L3 Actions - Lower Position -->
+<div id="decisionModal" class="hidden fixed inset-0 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative mx-4" style="margin-top: 350px;">
+    <!-- Loading overlay -->
+    <div id="modalLoading" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
+      <div class="flex items-center space-x-2">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+        <span class="text-gray-600">Processing...</span>
+      </div>
+    </div>
+
+    <h2 class="text-xl font-bold mb-4" id="modalTitle">L3 Decision</h2>
+
+    <form id="modalForm" onsubmit="return false;" action="javascript:void(0);" method="post" novalidate>
+      <!-- Hidden inputs for form submission -->
+      <input type="hidden" id="action_type" name="action_type" value="">
+      <input type="hidden" id="selected_quarter" name="selected_quarter" value="<%= params[:quarter] %>">
+      <input type="hidden" id="department_id" name="department_id" value="<%= params[:department_id] %>">
+      
+      <!-- Return Level Dropdown - Only show for return actions -->
+      <div id="returnLevelSection" class="mb-4 hidden" style="background-color: #f0f0f0; padding: 10px; border: 1px solid #ddd;">
+        <label for="return_level" class="block font-semibold mb-1">Return to:</label>
+        <select id="return_level" name="return_level" class="w-full border border-gray-300 rounded-md p-2">
+          <option value="">Select return level...</option>
+          <option value="l2">Return to L2</option>
+          <option value="l1">Return to L1</option>
+          <option value="employee">Return to Employee</option>
+        </select>
+      </div>
+      
+      <div class="mb-4">
+        <label for="l3_remarks" class="block font-semibold mb-1">L3 Remarks</label>
+        <textarea id="l3_remarks" name="l3_remarks" rows="3" class="w-full border border-gray-300 rounded-md p-2" required></textarea>
+      </div>
+      <div class="mb-4">
+        <label for="l3_percentage" class="block font-semibold mb-1">L3 Percentage</label>
+        <input type="number" id="l3_percentage" name="l3_percentage" step="0.1" min="0" max="100" class="w-full border border-gray-300 rounded-md p-2" required>
+      </div>
+      
+      <!-- Hidden fields for quarterly tracking -->
+      <% if params[:user_detail_id].present? %>
+        <input type="hidden" name="user_detail_id" value="<%= params[:user_detail_id] %>">
+      <% end %>
+      <input type="hidden" name="selected_quarter" value="<%= params[:quarter] %>">
+      <input type="hidden" name="apply_to_all_activities" value="true">
+      
+      <div class="flex justify-end gap-2">
+        <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+        <button type="button" id="submitButton" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">Submit</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- JavaScript with improved update logic and modal positioning -->
+<script>
+  let currentActionType = '';
+  let currentActionUrl = '';
+  
+  // Initialize: Clear form action on page load and prevent any submission
+  document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('modalForm');
+    const submitButton = document.getElementById('submitButton');
+    
+    if (form) {
+      form.action = 'javascript:void(0);';
+      form.method = 'post';
+      form.setAttribute('novalidate', 'novalidate');
+      // Remove any data attributes that might cause auto-submission
+      form.removeAttribute('data-remote');
+      form.removeAttribute('data-turbo');
+      
+      // Add additional event listener to prevent form submission
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }, true);
+    }
+    
+    if (submitButton) {
+      // Remove any existing onclick to avoid conflicts
+      submitButton.removeAttribute('onclick');
+      
+      // Add click event listener that calls submitDecision
+      submitButton.addEventListener('click', function(e) {
+        console.log('Submit button click event listener fired');
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        submitDecision(e);
+        return false;
+      }, false); // Use bubble phase, not capture
+    }
+  });
+
+  function openModal(actionType) {
+    console.log('openModal called with actionType:', actionType);
+    
+    const modal = document.getElementById("decisionModal");
+    const modalTitle = document.getElementById("modalTitle");
+    const quarterStatusSection = document.getElementById("quarterStatusSection");
+    
+    if (!modal) {
+      console.error('Modal element not found!');
+      alert('Error: Modal not found. Please refresh the page.');
+      return;
+    }
+    
+    if (!modalTitle) {
+      console.error('Modal title element not found!');
+      alert('Error: Modal title not found. Please refresh the page.');
+      return;
+    }
+    
+    currentActionType = actionType;
+    
+    // Set the action type in the hidden input
+    const actionTypeInput = document.getElementById('action_type');
+    if (actionTypeInput) {
+      actionTypeInput.value = actionType;
+    }
+    
+    // Modal is always centered - no dynamic positioning needed
+    modal.classList.remove("hidden");
+    modal.style.display = "flex";
+    document.body.style.overflow = 'hidden';
+
+    // Show/hide return level dropdown based on action type
+    const returnLevelSection = document.getElementById('returnLevelSection');
+    const returnLevelSelect = document.getElementById('return_level');
+    
+    if (actionType === "l3_approve") {
+      <% if @employee_detail.present? %>
+        currentActionUrl = "<%= l3_approve_employee_detail_path(@employee_detail) %>";
+        console.log('L3 Approve URL set to:', currentActionUrl);
+        console.log('Full URL check - should NOT contain show_l3:', currentActionUrl);
+        
+        // Verify URL is correct
+        if (currentActionUrl.includes('show_l3')) {
+          console.error('CRITICAL ERROR: URL contains show_l3!', currentActionUrl);
+          alert('Error: Invalid URL generated. Please refresh the page.');
+          closeModal();
+          return;
+        }
+        
+        // Clear form action to prevent normal submission
+        const form = document.getElementById('modalForm');
+        if (form) {
+          form.action = 'javascript:void(0);';
+          form.method = 'post';
+          form.setAttribute('novalidate', 'novalidate');
+          form.removeAttribute('data-remote');
+          form.removeAttribute('data-turbo');
+        }
+      <% else %>
+        console.error('Employee Detail is nil - cannot generate L3 approve URL');
+        alert('Error: Employee detail not found. Please refresh the page.');
+        closeModal();
+        return;
+      <% end %>
+      modalTitle.innerText = "L3 Approve Quarter";
+      // Hide dropdown for approve action
+      if (returnLevelSection) {
+        returnLevelSection.classList.add('hidden');
+      }
+      if (returnLevelSelect) {
+        returnLevelSelect.required = false;
+      }
+    } else if (actionType === "l3_reject") {
+      <% if @employee_detail.present? %>
+        currentActionUrl = "<%= l3_return_employee_detail_path(@employee_detail) %>";
+        console.log('L3 Return URL set to:', currentActionUrl);
+        console.log('Full URL check - should NOT contain show_l3:', currentActionUrl);
+        
+        // Verify URL is correct
+        if (currentActionUrl.includes('show_l3')) {
+          console.error('CRITICAL ERROR: URL contains show_l3!', currentActionUrl);
+          alert('Error: Invalid URL generated. Please refresh the page.');
+          closeModal();
+          return;
+        }
+        
+        // Clear form action to prevent normal submission
+        const form = document.getElementById('modalForm');
+        if (form) {
+          form.action = 'javascript:void(0);';
+          form.method = 'post';
+          form.setAttribute('novalidate', 'novalidate');
+          form.removeAttribute('data-remote');
+          form.removeAttribute('data-turbo');
+        }
+      <% else %>
+        console.error('Employee Detail is nil - cannot generate L3 return URL');
+        alert('Error: Employee detail not found. Please refresh the page.');
+        closeModal();
+        return;
+      <% end %>
+      modalTitle.innerText = "L3 Return Quarter";
+      
+      // Show dropdown for return action
+      if (returnLevelSection) {
+        returnLevelSection.classList.remove('hidden');
+      }
+      if (returnLevelSelect) {
+        returnLevelSelect.required = true;
+      }
+    }
+
+    // Clear form
+    const remarksField = document.getElementById('l3_remarks');
+    const percentageField = document.getElementById('l3_percentage');
+    
+    if (remarksField) remarksField.value = '';
+    if (percentageField) percentageField.value = '';
+  }
+
+  function closeModal() {
+    const modal = document.getElementById("decisionModal");
+    modal.classList.add("hidden");
+    modal.style.display = "none";
+    document.body.style.overflow = 'auto';
+    currentActionType = '';
+    currentActionUrl = '';
+  }
+
+  function showStatusMessage(message, isSuccess) {
+    const statusDiv = document.getElementById('statusMessage');
+    statusDiv.className = `mb-4 p-4 rounded-lg ${isSuccess ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`;
+    statusDiv.textContent = message;
+    statusDiv.classList.remove('hidden');
+    
+    setTimeout(() => {
+      statusDiv.classList.add('hidden');
+    }, 5000);
+  }
+
+  function updateStatusBadge(newStatus) {
+    const statusBadge = document.getElementById('quarterStatusBadge');
+    if (!statusBadge) return;
+
+    let statusConfig = {};
+    
+    switch(newStatus) {
+      case 'l3_approved':
+        statusConfig = {
+          color: 'bg-purple-100 text-purple-800 border-purple-300',
+          text: 'L3 Approved',
+          icon: 'fas fa-check-double'
+        };
+        break;
+      case 'l3_returned':
+        statusConfig = {
+          color: 'bg-pink-100 text-pink-800 border-pink-300',
+          text: 'L3 Returned',
+          icon: 'fas fa-exclamation-triangle'
+        };
+        break;
+      case 'l2_approved':
+        statusConfig = {
+          color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+          text: 'L2 Approved',
+          icon: 'fas fa-check-double'
+        };
+        break;
+      case 'l1_approved':
+        statusConfig = {
+          color: 'bg-green-100 text-green-800 border-green-300',
+          text: 'L1 Approved',
+          icon: 'fas fa-check-circle'
+        };
+        break;
+      default:
+        statusConfig = {
+          color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+          text: 'Pending',
+          icon: 'fas fa-clock'
+        };
+    }
+
+    statusBadge.className = `inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${statusConfig.color}`;
+    statusBadge.innerHTML = `<i class="${statusConfig.icon} mr-2"></i>${statusConfig.text}`;
+  }
+
+  function hideActionButtons() {
+    const actionButtons = document.getElementById('actionButtons');
+    if (actionButtons) {
+      actionButtons.style.display = 'none';
+      
+      const processedMessage = document.createElement('div');
+      processedMessage.className = 'mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium';
+      processedMessage.textContent = 'This Quarter has been processed and cannot be modified.';
+      actionButtons.parentNode.appendChild(processedMessage);
+    }
+  }
+
+  function submitDecision(event) {
+    console.log('=== submitDecision CALLED ===');
+    console.log('Event:', event);
+    console.log('currentActionUrl:', currentActionUrl);
+    console.log('currentActionType:', currentActionType);
+    
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      console.log('Event prevented and stopped');
+    } else {
+      console.warn('No event object passed to submitDecision');
+    }
+    
+    // Debug: Check if currentActionUrl is set
+    if (!currentActionUrl) {
+      console.error('currentActionUrl is not set!');
+      console.error('This usually means openModal was not called or failed. Please close and reopen the modal.');
+      showStatusMessage('❌ Error: Action URL not set. Please close the modal and try again.', false);
+      const modalLoading = document.getElementById('modalLoading');
+      if (modalLoading) modalLoading.classList.add('hidden');
+      return false;
+    }
+    
+    // Double-check: if currentActionUrl contains 'show_l3', something is wrong
+    if (currentActionUrl.includes('show_l3')) {
+      console.error('ERROR: currentActionUrl incorrectly set to show_l3:', currentActionUrl);
+      showStatusMessage('❌ Error: Invalid action URL. Please close the modal and try again.', false);
+      const modalLoading = document.getElementById('modalLoading');
+      if (modalLoading) modalLoading.classList.add('hidden');
+      return false;
+    }
+    
+    const modalLoading = document.getElementById('modalLoading');
+    const form = document.getElementById('modalForm');
+    
+    // Final safety check: ensure form action is still safe
+    if (form && form.action !== 'javascript:void(0);' && !form.action.includes('l3_approve') && !form.action.includes('l3_return') && form.action !== '#') {
+      console.error('Form action was changed! Resetting to javascript:void(0)', form.action);
+      form.action = 'javascript:void(0);';
+    }
+    
+    const formData = new FormData(form);
+    
+    formData.append('action_type', currentActionType);
+    
+    // Get return level from dropdown if it's a return action
+    const returnLevelSelect = document.getElementById('return_level');
+    if (returnLevelSelect && returnLevelSelect.value) {
+      formData.append('return_level', returnLevelSelect.value);
+    }
+    
+    // Final URL validation before fetch
+    console.log('About to fetch:', currentActionUrl);
+    if (!currentActionUrl || currentActionUrl === '#' || currentActionUrl === 'javascript:void(0);' || currentActionUrl.includes('show_l3')) {
+      console.error('Invalid URL for fetch:', currentActionUrl);
+      showStatusMessage('❌ Error: Invalid action URL. Please close the modal and try again.', false);
+      if (modalLoading) modalLoading.classList.add('hidden');
+      return false;
+    }
+    
+    modalLoading.classList.remove('hidden');
+    
+    console.log('Making fetch request to:', currentActionUrl);
+    console.log('Form data entries:', Array.from(formData.entries()));
+    
+    fetch(currentActionUrl, {
+      method: 'PATCH',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+      }
+    })
+    .then(async response => {
+      console.log('L3 Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url
+      });
+      
+      if (!response.ok) {
+        // Try to parse JSON error response for better error messages
+        try {
+          const errorData = await response.json();
+          console.log('Error response data:', errorData);
+          
+          if (response.status === 404) {
+            console.error('404 Error - Employee detail not found');
+            showStatusMessage('❌ Employee detail not found. The record may have been deleted. Please refresh the page.', false);
+            closeModal();
+            setTimeout(() => {
+              window.location.href = '<%= employee_details_path %>';
+            }, 3000);
+            return null;
+          } else if (response.status === 422) {
+            // Handle 422 - Validation errors
+            const errorMessage = errorData.message || errorData.error || 'Validation failed. Please check your input and try again.';
+            showStatusMessage(errorMessage, false);
+            modalLoading.classList.add('hidden');
+            return null;
+          } else if (response.status === 400) {
+            console.error('400 Error - Bad request');
+            const errorMessage = errorData.message || errorData.error || 'Invalid request. Please check your input and try again.';
+            showStatusMessage(errorMessage, false);
+            modalLoading.classList.add('hidden');
+            return null;
+          } else if (response.status === 500) {
+            console.error('500 Error - Server error');
+            showStatusMessage('❌ Server error occurred. Please try again or contact support.', false);
+            modalLoading.classList.add('hidden');
+            return null;
+          } else if (response.status === 403) {
+            showStatusMessage('❌ Access denied. You are not authorized to perform this action.', false);
+            modalLoading.classList.add('hidden');
+            return null;
+          }
+          
+          // For other errors, show the error message from server if available
+          const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
+          showStatusMessage(errorMessage, false);
+          modalLoading.classList.add('hidden');
+          return null;
+        } catch (parseError) {
+          // If JSON parsing fails, show generic error
+          console.error('Failed to parse error response:', parseError);
+          showStatusMessage(`❌ Server error (${response.status}). Please try again.`, false);
+          modalLoading.classList.add('hidden');
+          return null;
+        }
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (!data) return;
+      
+      modalLoading.classList.add('hidden');
+      
+      if (data.success) {
+        closeModal();
+        showStatusMessage(data.message, true);
+        
+        // Update status badge
+        if (data.updated_status) {
+          updateStatusBadge(data.updated_status);
+          hideActionButtons();
+        }
+        
+        // Get values from form inputs
+        const percentage = document.getElementById('l3_percentage').value;
+        const remarks = document.getElementById('l3_remarks').value;
+        
+        // Update L3 summary immediately with form values
+        if (percentage || remarks) {
+          updateL3Summary(percentage, remarks);
+        }
+        
+        // Refresh the page to show updated L1 and L2 data
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+        
+        // Scroll to status message
+        document.getElementById('statusMessage').scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        
+      } else {
+        showStatusMessage(data.message || 'An error occurred', false);
+      }
+    })
+    .catch(error => {
+      modalLoading.classList.add('hidden');
+      console.error('Error details:', error);
+      showStatusMessage('Network error occurred. Please try again.', false);
+    });
+  }
+
+  // Function to update L3 summary section
+  function updateL3Summary(percentage, remarks) {
+    console.log('Updating L3 Summary with:', { percentage, remarks });
+    
+    // Update L3 percentage display
+    const l3PercentageElement = document.getElementById('l3-percentage-display');
+    if (l3PercentageElement && percentage !== undefined && percentage !== null && percentage !== '') {
+      l3PercentageElement.textContent = parseFloat(percentage).toFixed(1) + '%';
+    }
+    
+    // Update L3 remarks display
+    const l3RemarksContainer = document.getElementById('l3-remarks-container');
+    if (l3RemarksContainer) {
+      if (remarks && remarks.trim() !== '') {
+        l3RemarksContainer.innerHTML = `
+          <div class="text-gray-700 text-sm mb-3 pb-3">
+            <div class="flex items-start gap-2">
+              <span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                Remark 1
+              </span>
+              <span class="text-gray-700">${remarks}</span>
+            </div>
+          </div>
+        `;
+      } else {
+        // If no remarks provided, show approved message
+        l3RemarksContainer.innerHTML = `
+          <p class="text-gray-500 text-sm">
+            <i class="fas fa-check-circle text-purple-500 mr-1"></i>
+            Quarter approved - no additional remarks needed
+          </p>
+        `;
+      }
+    }
+  }
+
+  // Close modal when clicking outside
+  document.getElementById('decisionModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+      closeModal();
+    }
+  });
+
+  // Close modal with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeModal();
+    }
+  });
+
+  // Initialize dropdown section on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    const returnLevelSection = document.getElementById('returnLevelSection');
+    if (returnLevelSection) {
+      // Ensure dropdown is hidden initially
+      returnLevelSection.classList.add('hidden');
+    }
+  });
+
+</script>
+
+<style>
+.main-content {
+  margin-left: 240px;
+  padding: 2rem;
+  overflow-x: auto;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.table {
+  min-width: 900px;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: auto;
+}
+
+.table th, .table td {
+  padding: 8px 12px;
+  text-align: center;
+  border-right: 1px solid #e5e7eb;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.table th {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  color: white;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+}
+
+.table tbody tr:hover {
+  background-color: #f9fafb !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.main-content h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #1f2937;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.bg-white {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* Modal positioning - Lower position */
+#decisionModal {
+  backdrop-filter: blur(4px);
+  transition: all 0.3s ease;
+  align-items: flex-start !important;
+  justify-content: center !important;
+  padding-top: 25vh; /* Start from 25% from top, then margin-top pushes it down more */
+}
+
+#decisionModal .bg-white {
+  animation: modalSlideIn 0.3s ease-out;
+  position: relative;
+  z-index: 60;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+input:invalid, textarea:invalid {
+  border-color: #ef4444;
+}
+
+input:valid, textarea:valid {
+  border-color: #10b981;
+}
+
+#statusMessage {
+  animation: slideInFromTop 0.5s ease-out;
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.achievement-cell {
+  min-width: 300px;
+  max-width: 400px;
+}
+
+.remarks-cell {
+  min-width: 350px;
+  max-width: 450px;
+}
+
+.break-words {
+  word-wrap: break-word;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.space-y-3 > * + * {
+  margin-top: 0.75rem;
+}
+
+.max-h-40 {
+  max-height: 10rem;
+}
+
+.overflow-y-auto {
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+    padding: 1rem;
+  }
+  
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .lg\:grid-cols-3 {
+    grid-template-columns: 1fr;
+  }
+  
+  .md\:grid-cols-2 {
+    grid-template-columns: 1fr;
+  }
+  
+  #decisionModal .bg-white {
+    margin: 1rem;
+    width: calc(100% - 2rem);
+  }
+  
+  #decisionModal {
+    /* Modal always centered on mobile too */
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.bg-white {
+  animation: fadeIn 0.6s ease-out;
+}
+
+.table-wrapper::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+#quarterStatusBadge {
+  transition: all 0.5s ease-in-out;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+body.modal-open {
+  overflow: hidden;
+}
+
+/* L3 specific purple color scheme */
+.bg-purple-100 {
+  background-color: #e9d8fd;
+}
+
+.text-purple-800 {
+  color: #553c9a;
+}
+
+.border-purple-300 {
+  border-color: #d6bcfa;
+}
+
+.bg-pink-100 {
+  background-color: #fce7f3;
+}
+
+.text-pink-800 {
+  color: #97266d;
+}
+
+.border-pink-300 {
+  border-color: #f9a8d4;
+}
+</style>
+
+<!-- CSRF token meta tag -->
+<div style="display: none;">
+  <meta name="csrf-token" content="<%= form_authenticity_token %>">
+</div>
+
+</div>

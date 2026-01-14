@@ -10,6 +10,9 @@
 
     <%= yield :head %>
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
     <%# Enable PWA manifest for installable apps (make sure to enable in config/routes.rb too!) %>
     <%#= tag.link rel: "manifest", href: pwa_manifest_path(format: :json) %>
@@ -17,6 +20,7 @@
     <link rel="icon" href="/icon.png" type="image/png">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/icon.png">
+    <link rel="shortcut icon" href="/icon.png" type="image/png">
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
@@ -28,13 +32,13 @@
     
     <!-- Flash Messages - Upper Center -->
     <% if flash[:notice] %>
-      <div class="alert alert-success alert-dismissible fade show">
+      <div class="alert alert-success alert-dismissible fade show" id="flash-notice">
         <i class="fas fa-check-circle me-2"></i>
         <%= flash[:notice] %>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
       </div>
     <% elsif flash[:alert] %>
-      <div class="alert alert-danger alert-dismissible fade show">
+      <div class="alert alert-danger alert-dismissible fade show" id="flash-alert">
         <i class="fas fa-exclamation-triangle me-2"></i>
         <%= flash[:alert] %>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -42,5 +46,33 @@
     <% end %>
     
     <%= yield %>
+    
+    <!-- Auto-hide flash messages after 4 seconds -->
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const flashNotice = document.getElementById('flash-notice');
+        const flashAlert = document.getElementById('flash-alert');
+        
+        if (flashNotice) {
+          setTimeout(function() {
+            flashNotice.style.transition = 'opacity 0.5s ease-out';
+            flashNotice.style.opacity = '0';
+            setTimeout(function() {
+              flashNotice.remove();
+            }, 500);
+          }, 4000);
+        }
+        
+        if (flashAlert) {
+          setTimeout(function() {
+            flashAlert.style.transition = 'opacity 0.5s ease-out';
+            flashAlert.style.opacity = '0';
+            setTimeout(function() {
+              flashAlert.remove();
+            }, 500);
+          }, 4000);
+        }
+      });
+    </script>
   </body>
 </html>

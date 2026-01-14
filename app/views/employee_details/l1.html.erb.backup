@@ -1,0 +1,499 @@
+<!-- L1 Manager View - Quarterly Support -->
+<div class="main-content sidebar-hidden bg-gray-50 min-h-screen">
+  <div class="min-h-screen pl-64 pr-4 pt-4 pb-12 overflow-x-auto bg-gradient-to-br from-gray-50 to-gray-100">
+    <div class="w-full max-w-7xl mx-auto bg-white p-8 rounded-xl shadow-xl border border-gray-200">
+      <div class="flex items-center mb-8 pb-4 border-b-2 border-gray-200">
+        <i class="fas fa-users text-2xl text-indigo-600 mr-3"></i>
+        <h2 class="text-3xl font-bold text-gray-800">L1 Manager View</h2>
+      </div>
+
+
+      <div class="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">  
+        <table class="min-w-full divide-y divide-gray-300 text-sm">
+          <thead class="bg-gradient-to-r from-gray-800 to-gray-700">
+            <tr>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Name</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Employee Code</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Vertical</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Quarter</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L1 Manager</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L2 Manager</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Status</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Action</th>
+            </tr>
+          </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+              <% row_index = 0 %>
+              <% 
+                # FIXED: Create a global deduplication hash to prevent duplicate entries across all employees
+                # This must be outside the employee loop to work across all employees
+                global_processed_combinations = {}
+              %>
+              <% @employee_details.each do |emp| %>
+                <% 
+                  # Define quarters to group achievements
+                  quarters = {
+                    'Q1' => ['april', 'may', 'june'],
+                    'Q2' => ['july', 'august', 'september'], 
+                    'Q3' => ['october', 'november', 'december'],
+                    'Q4' => ['january', 'february', 'march']
+                  }
+                  
+                  # Group by department and quarter to show separate rows for each department
+                  department_quarter_data = []
+                  
+                  # Get all departments for this employee
+                  employee_departments = emp.user_details.includes(:department).map(&:department).uniq
+                  
+                  employee_departments.each do |department|
+                    quarters.each do |quarter_name, quarter_months|
+                      # FIXED: Create unique key for employee name + department + quarter combination
+                      # This prevents duplicates when same employee has multiple EmployeeDetail records
+                      unique_key = "#{emp.employee_name}_#{department.department_type}_#{quarter_name}"
+                      
+                      # Skip if we've already processed this combination
+                      next if global_processed_combinations[unique_key]
+                      
+                      # Get achievements for this employee in this department for this quarter
+                      department_user_details = emp.user_details.where(department: department)
+                      
+                      # FIXED: Handle both monthly achievements (april, may, june) and quarterly achievements (q1, q2, q3, q4)
+                      monthly_achievements = department_user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month) }
+                      
+                      # Also check for quarterly format achievements (q1, q2, q3, q4)
+                      quarterly_achievements = department_user_details.flat_map(&:achievements).select do |ach|
+                        case quarter_name
+                        when 'Q1'
+                          ach.month == 'q1'
+                        when 'Q2'
+                          ach.month == 'q2'
+                        when 'Q3'
+                          ach.month == 'q3'
+                        when 'Q4'
+                          ach.month == 'q4'
+                        else
+                          false
+                        end
+                      end
+                      
+                      # Combine both types of achievements
+                      all_quarter_achievements = monthly_achievements + quarterly_achievements
+                      
+                      # If there are achievements for this employee in this department for this quarter, add to list
+                      # Only show if achievements have actual data (not just empty records)
+                      if all_quarter_achievements.any? && all_quarter_achievements.any? { |ach| ach.achievement.present? }
+                        # Mark this combination as processed
+                        global_processed_combinations[unique_key] = true
+                        
+                        # Add new entry (no need to check for existing since we're using global deduplication)
+                        # Only store achievements that have values filled
+                        filtered_achievements = all_quarter_achievements.select { |ach| ach.achievement.present? }
+                        department_quarter_data << { 
+                          quarter_name: quarter_name, 
+                          quarter_months: quarter_months, 
+                          achievements: filtered_achievements,
+                          department: department,
+                          department_id: department.id,
+                          department_type: department.department_type
+                        }
+                      end
+                    end
+                  end
+                  
+                  # Only show quarters where employees have actually submitted achievement data
+                  # No fallback logic - only show quarters with actual data
+                  
+                  # Only show this employee if they have submitted data in any quarter
+                  next if department_quarter_data.empty?
+                %>
+                  
+                  <% # Show one row per department-quarter combination for this employee %>
+                  <% department_quarter_data.each do |data| %>
+                    <%
+                    quarter_name = data[:quarter_name]
+                    quarter_months = data[:quarter_months]
+                    all_quarter_achievements = data[:achievements]
+                    department = data[:department]
+                    department_id = data[:department_id]
+                    department_type = data[:department_type]
+                    
+                    row_index += 1
+                    
+                    # FIXED: Calculate status based on department-specific achievements only
+                    # This ensures each department has its own status independent of other departments
+                    if all_quarter_achievements.any? && all_quarter_achievements.any? { |ach| ach.achievement.present? }
+                      # Only use achievements that have values filled
+                      filtered_achievements = all_quarter_achievements.select { |ach| ach.achievement.present? }
+                      quarter_statuses = filtered_achievements.map { |ach| ach.status || "pending" }
+                      
+                      # Calculate status based on this department's achievements only
+                      current_status = if quarter_statuses.any? { |s| s == "l3_approved" }
+                                        "l3_approved"
+                                      elsif quarter_statuses.any? { |s| s == "l3_returned" }
+                                        "l3_returned"
+                                      elsif quarter_statuses.any? { |s| s == "l2_approved" }
+                                        "l2_approved"
+                                      elsif quarter_statuses.any? { |s| s == "l2_returned" }
+                                        "l2_returned"
+                                      elsif quarter_statuses.any? { |s| s == "returned_to_employee" }
+                                        "returned_to_employee"
+                                      elsif quarter_statuses.any? { |s| s == "l1_returned" }
+                                        "l1_returned"
+                                      elsif quarter_statuses.any? { |s| s == "l1_approved" }
+                                        "l1_approved"
+                                      elsif quarter_statuses.any? { |s| s == "pending" }
+                                        "pending"
+                                      else
+                                        "pending"
+                                      end
+                    else
+                      # No achievements yet - show as pending
+                      current_status = "pending"
+                    end
+
+                    status_config = case current_status
+                    when "pending"
+                      { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending Review" }
+                    when "l1_approved"
+                      { color: "bg-sky-100 text-sky-800 border-sky-300", text: "L1 Approved" }
+                    when "l1_returned"
+                      { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned" }
+                    when "returned_to_employee"
+                      { color: "bg-orange-100 text-orange-800 border-orange-300", text: "Returned to Employee" }
+                    when "l2_approved"
+                      { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved" }
+                    when "l2_returned"
+                      { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned" }
+                    when "l3_approved"
+                      { color: "bg-green-100 text-green-800 border-green-300", text: "L3 Approved" }
+                    when "l3_returned"
+                      { color: "bg-red-100 text-red-800 border-red-300", text: "L3 Returned" }
+                    when "submitted"
+                      { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted" }
+                    else
+                      { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status" }
+                    end
+                %>
+                  <tr class="<%= row_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-indigo-50 transition-colors duration-200">
+                    <td class="px-6 py-4 text-sm font-medium text-gray-900 border-r border-gray-200"><%= emp.employee_name %></td>
+                    <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.employee_code %></td>
+                    <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= department_type %></td>
+                   <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200">
+                      <span class="font-semibold text-indigo-700">
+                        <% 
+                          # Show only quarter names (Q1, Q2, Q3, Q4)
+                          quarter_display = quarter_name
+                        %>
+                        <%= quarter_display %>
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.l1_employer_name %></td>
+                    <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.l2_employer_name %></td>
+                    <td class="px-6 py-4 text-sm border-r border-gray-200">
+                      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border <%= status_config[:color] %>">
+                        <% if ["l1_approved", "l2_approved", "l3_approved"].include?(current_status) %>
+                          <i class="fas fa-check-circle mr-1"></i>
+                        <% elsif ["l1_returned", "l2_returned", "l3_returned", "returned_to_employee"].include?(current_status) %>
+                          <i class="fas fa-exclamation-triangle mr-1"></i>
+                        <% elsif current_status == "pending" %>
+                          <i class="fas fa-clock mr-1"></i>
+                        <% elsif current_status == "submitted" %>
+                          <i class="fas fa-paper-plane mr-1"></i>
+                        <% end %>
+                        <%= status_config[:text] %>
+                      </span>
+                    </td>
+                    <td class="px-6 py-4 text-sm">
+                      <%= link_to "View Details", 
+                          employee_detail_path(emp, quarter: quarter_name, department_id: department_id), 
+                          class: "inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all duration-200 hover:shadow-md transform hover:scale-105" %>
+                    </td>
+                  </tr>
+                  <% end %>
+              <% end %>
+           </tbody>
+        </table>
+      </div>
+
+      <!-- DYNAMIC L1 Manager Counting Logic -->
+      <%
+        # Initialize counters
+        total_l1_records = 0
+        l1_approved_count = 0
+        l1_returned_count = 0
+        pending_l1_review_count = 0
+        processed_quarters = {}
+        
+        quarters = {
+          'Q1' => ['april', 'may', 'june'],
+          'Q2' => ['july', 'august', 'september'], 
+          'Q3' => ['october', 'november', 'december'],
+          'Q4' => ['january', 'february', 'march']
+        }
+
+        # FIXED: Use the same global deduplication hash from the view logic
+        global_processed_combinations = {}
+        
+        # Process each employee, department, and quarter combination
+        @employee_details.each do |emp|
+          # Get all departments for this employee
+          employee_departments = emp.user_details.includes(:department).map(&:department).uniq
+          
+          employee_departments.each do |department|
+            quarters.each do |quarter_name, quarter_months|
+              # FIXED: Create unique key for employee name + department + quarter combination (same as view logic)
+              unique_key = "#{emp.employee_name}_#{department.department_type}_#{quarter_name}"
+              next if global_processed_combinations[unique_key]
+              
+              # Get achievements for this employee in this department for this quarter
+              department_user_details = emp.user_details.where(department: department)
+              
+              # Get all achievements for this employee in this department for this quarter
+              monthly_achievements = department_user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month) }
+              
+              # Also check for quarterly format achievements (q1, q2, q3, q4)
+              quarterly_achievements = department_user_details.flat_map(&:achievements).select do |ach|
+                case quarter_name
+                when 'Q1'
+                  ach.month == 'q1'
+                when 'Q2'
+                  ach.month == 'q2'
+                when 'Q3'
+                  ach.month == 'q3'
+                when 'Q4'
+                  ach.month == 'q4'
+                else
+                  false
+                end
+              end
+              
+              # Combine both types of achievements
+              all_quarter_achievements = monthly_achievements + quarterly_achievements
+              
+              # Only process quarters that have actual achievement data
+              if all_quarter_achievements.any? && all_quarter_achievements.any? { |ach| ach.achievement.present? }
+                # Mark this combination as processed (same as view logic)
+                global_processed_combinations[unique_key] = true
+                total_l1_records += 1
+              
+                # FIXED: Calculate department-specific status for counting consistency
+                # Only use achievements that have values filled
+                filtered_achievements = all_quarter_achievements.select { |ach| ach.achievement.present? }
+                quarter_statuses = filtered_achievements.map { |ach| ach.status || "pending" }
+                
+                # Calculate status based on this department's achievements only
+                employee_status = if quarter_statuses.any? { |s| s == "l3_approved" }
+                                  "l3_approved"
+                                elsif quarter_statuses.any? { |s| s == "l3_returned" }
+                                  "l3_returned"
+                                elsif quarter_statuses.any? { |s| s == "l2_approved" }
+                                  "l2_approved"
+                                elsif quarter_statuses.any? { |s| s == "l2_returned" }
+                                  "l2_returned"
+                                elsif quarter_statuses.any? { |s| s == "returned_to_employee" }
+                                  "returned_to_employee"
+                                elsif quarter_statuses.any? { |s| s == "l1_returned" }
+                                  "l1_returned"
+                                elsif quarter_statuses.any? { |s| s == "l1_approved" }
+                                  "l1_approved"
+                                elsif quarter_statuses.any? { |s| s == "submitted" }
+                                  "submitted"
+                                elsif quarter_statuses.any? { |s| s == "pending" }
+                                  "pending"
+                                else
+                                  "pending"
+                                end
+              else
+                employee_status = "pending"
+              end
+              
+              # DYNAMIC COUNTING LOGIC FOR L1 MANAGER
+              # Determine what L1 manager needs to see and act on
+              
+              # Check if L1 has already taken action on this record
+              l1_has_acted = ["l1_approved", "l1_returned"].include?(employee_status)
+              
+              if l1_has_acted
+                # L1 has already acted - count based on L1's specific action
+                if employee_status == "l1_returned"
+                  l1_returned_count += 1
+                elsif employee_status == "l1_approved"
+                  l1_approved_count += 1
+                end
+              else
+                # L1 has not acted yet - determine if this record needs L1 action
+                # Check if record has been processed by higher levels (L2/L3)
+                processed_by_higher_levels = ["l2_approved", "l2_returned", "l3_approved", "l3_returned"].include?(employee_status)
+                
+                if processed_by_higher_levels
+                  # Record has been processed by higher levels - L1 doesn't need to act
+                  # This record is already beyond L1's scope
+                else
+                  # Record is truly pending L1 review - L1 needs to act on it
+                  pending_l1_review_count += 1
+                end
+              end
+            end
+          end
+        end
+      end
+      %>
+
+
+      <!-- L1 Manager Summary Cards -->
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Total L1 Records -->
+        <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
+          <div class="flex items-center">
+            <i class="fas fa-users mr-3" style="color: #2d374b;"></i>
+            <div>
+              <p class="text-sm font-medium text-blue-800">Total L1 Records</p>
+              <p class="text-2xl font-bold text-blue-900"><%= total_l1_records %></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pending L1 Review -->
+        <div class="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+          <div class="flex items-center">
+            <i class="fas fa-clock text-yellow-600 mr-3"></i>
+            <div>
+              <p class="text-sm font-medium text-yellow-800">Pending L1 Review</p>
+              <p class="text-2xl font-bold text-yellow-900"><%= pending_l1_review_count %></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- L1 Approved -->
+        <div class="bg-sky-50 p-4 rounded-lg border border-sky-200">
+          <div class="flex items-center">
+            <i class="fas fa-check-circle text-sky-600 mr-3"></i>
+            <div>
+              <p class="text-sm font-medium text-sky-800">L1 Approved</p>
+              <p class="text-2xl font-bold text-sky-900"><%= l1_approved_count %></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- L1 Returned -->
+        <div class="bg-red-50 p-4 rounded-lg border border-red-200">
+          <div class="flex items-center">
+            <i class="fas fa-exclamation-triangle text-red-600 mr-3"></i>
+            <div>
+              <p class="text-sm font-medium text-red-800">L1 Returned</p>
+              <p class="text-2xl font-bold text-red-900"><%= l1_returned_count %></p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Your existing CSS styles remain the same */
+  .min-h-screen {
+    padding-left: 16rem; 
+  }
+
+  .sidebar-hidden .min-h-screen {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .sidebar-hidden .max-w-7xl {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .sidebar-hidden .form-control {
+    width: 100% !important;
+  }
+
+  .sidebar-hidden .grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+  }
+  
+  .main-content {
+    margin-left: 240px; 
+    padding: 1rem;
+    overflow-x: auto;
+  }
+
+  .table-wrapper {
+    border-radius: 0.75rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  tbody tr:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .inline-flex {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  a:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  .bg-gradient-to-br {
+    background-image: linear-gradient(to bottom right, #f8fafc, #f1f5f9);
+  }
+
+  .bg-gradient-to-r {
+    background-image: linear-gradient(to right, #374151, #1f2937);
+  }
+
+  .bg-white {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .max-w-7xl {
+    animation: fadeIn 0.6s ease-out;
+  }
+
+  .shadow-xl {
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  }
+
+  @media (max-width: 768px) {
+    .main-content {
+      margin-left: 0;
+      padding: 0.5rem;
+    }
+    
+    .px-6 {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+
+  .fas {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  .border-b-2 {
+    border-image: linear-gradient(to right, #e5e7eb, #d1d5db) 1;
+  }
+
+  .bg-emerald-100 {
+    background-color: #d1fae5;
+  }
+
+  .text-emerald-800 {
+    color: #065f46;
+  }
+
+  .border-emerald-300 {
+    border-color: #6ee7b7;
+  }
+</style>

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_22_132910) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -23,6 +23,8 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
     t.datetime "updated_at", null: false
     t.text "employee_remarks"
     t.bigint "achievement_id", null: false
+    t.text "l3_remarks"
+    t.float "l3_percentage"
     t.index ["achievement_id"], name: "index_achievement_remarks_on_achievement_id"
   end
 
@@ -39,9 +41,39 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
     t.float "l2_percentage"
     t.text "employee_remarks"
     t.index ["month"], name: "index_achievements_on_month"
+    t.index ["status", "month"], name: "index_achievements_on_status_and_month"
     t.index ["status"], name: "index_achievements_on_status"
     t.index ["user_detail_id", "month"], name: "index_achievements_on_user_detail_id_and_month"
+    t.index ["user_detail_id", "status"], name: "index_achievements_on_user_detail_id_and_status"
     t.index ["user_detail_id"], name: "index_achievements_on_user_detail_id"
+  end
+
+  create_table "active_storage_attachments", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "record_type", null: false
+    t.bigint "record_id", null: false
+    t.bigint "blob_id", null: false
+    t.datetime "created_at", null: false
+    t.index ["blob_id"], name: "index_active_storage_attachments_on_blob_id"
+    t.index ["record_type", "record_id", "name", "blob_id"], name: "index_active_storage_attachments_uniqueness", unique: true
+  end
+
+  create_table "active_storage_blobs", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "filename", null: false
+    t.string "content_type"
+    t.text "metadata"
+    t.string "service_name", null: false
+    t.bigint "byte_size", null: false
+    t.string "checksum"
+    t.datetime "created_at", null: false
+    t.index ["key"], name: "index_active_storage_blobs_on_key", unique: true
+  end
+
+  create_table "active_storage_variant_records", force: :cascade do |t|
+    t.bigint "blob_id", null: false
+    t.string "variation_digest", null: false
+    t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
   end
 
   create_table "activities", force: :cascade do |t|
@@ -63,10 +95,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "employee_reference"
+    t.integer "activities_count", default: 0, null: false
+    t.index ["department_type"], name: "index_departments_on_department_type"
   end
 
   create_table "employee_details", force: :cascade do |t|
-    t.string "employee_id"
     t.string "employee_name"
     t.string "employee_email"
     t.string "employee_code"
@@ -80,11 +113,19 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
     t.datetime "updated_at", null: false
     t.string "status", default: "pending"
     t.bigint "user_id"
-    t.text "l1_remarks"
-    t.float "l1_percentage"
-    t.text "l2_remarks"
-    t.float "l2_percentage"
     t.string "mobile_number"
+    t.string "l3_code"
+    t.string "l3_employer_name"
+    t.integer "user_details_count", default: 0, null: false
+    t.index ["employee_code"], name: "index_employee_details_on_employee_code"
+    t.index ["employee_email"], name: "index_employee_details_on_employee_email"
+    t.index ["l1_code", "status"], name: "index_employee_details_on_l1_code_and_status"
+    t.index ["l1_code"], name: "index_employee_details_on_l1_code"
+    t.index ["l2_code", "status"], name: "index_employee_details_on_l2_code_and_status"
+    t.index ["l2_code"], name: "index_employee_details_on_l2_code"
+    t.index ["l3_code", "status"], name: "index_employee_details_on_l3_code_and_status"
+    t.index ["l3_code"], name: "index_employee_details_on_l3_code"
+    t.index ["status"], name: "index_employee_details_on_status"
     t.index ["user_id"], name: "index_employee_details_on_user_id"
   end
 
@@ -97,20 +138,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
     t.bigint "employee_detail_id", null: false
     t.index ["employee_detail_id", "quarter"], name: "index_sms_logs_on_employee_detail_id_and_quarter"
     t.index ["employee_detail_id"], name: "index_sms_logs_on_employee_detail_id"
-  end
-
-  create_table "target_submissions", force: :cascade do |t|
-    t.bigint "user_detail_id", null: false
-    t.bigint "user_id", null: false
-    t.bigint "employee_detail_id", null: false
-    t.string "month"
-    t.string "target"
-    t.string "status"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.index ["employee_detail_id"], name: "index_target_submissions_on_employee_detail_id"
-    t.index ["user_detail_id"], name: "index_target_submissions_on_user_detail_id"
-    t.index ["user_id"], name: "index_target_submissions_on_user_id"
   end
 
   create_table "user_details", force: :cascade do |t|
@@ -132,8 +159,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
     t.datetime "updated_at", null: false
     t.bigint "employee_detail_id"
     t.bigint "user_id"
+    t.integer "achievements_count", default: 0, null: false
+    t.text "q1"
+    t.text "q2"
+    t.text "q3"
+    t.text "q4"
     t.index ["activity_id"], name: "index_user_details_on_activity_id"
     t.index ["department_id"], name: "index_user_details_on_department_id"
+    t.index ["employee_detail_id", "department_id"], name: "index_user_details_on_employee_detail_id_and_department_id"
     t.index ["employee_detail_id"], name: "index_user_details_on_employee_detail_id"
     t.index ["user_id"], name: "index_user_details_on_user_id"
   end
@@ -149,17 +182,18 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_25_165201) do
     t.string "role"
     t.string "employee_code"
     t.index ["email"], name: "index_users_on_email", unique: true
+    t.index ["employee_code"], name: "index_users_on_employee_code"
     t.index ["reset_password_token"], name: "index_users_on_reset_password_token", unique: true
+    t.index ["role"], name: "index_users_on_role"
   end
 
   add_foreign_key "achievement_remarks", "achievements"
   add_foreign_key "achievements", "user_details"
+  add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activities", "departments"
   add_foreign_key "employee_details", "users"
   add_foreign_key "sms_logs", "employee_details"
-  add_foreign_key "target_submissions", "employee_details"
-  add_foreign_key "target_submissions", "user_details"
-  add_foreign_key "target_submissions", "users"
   add_foreign_key "user_details", "activities"
   add_foreign_key "user_details", "departments"
   add_foreign_key "user_details", "employee_details"

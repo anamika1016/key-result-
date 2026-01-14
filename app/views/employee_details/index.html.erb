@@ -1,52 +1,80 @@
 <div class="main-content sidebar-hidden">
   <div class="min-h-screen pl-64 pr-4 pt-4 pb-12 overflow-x-auto bg-gray-100">
-    <!-- Flash Messages -->
-    <% if flash[:notice] %>
-      <div class="bg-green-100 text-green-800 px-4 py-2 rounded mb-4 mt-4 w-full max-w-7xl mx-auto">
-        <%= flash[:notice] %>
-      </div>
-    <% elsif flash[:alert] %>
-      <div class="bg-red-100 text-red-800 px-4 py-2 rounded mb-4 mt-4 w-full max-w-7xl mx-auto">
-        <%= flash[:alert] %>
-      </div>
-    <% end %>
+    <!-- Flash messages are handled globally in application layout -->
 
     <!-- Bulk Upload and Export Buttons -->
     <div class="w-full max-w-7xl mx-auto mt-4 flex justify-between items-center bg-white p-6 rounded-xl shadow">
-      <%= form_with url: import_employee_details_path, local: true, html: { multipart: true }, class: "flex space-x-4 items-center" do |f| %>
-        <%= f.file_field :file, class: "block w-full border border-gray-300 rounded-lg px-4 py-2" %>
-        <%= f.submit "Upload Excel", class: "bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800" %>
-      <% end %>
+      <div class="flex flex-col space-y-2">
+        <%= form_with url: import_employee_details_path, local: true, html: { multipart: true }, class: "flex space-x-4 items-center" do |f| %>
+          <%= f.file_field :file, class: "block w-full border border-gray-300 rounded-lg px-4 py-2" %>
+          <%= f.submit "Upload Excel", class: "bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-800" %>
+        <% end %>
+        <p class="text-xs text-gray-600">
+          <strong>Excel Upload:</strong> User accounts will be automatically created for all employees in the Excel file with default password "123456"
+        </p>
+      </div>
 
       <div class="flex space-x-4">
-        <%= link_to export_quarterly_xlsx_employee_details_path, 
-                    class: "inline-flex items-center px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow-md transition duration-200 transform hover:scale-105" do %>
-          <i class="fas fa-file-excel mr-2"></i>
-          Export Quarterly L1 L2 Data
-        <% end %>
-        
+        <%= link_to "Download Template", download_template_employee_details_path(format: :xlsx), class: "bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" %>
         <%= link_to "Export to Excel", export_xlsx_employee_details_path(format: :xlsx), class: "bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-800" %>
       </div>
     </div>
 
     <!-- Form to Add Employee -->
     <div class="w-full max-w-7xl mx-auto bg-white p-8 rounded-xl shadow-lg mt-8">
-      <h2 class="text-3xl font-bold text-gray-800 mb-8 border-b pb-2">Add Employee Details</h2>
+      <h2 class="text-3xl font-bold text-gray-800 mb-4 border-b pb-2">Add Employee Details</h2>
 
       <%= form_with(model: @employee_detail, url: employee_details_path, local: true, data: { turbo: false }) do |form| %>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <% [:employee_name, :employee_email, :employee_mobile, :employee_code,
-              :l1_code, :l1_employer_name, :l2_code, :l2_employer_name,:department].each do |field| %>
-            <div>
-              <%= form.label field, field.to_s.titleize, class: "block text-sm font-semibold text-gray-700 mb-1" %>
-              <%= form.text_field field, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
-            </div>
-          <% end %>
+          <div>
+            <%= form.label :employee_name, "Employee Name", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :employee_name, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :employee_email, "Employee Email", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :employee_email, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :mobile_number, "Mobile Number", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :mobile_number, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :employee_code, "Employee Code", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :employee_code, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :l1_code, "L1 Code", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :l1_code, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :l1_employer_name, "L1 Manager Name", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :l1_employer_name, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :l2_code, "L2 Code", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :l2_code, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :l2_employer_name, "L2 Manager Name", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :l2_employer_name, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :l3_code, "L3 Code", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :l3_code, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :l3_employer_name, "L3 Manager Name", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :l3_employer_name, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
+          <div>
+            <%= form.label :department, "Vertical", class: "block text-sm font-semibold text-gray-700 mb-1" %>
+            <%= form.text_field :department, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
+          </div>
         </div>
 
         <div class="mt-8 flex justify-end space-x-4">
           <%= link_to 'Cancel', employee_details_path, class: "btn btn-secondary px-5 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg hover:bg-gray-300" %>
-          <%= form.submit "Save Employee", class: "btn btn-primary px-5 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-800 shadow" %>
+          <%= form.submit "Save", class: "btn btn-primary px-5 py-2 bg-gray-700 text-white font-semibold rounded-lg hover:bg-gray-800 shadow" %>
         </div>
       <% end %>
     </div>
@@ -76,29 +104,35 @@
               <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Mobile</th>
               <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Emp Code</th>
               <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">L1 Code </th>
-              <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">L1 Name</th>
+              <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">L1 Manager</th>
               <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">L2 Code</th>
-              <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">L2 Name</th>
-              <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Department</th>
+              <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">L2 Manager</th>
+              <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">L3 Code</th>
+              <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">L3 Manager</th>
+              <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Vertical</th>
               <th class="px-4 py-3 text-left font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <% @employee_details.each do |emp| %>
+            <% @employee_department_entries.each do |entry| %>
               <tr class="hover:bg-gray-50 transition">
-                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= emp.employee_name %></td>
-                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= emp.employee_email %></td>
-                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= emp.mobile_number %></td>
-                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= emp.employee_code %></td>
-                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= emp.l1_code %></td>
-                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= emp.l1_employer_name %></td>
-                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= emp.l2_code %></td>
-                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= emp.l2_employer_name %></td>
-                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= emp.department %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:employee].employee_name %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:employee].employee_email %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:employee].mobile_number %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:employee].employee_code %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:l1_code] %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:l1_name] %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:l2_code] %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:l2_name] %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:l3_code] %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900"><%= entry[:l3_name] %></td>
+                <td class="px-4 py-4 whitespace-nowrap text-gray-900">
+                  <%= entry[:department]&.department_type || entry[:employee].department %>
+                </td>
                 <td class="px-4 py-4 whitespace-nowrap space-x-2">
-                  <%= link_to 'Edit', edit_employee_detail_path(emp), class: "text-gray-700 hover:text-gray-900 font-medium" %>
+                  <%= link_to 'Edit', edit_employee_detail_path(entry[:employee]), class: "text-gray-700 hover:text-gray-900 font-medium" %>
                   <%= link_to 'Delete', '#', 
-                      onclick: "confirmDelete('#{emp.employee_name}', '#{employee_detail_path(emp)}')", 
+                      onclick: "confirmDelete('#{entry[:employee].employee_name}', '#{employee_detail_path(entry[:employee])}')", 
                       class: "text-red-600 hover:text-red-900 font-medium cursor-pointer" %>
                 </td>
               </tr>
@@ -109,7 +143,7 @@
 
       <!-- Pagination -->
       <div class="mt-6 flex justify-center">
-        <%= paginate @employee_details, params: request.query_parameters.merge(anchor: 'employee-list') %>
+        <%= paginate @employee_department_entries, params: request.query_parameters.merge(anchor: 'employee-list') %>
       </div>
     </div>
   </div>

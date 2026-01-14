@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <style>
+      body { font-family: Arial, sans-serif; color: #333; line-height: 1.6; }
+      .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+      .header { background: #f59e0b; color: white; padding: 20px; text-align: center; }
+      .content { padding: 20px; background: #f8f9fa; }
+      .footer { padding: 15px; text-align: center; color: #666; font-size: 12px; }
+      .achievement-box { background: white; border-left: 4px solid #f59e0b; padding: 15px; margin: 15px 0; }
+      .button { background: #f59e0b; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 5px; }
+      .info-row { margin: 8px 0; }
+      .label { font-weight: bold; color: #555; }
+      .return-info { background: #fef3c7; border: 1px solid #f59e0b; padding: 15px; margin: 15px 0; border-radius: 5px; }
+      .highlight { background: #fef3c7; padding: 10px; border-radius: 5px; margin: 15px 0; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h2>🔄 KRA Returned for Refilling</h2>
+        <p>Returned by L1 Manager</p>
+      </div>
+      
+      <div class="content">
+        <p>Dear <%= @employee.employee_name %>,</p>
+        
+        <div class="highlight">
+          <p><strong>Your KRA has been returned by your L1 Manager for refilling.</strong> Please review the feedback and resubmit your achievement data.</p>
+        </div>
+        
+        <div class="achievement-box">
+          <div class="info-row">
+            <span class="label">Month:</span> <%= @achievement.month.capitalize %>
+          </div>
+          <div class="info-row">
+            <span class="label">Department:</span> <%= @user_detail.department.department_type %>
+          </div>
+          <div class="info-row">
+            <span class="label">Activity:</span> <%= @user_detail.activity.activity_name %>
+          </div>
+          <% if @achievement.achievement.present? %>
+          <div class="info-row">
+            <span class="label">Your Achievement:</span> <%= @achievement.achievement %>
+          </div>
+          <% end %>
+        </div>
+        
+        <% if @achievement.achievement_remark&.l1_remarks.present? %>
+        <div class="return-info">
+          <h4>L1 Manager Feedback:</h4>
+          <p><strong>Remarks:</strong> <%= @achievement.achievement_remark.l1_remarks %></p>
+          <% if @achievement.achievement_remark.l1_percentage.present? %>
+          <p><strong>Percentage Given:</strong> <%= @achievement.achievement_remark.l1_percentage %>%</p>
+          <% end %>
+        </div>
+        <% end %>
+        
+        <p><strong>Action Required:</strong></p>
+        <ul>
+          <li>Review the L1 Manager's feedback above</li>
+          <li>Update your achievement data as needed</li>
+          <li>Resubmit for L1 approval</li>
+        </ul>
+        
+        <p>Please log in to the system to refill and resubmit your KRA:</p>
+        
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="<%= url_for(controller: 'user_details', action: 'index', only_path: false) %>" class="button">
+            Refill KRA
+          </a>
+        </div>
+        
+        <p><strong>Important Notes:</strong></p>
+        <ul>
+          <li>Your KRA has been returned to you for refilling</li>
+          <li>Please address all feedback provided by your L1 Manager</li>
+          <li>Once refilled, your KRA will go back to L1 for approval</li>
+          <li>Contact your L1 Manager if you need clarification on the feedback</li>
+        </ul>
+      </div>
+      
+      <div class="footer">
+        <p>This is an automated notification from KRA App</p>
+        <p>Please do not reply to this email</p>
+      </div>
+    </div>
+  </body>
+</html>

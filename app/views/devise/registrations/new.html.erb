@@ -1,224 +1,689 @@
 
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
         body {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: transparent;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             min-height: 100vh;
             padding: 20px 0;
+            overflow-x: hidden;
+        }
+
+        .auth-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
         }
 
         .auth-card {
             background: white;
-            border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-            border: 1px solid #e9ecef;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border: 1px solid #e5e7eb;
             overflow: hidden;
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            min-height: 600px;
+            animation: slideInUp 0.8s ease-out;
         }
 
-        .auth-header {
-            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .auth-left-panel {
+            background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
             color: white;
-            padding: 1.5rem;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             text-align: center;
-            border-bottom: none;
+            position: relative;
+            flex: 1;
+            min-width: 400px;
         }
 
-        .auth-header h2, .auth-header h4 {
-            margin: 0;
+        .auth-left-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .auth-right-panel {
+            background: white;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .welcome-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+            animation: fadeInLeft 1s ease-out 0.3s both;
+        }
+
+        .welcome-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 1;
+            animation: fadeInLeft 1s ease-out 0.5s both;
+        }
+
+        @keyframes fadeInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .user-add-icon {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 1;
+            animation: bounceIn 1s ease-out 0.7s both;
+        }
+
+        @keyframes bounceIn {
+            0% {
+                opacity: 0;
+                transform: scale(0.3);
+            }
+            50% {
+                opacity: 1;
+                transform: scale(1.05);
+            }
+            70% {
+                transform: scale(0.9);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .signup-btn {
+            background: transparent;
+            border: 2px solid white;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 1;
+            animation: fadeInUp 1s ease-out 0.9s both;
+        }
+
+        .signup-btn:hover {
+            background: white;
+            color: #374151;
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .form-subtitle {
+            color: #6b7280;
+            text-align: center;
+            margin-bottom: 2rem;
+            animation: fadeInDown 0.8s ease-out 0.2s both;
+        }
+
+        .social-icons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 2rem;
+            animation: fadeInUp 0.8s ease-out 0.4s both;
+        }
+
+        .social-icon {
+            width: 50px;
+            height: 50px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .social-icon:hover {
+            border-color: #374151;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .divider {
+            text-align: center;
+            margin: 2rem 0;
+            position: relative;
+            animation: fadeIn 0.8s ease-out 0.6s both;
+        }
+
+        .divider::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: #e5e7eb;
+        }
+
+        .divider span {
+            background: white;
+            padding: 0 20px;
+            color: #6b7280;
             font-weight: 600;
         }
 
-        .auth-body {
-            padding: 2rem;
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            animation: slideInRight 0.6s ease-out both;
+        }
+
+        .form-group:nth-child(1) { animation-delay: 0.7s; }
+        .form-group:nth-child(2) { animation-delay: 0.8s; }
+        .form-group:nth-child(3) { animation-delay: 0.9s; }
+        .form-group:nth-child(4) { animation-delay: 1.0s; }
+        .form-group:nth-child(5) { animation-delay: 1.1s; }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
         }
 
         .form-label {
-            color: #495057;
+            color: #374151;
             font-weight: 600;
             margin-bottom: 0.5rem;
+            display: block;
+            font-size: 0.9rem;
         }
 
         .form-control, .form-select {
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 15px 20px;
             font-size: 1rem;
             transition: all 0.3s ease;
-            background-color: #f8f9fa;
+            background-color: #f9fafb;
+            width: 100%;
+            position: relative;
         }
 
         .form-control:focus, .form-select:focus {
-            border-color: #6c757d;
-            box-shadow: 0 0 0 0.2rem rgba(108, 117, 125, 0.15);
+            border-color: #374151;
+            box-shadow: 0 0 0 3px rgba(55, 65, 81, 0.1);
             background-color: white;
+            outline: none;
         }
 
-        .form-control-lg {
-            padding: 1rem 1.25rem;
-            font-size: 1.1rem;
+        .form-control::placeholder {
+            color: #9ca3af;
         }
 
-        .form-select-lg {
-            padding: 1rem 1.25rem;
-            font-size: 1.1rem;
-        }
-
-        .btn-auth {
-            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        .btn-register {
+            background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
             border: none;
-            border-radius: 8px;
-            padding: 0.75rem 1.5rem;
+            border-radius: 12px;
+            padding: 15px 30px;
             font-weight: 600;
+            font-size: 1rem;
+            color: white;
+            cursor: pointer;
             transition: all 0.3s ease;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+            animation: slideInUp 0.6s ease-out 1.2s both;
         }
 
-        .btn-auth:hover {
-            background: linear-gradient(135deg, #495057 0%, #343a40 100%);
-            transform: translateY(-1px);
+        .btn-register::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
         }
 
-        .btn-lg {
-            padding: 1rem 2rem;
-            font-size: 1.1rem;
+        .btn-register:hover::before {
+            left: 100%;
         }
 
-        .alert {
-            border: none;
-            border-radius: 8px;
-            margin-bottom: 1.5rem;
-        }
-
-        .alert-danger {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-
-        .form-check-input {
-            margin-top: 0.25rem;
-        }
-
-        .form-check-label {
-            color: #6c757d;
+        .btn-register:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(55, 65, 81, 0.3);
         }
 
         .auth-links {
             text-align: center;
-            margin-top: 1.5rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid #e9ecef;
+            margin-top: 2rem;
+            animation: fadeIn 0.8s ease-out 1.3s both;
         }
 
         .auth-links a {
-            color: #6c757d;
+            color: #374151;
             text-decoration: none;
             font-weight: 500;
+            transition: color 0.3s ease;
         }
 
         .auth-links a:hover {
-            color: #495057;
+            color: #1f2937;
         }
 
-        .text-muted {
-            color: #6c757d !important;
-        }
-
-        .field {
+        .alert {
+            border: none;
+            border-radius: 12px;
             margin-bottom: 1.5rem;
+            padding: 15px 20px;
+            animation: slideInDown 0.5s ease-out;
         }
 
-        .actions {
-            margin-top: 1.5rem;
+        @keyframes slideInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
-        .cancel-account {
-            background-color: #f8f9fa;
-            border: 2px solid #e9ecef;
-            border-radius: 8px;
-            padding: 1.5rem;
-            margin-top: 2rem;
+        .alert-danger {
+            background-color: #fef2f2;
+            color: #dc2626;
+            border-left: 4px solid #dc2626;
         }
 
-        .btn-danger {
-            background-color: #dc3545;
-            border-color: #dc3545;
+        .floating-shapes {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            overflow: hidden;
         }
 
-        .btn-outline-secondary {
-            border-color: #6c757d;
-            color: #6c757d;
+        .shape {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: float 6s ease-in-out infinite;
         }
 
-        .btn-outline-secondary:hover {
-            background-color: #6c757d;
-            border-color: #6c757d;
+        .shape:nth-child(1) {
+            width: 60px;
+            height: 60px;
+            top: 20%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+
+        .shape:nth-child(2) {
+            width: 40px;
+            height: 40px;
+            top: 60%;
+            right: 15%;
+            animation-delay: 2s;
+        }
+
+        .shape:nth-child(3) {
+            width: 80px;
+            height: 80px;
+            bottom: 20%;
+            left: 20%;
+            animation-delay: 4s;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0px) rotate(0deg);
+            }
+            50% {
+                transform: translateY(-20px) rotate(180deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .auth-card {
+                flex-direction: column;
+                max-width: 400px;
+            }
+            
+            .auth-left-panel {
+                min-width: auto;
+                padding: 2rem;
+            }
+            
+            .auth-right-panel {
+                padding: 2rem;
+            }
+            
+            .welcome-title {
+                font-size: 2rem;
+            }
         }
     </style>
 
 
-<!-- Sign Up Form -->
-<div class="container mt-5 mb-5">
-  <div class="row justify-content-center">
-    <div class="col-md-6 col-lg-5">
-      <div class="card auth-card shadow">
-        <div class="card-header auth-header text-white bg-success">
-          <h4 class="mb-0 text-center">Sign Up</h4>
+<!-- Modern Dual Panel Sign Up Form -->
+<div class="auth-container">
+  <div class="auth-card">
+    <!-- Left Panel - Welcome Section -->
+    <div class="auth-left-panel">
+      <div class="floating-shapes">
+        <div class="shape"></div>
+        <div class="shape"></div>
+        <div class="shape"></div>
+      </div>
+      
+      <svg class="user-add-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="50" cy="35" r="15" fill="white" opacity="0.9"/>
+        <path d="M25 75c0-13.8 11.2-25 25-25s25 11.2 25 25" stroke="white" stroke-width="4" stroke-linecap="round" opacity="0.9"/>
+        <circle cx="50" cy="50" r="45" stroke="white" stroke-width="2" opacity="0.3"/>
+        <path d="M50 30v20M40 40h20" stroke="white" stroke-width="3" stroke-linecap="round" opacity="0.9"/>
+      </svg>
+      
+      <h1 class="welcome-title">Join Us Today!</h1>
+      <p class="welcome-subtitle">Create your account and start your journey with our amazing platform</p>
+      
+      <button class="signup-btn" onclick="window.location.href='<%= new_user_session_path %>'">
+        Switch to Sign In
+      </button>
+    </div>
+
+    <!-- Right Panel - Registration Form -->
+    <div class="auth-right-panel">
+      <h2 class="form-title">Create Account</h2>
+      <p class="form-subtitle">Fill out the following information to register</p>
+      
+
+      <!-- Flash or error messages -->
+      <% if resource.errors.any? %>
+        <div class="alert alert-danger">
+          <ul class="mb-0">
+            <% resource.errors.full_messages.each do |msg| %>
+              <li><%= msg %></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <%= form_for(resource, as: resource_name, url: registration_path(resource_name), html: { autocomplete: "off", data: { turbo: false } }) do |f| %>
+        <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
+
+        <div class="form-group">
+          <%= f.label :email, "Email", class: "form-label" %>
+          <%= f.email_field :email, autofocus: true, required: true, placeholder: "Enter your email", class: "form-control" %>
         </div>
 
-        <div class="card-body auth-body">
-
-          <!-- Flash or error messages -->
-          <% if resource.errors.any? %>
-            <div class="alert alert-danger">
-              <ul class="mb-0">
-                <% resource.errors.full_messages.each do |msg| %>
-                  <li><%= msg %></li>
-                <% end %>
-              </ul>
-            </div>
-          <% end %>
-
-          <%= form_for(resource, as: resource_name, url: registration_path(resource_name), html: { autocomplete: "off", data: { turbo: false } }) do |f| %>
-            <%= hidden_field_tag :authenticity_token, form_authenticity_token %>
-
-            <div class="mb-3">
-              <%= f.label :email, "Email", class: "form-label" %>
-              <%= f.email_field :email, autofocus: true, required: true, placeholder: "Enter your email", class: "form-control form-control-lg" %>
-            </div>
-
-            <div class="mb-3">
-              <%= f.label :password, "Password", class: "form-label" %>
-              <%= f.password_field :password, required: true, placeholder: "Enter password", class: "form-control form-control-lg" %>
-            </div>
-
-            <div class="mb-3">
-              <%= f.label :password_confirmation, "Confirm Password", class: "form-label" %>
-              <%= f.password_field :password_confirmation, required: true, placeholder: "Confirm password", class: "form-control form-control-lg" %>
-            </div>
-            <div class="mb-3">
-              <%= f.label :employee_code, "Employee Code", class: "form-label" %>
-              <%= f.text_field :employee_code, required: true, placeholder: "Enter employee code", class: "form-control form-control-lg" %>
-            </div>
-
-            <div class="mb-3">
-              <%= f.label :role, "Select Role", class: "form-label" %>
-              <%= f.select :role, options_for_select([
-                  ["Employee", "employee"],
-                  ["HOD", "hod"]
-                ]), { prompt: "Choose your role" }, class: "form-select form-select-lg", required: true %>
-            </div>
-
-            <div class="d-grid mb-3">
-              <%= f.submit "Create Account", class: "btn btn-auth btn-lg text-white bg-success" %>
-            </div>
-          <% end %>
-
-          <div class="text-center mt-3">
-            Already have an account?
-            <%= link_to "Sign in", root_path, class: "text-decoration-none text-success fw-bold" %>
-          </div>
+        <div class="form-group">
+          <%= f.label :password, "Password", class: "form-label" %>
+          <%= f.password_field :password, required: true, placeholder: "Enter password", class: "form-control" %>
         </div>
+
+        <div class="form-group">
+          <%= f.label :password_confirmation, "Confirm Password", class: "form-label" %>
+          <%= f.password_field :password_confirmation, required: true, placeholder: "Confirm password", class: "form-control" %>
+        </div>
+
+        <div class="form-group">
+          <%= f.label :employee_code, "Employee Code", class: "form-label" %>
+          <%= f.text_field :employee_code, required: true, placeholder: "Enter employee code", class: "form-control" %>
+        </div>
+
+        <div class="form-group">
+          <%= f.label :role, "Select Role", class: "form-label" %>
+          <%= f.select :role, options_for_select([
+              ["Employee", "employee"],
+              ["Super Admin", "hod"]
+            ]), { prompt: "Choose your role" }, class: "form-select", required: true %>
+        </div>
+
+        <%= f.submit "Create Account", class: "btn-register" %>
+      <% end %>
+
+      <div class="auth-links">
+        Already have an account?
+        <%= link_to "Sign in", root_path, class: "text-decoration-none fw-bold" %>
       </div>
     </div>
   </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add interactive animations to form elements
+    const formControls = document.querySelectorAll('.form-control, .form-select');
+    formControls.forEach(control => {
+        control.addEventListener('focus', function() {
+            this.parentElement.style.transform = 'scale(1.02)';
+            this.parentElement.style.transition = 'transform 0.3s ease';
+        });
+        
+        control.addEventListener('blur', function() {
+            this.parentElement.style.transform = 'scale(1)';
+        });
+    });
+
+    // Add ripple effect to buttons
+    const buttons = document.querySelectorAll('.btn-register, .signup-btn');
+    buttons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            const ripple = document.createElement('span');
+            const rect = this.getBoundingClientRect();
+            const size = Math.max(rect.width, rect.height);
+            const x = e.clientX - rect.left - size / 2;
+            const y = e.clientY - rect.top - size / 2;
+            
+            ripple.style.width = ripple.style.height = size + 'px';
+            ripple.style.left = x + 'px';
+            ripple.style.top = y + 'px';
+            ripple.classList.add('ripple');
+            
+            this.appendChild(ripple);
+            
+            setTimeout(() => {
+                ripple.remove();
+            }, 600);
+        });
+    });
+
+    // Add floating animation to shapes
+    const shapes = document.querySelectorAll('.shape');
+    shapes.forEach((shape, index) => {
+        shape.style.animationDelay = (index * 2) + 's';
+    });
+
+    // Add typing animation to welcome text
+    const welcomeTitle = document.querySelector('.welcome-title');
+    if (welcomeTitle) {
+        const text = welcomeTitle.textContent;
+        welcomeTitle.textContent = '';
+        let i = 0;
+        const typeWriter = () => {
+            if (i < text.length) {
+                welcomeTitle.textContent += text.charAt(i);
+                i++;
+                setTimeout(typeWriter, 100);
+            }
+        };
+        setTimeout(typeWriter, 1000);
+    }
+
+    // Add user addition animation
+    const userAddIcon = document.querySelector('.user-add-icon');
+    if (userAddIcon) {
+        userAddIcon.addEventListener('mouseenter', function() {
+            this.style.transform = 'scale(1.1) rotate(5deg)';
+            this.style.transition = 'transform 0.3s ease';
+        });
+        
+        userAddIcon.addEventListener('mouseleave', function() {
+            this.style.transform = 'scale(1) rotate(0deg)';
+        });
+    }
+
+    // Add form validation animations
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const requiredFields = form.querySelectorAll('[required]');
+            let hasErrors = false;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    field.style.borderColor = '#dc2626';
+                    field.style.animation = 'shake 0.5s ease-in-out';
+                    hasErrors = true;
+                    
+                    setTimeout(() => {
+                        field.style.borderColor = '#e5e7eb';
+                        field.style.animation = '';
+                    }, 500);
+                }
+            });
+            
+            if (hasErrors) {
+                e.preventDefault();
+            }
+        });
+    }
+});
+
+// Add CSS for ripple effect and shake animation
+(function() {
+    // Check if style already exists to avoid Turbo conflicts
+    let styleElement = document.getElementById('registration-style');
+    if (!styleElement) {
+        styleElement = document.createElement('style');
+        styleElement.id = 'registration-style';
+        styleElement.textContent = `
+    .ripple {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.6);
+        transform: scale(0);
+        animation: ripple-animation 0.6s linear;
+        pointer-events: none;
+    }
+    
+    @keyframes ripple-animation {
+        to {
+            transform: scale(4);
+            opacity: 0;
+        }
+    }
+    
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+    
+    .btn-register, .signup-btn {
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .user-add-icon {
+        cursor: pointer;
+        transition: transform 0.3s ease;
+    }
+`;
+        document.head.appendChild(styleElement);
+    }
+})();
+</script>
 

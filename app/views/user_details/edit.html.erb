@@ -8,7 +8,7 @@
       <%= form_with(model: @user_detail, local: true) do |form| %>
         <div class="form-row">
           <div class="form-group">
-            <%= form.label :department_id, "Department", class: "form-label" %>
+            <%= form.label :department_id, "Vertical", class: "form-label" %>
             <%= form.select :department_id, Department.all.map { |d| [d.department_type, d.id] }, {}, class: "form-control" %>
           </div>
 
@@ -23,21 +23,37 @@
           </div>
         </div>
 
-        <% months = %w[april may june july august september october november december january february march] %>
-        <% months.each_slice(4) do |group| %>
-          <div class="form-row">
-            <% group.each do |month| %>
-              <div class="form-group">
-                <%= form.label month.capitalize, class: "form-label" %>
-                <%= form.text_field month, class: "form-control", placeholder: "#{month.capitalize} data" %>
-              </div>
-            <% end %>
+        <div class="form-row">
+          <div class="form-group">
+            <%= form.label :activity_theme_name, "KPI", class: "form-label" %>
+            <%= form.text_field :activity_theme_name, 
+                value: @user_detail.activity&.theme_name || 'No Theme',
+                class: "form-control" %>
           </div>
-        <% end %>
+
+          <div class="form-group">
+            <%= form.label :activity_unit, "Unit", class: "form-label" %>
+            <%= form.text_field :activity_unit, 
+                value: @user_detail.activity&.unit || '',
+                class: "form-control" %>
+          </div>
+
+          <div class="form-group">
+            <%= form.label :activity_weight, "Weightage", class: "form-label" %>
+            <%= form.number_field :activity_weight, 
+                value: @user_detail.activity&.weight || 0,
+                step: 0.1,
+                class: "form-control" %>
+          </div>
+        </div>
+
 
         <div class="text-center mt-4">
-          <%= form.submit "Update", class: "btn btn-success" %>
-          <%= link_to "Back", new_user_detail_path, class: "btn btn-secondary" %>
+          <%= form.submit "Update", class: "btn btn-success", 
+              data: { confirm: "Update this target?" } %>
+          <%= link_to "Back to Super Admin Target Form", user_details_path, 
+              class: "btn btn-secondary back-button",
+              data: { confirm: "Go back to target form?" } %>
         </div>
       <% end %>
     </div>
@@ -260,3 +276,18 @@ select.form-control {
   transform: translateY(0);
 }
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // Back button confirmation
+  const backButton = document.querySelector('.back-button');
+  
+  if (backButton) {
+    backButton.addEventListener('click', function(e) {
+      if (!confirm('Go back to target form?')) {
+        e.preventDefault();
+      }
+    });
+  }
+});
+</script>

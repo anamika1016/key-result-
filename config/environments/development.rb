@@ -17,11 +17,11 @@ Rails.application.configure do
   config.assets.debug = true
   config.assets.digest = false
   config.assets.raise_runtime_errors = true
-  
+
   # Allow specific hosts for development
   config.hosts << "139.59.8.73"
   config.hosts << "139.59.8.73:3002"
-  
+
   # Enable/disable Action Controller caching. By default Action Controller caching is disabled.
   # Run rails dev:cache to toggle Action Controller caching.
   if Rails.root.join("tmp/caching-dev.txt").exist?
@@ -34,23 +34,34 @@ Rails.application.configure do
 
   # Change to :null_store to avoid any caching.
   config.cache_store = :memory_store
-  config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }
-  config.action_mailer.delivery_method = :letter_opener
+  # Action Mailer settings for development
+  # Use :smtp for actual email delivery to inbox
+  config.action_mailer.delivery_method = :smtp
   config.action_mailer.perform_deliveries = true
-  config.action_mailer.default_url_options = { host: 'localhost', port: 3000 }
+  config.action_mailer.default_url_options = { host: "139.59.8.73", port: 3002 }
+
+  # SMTP settings for development - using Gmail SMTP since ploughmanagro.com uses Google Workspace
+  config.action_mailer.smtp_settings = {
+    address: "smtp.gmail.com",
+    port: 587,
+    domain: "ploughmanagro.com",
+    user_name: "notification@ploughmanagro.com",
+    password: "qtxqykbyjuyinwri", # App password provided by user
+    authentication: :plain,
+    enable_starttls_auto: true
+  }
 
 
   # Store uploaded files on the local file system (see config/storage.yml for options).
   config.active_storage.service = :local
 
-  # Don't care if the mailer can't send.
-  config.action_mailer.raise_delivery_errors = false
+  # Enable delivery errors for debugging
+  config.action_mailer.raise_delivery_errors = true
 
   # Make template changes take effect immediately.
   config.action_mailer.perform_caching = false
 
-  # Set localhost to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
+  # Remove duplicate default_url_options (already set above)
 
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log

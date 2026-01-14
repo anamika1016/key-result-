@@ -1,4 +1,4 @@
-<!-- L2 Employee Detail Quarterly View with Fixed L2 Remarks Display -->
+<!-- L2 Manager Detail Quarterly View with Fixed L2 Remarks Display -->
 <meta name="csrf-token" content="<%= form_authenticity_token %>">
 <div class="main-content bg-gray-50 min-h-screen">
 <div class="p-8 bg-white rounded-xl shadow-lg border border-gray-200 mx-4">
@@ -7,6 +7,20 @@
       <i class="fas fa-user-circle mr-3 text-gray-600"></i>
       Employee Detail - L2 Review
     </h2>
+    
+    <!-- Vertical Filter - Only show if coming from specific vertical -->
+    <% if @selected_department.present? %>
+      <% 
+        # Get the specific department being viewed
+        current_department = Department.find(@selected_department)
+      %>
+      <div class="mt-4">
+        <div class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg text-sm font-medium">
+          <i class="fas fa-building mr-2"></i>
+          Vertical: <%= current_department.department_type %>
+        </div>
+      </div>
+    <% end %>
   </div>
 
   <!-- Status Message Container -->
@@ -16,13 +30,13 @@
     # Define months to display based on quarter
     display_months = case params[:quarter]
                      when 'Q1'
-                       [[:january, 'Jan'], [:february, 'Feb'], [:march, 'Mar']]
-                     when 'Q2'
                        [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']]
-                     when 'Q3'
+                     when 'Q2'
                        [[:july, 'Jul'], [:august, 'Aug'], [:september, 'Sep']]
-                     when 'Q4'
+                     when 'Q3'
                        [[:october, 'Oct'], [:november, 'Nov'], [:december, 'Dec']]
+                     when 'Q4'
+                       [[:january, 'Jan'], [:february, 'Feb'], [:march, 'Mar']]
                      else
                        []
                      end
@@ -76,16 +90,20 @@
     has_l2_data = quarter_l2_total > 0 || quarter_remarks_l2.any?
     
     if quarterly_statuses.any?
-      # Check for L2 actions first (highest priority)
-      if quarterly_statuses.all? { |s| s == "l2_approved" } || has_l2_data
+      # FIXED: Prioritize actual achievement status in proper hierarchy
+      if quarterly_statuses.any? { |s| s == "l3_approved" }
+        overall_quarter_status = "l3_approved"
+        l2_status = "approved"  # L3 approved means L2 also approved
+      elsif quarterly_statuses.any? { |s| s == "l3_returned" }
+        overall_quarter_status = "l3_returned"
+        l2_status = "returned"  # L3 returned means L2 also returned
+      elsif quarterly_statuses.any? { |s| s == "l2_approved" }
         overall_quarter_status = "l2_approved"
         l2_status = "approved"
       elsif quarterly_statuses.any? { |s| s == "l2_returned" }
         overall_quarter_status = "l2_returned" 
         l2_status = "returned"
-      # Check for L1 status when L2 hasn't acted
-      elsif quarterly_statuses.all? { |s| s == "l1_approved" } || 
-            (quarter_l1_total > 0 && quarter_remarks_l1.any? && !quarterly_statuses.any? { |s| ["l1_returned", "l2_returned"].include?(s) })
+      elsif quarterly_statuses.any? { |s| s == "l1_approved" }
         overall_quarter_status = "l1_approved"
         l2_status = "pending"  # L2 is still pending when L1 is approved
       elsif quarterly_statuses.any? { |s| s == "l1_returned" }
@@ -100,8 +118,9 @@
       end
     end
     
-    # Override status if L2 data exists (means L2 has acted)
-    if has_l2_data && l2_status == "pending"
+    # Only override status if L2 data exists AND the actual achievement status is l2_approved
+    # This prevents showing L2 Approved when L1 has just edited and approved (status is l1_approved)
+    if has_l2_data && l2_status == "pending" && quarterly_statuses.any? { |s| s == "l2_approved" }
       overall_quarter_status = "l2_approved"
       l2_status = "approved"
     end
@@ -110,13 +129,17 @@
     when "pending"
       { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
     when "l1_approved"
-      { color: "bg-green-100 text-green-800 border-green-300", text: "L1 Approved", icon: "fas fa-check-circle" }
+      { color: "bg-sky-100 text-sky-800 border-sky-300", text: "L1 Approved", icon: "fas fa-check-circle" }
     when "l1_returned"
       { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
     when "l2_approved"
       { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
     when "l2_returned"
       { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+    when "l3_approved"
+      { color: "bg-green-100 text-green-800 border-green-300", text: "L3 Approved", icon: "fas fa-crown" }
+    when "l3_returned"
+      { color: "bg-red-100 text-red-800 border-red-300", text: "L3 Returned", icon: "fas fa-exclamation-triangle" }
     when "submitted"
       { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
     else
@@ -132,98 +155,181 @@
     quarter_remarks_l2_array = quarter_remarks_l2.to_a
   %>
 
-  <% if @user_details.any? && params[:quarter].present? %>
+  <% if @user_details.any? %>
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm mt-8">
       <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
         <h2 class="text-2xl font-bold text-gray-800 flex items-center">
           <i class="fas fa-trophy mr-3 text-gray-600"></i>
-           Quarter Achievement Details
+          <%= @selected_quarter %> Quarter Achievement Details
         </h2>
       </div>
 
       <div class="p-6">
+        <%
+          # Define months to display based on selected quarter
+          display_months = case @selected_quarter
+                          when 'Q1'
+                            [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']]
+                          when 'Q2'
+                            [[:july, 'Jul'], [:august, 'Aug'], [:september, 'Sep']]
+                          when 'Q3'
+                            [[:october, 'Oct'], [:november, 'Nov'], [:december, 'Dec']]
+                          when 'Q4'
+                            [[:january, 'Jan'], [:february, 'Feb'], [:march, 'Mar']]
+                          else
+                            # Default to Q1
+                            [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']]
+                          end
+        %>
+        
         <div class="table-wrapper overflow-auto bg-white rounded-lg border border-gray-200">
-          <table class="table table-hover w-full min-w-full">
-            <thead class="bg-gray-800">
+          
+          <!-- NEW: Simplified table matching the screen you described -->
+          <table class="min-w-full divide-y divide-gray-300 text-sm">
+            <thead class="bg-gradient-to-r from-gray-800 to-gray-700">
               <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Department</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Name</th>
-                <th class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Activity</th>
-                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
-
-                <!-- DYNAMIC MONTH COLUMNS -->
-                <% display_months.each do |month_symbol, month_name| %>
-                  <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Target</th>
-                  <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Achievement</th>
-                  <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Remarks</th>
-                <% end %>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Indicator</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">KPI</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Weightage</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600" colspan="3">
+                  <%= @selected_quarter %> (<%= display_months.map(&:last).join('-') %>)
+                </th>
+              </tr>
+              <tr class="bg-gray-700">
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
+                <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider">Weightage Score</th>
               </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
-              <% @user_details.each_with_index do |detail, detail_index| %>
+              <% 
+                total_weightage = 0
+                total_achievement = 0
+                total_weightage_score = 0
+                row_count = 0
+                
+                # FIXED: Group user_details by activity name to prevent duplicates
+                grouped_details = @user_details.group_by { |detail| detail.activity&.activity_name }
+                processed_activities = Set.new
+              %>
+              <% grouped_details.each_with_index do |(activity_name, details), detail_index| %>
                 <% 
-                  existing_achievements = detail.achievements.index_by(&:month)
-                  # Only render the row if there is at least one achievement in the selected quarter for this activity
-                  has_quarterly_data = display_months.any? do |month_symbol, _|
-                    existing_achievements[month_symbol.to_s]&.achievement.present? || detail.send(month_symbol).present?
-                  end
+                  # Skip if we've already processed this activity
+                  next if processed_activities.include?(activity_name)
+                  processed_activities.add(activity_name)
+                  
+                  # Use the first detail for this activity (they should all have the same activity data)
+                  detail = details.first
                 %>
-                <% if has_quarterly_data %>
-                  <tr class="<%= detail_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
-                    <!-- Static Columns -->
-                    <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200">
-                      <%= detail.department&.department_type || 'N/A' %>
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200">
-                      <%= detail.employee_detail&.employee_name || 'N/A' %>
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200">
-                      <%= detail.activity&.activity_name || 'N/A' %>
-                    </td>
-                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center">
-                      <%= detail.activity&.unit || '' %>
-                    </td>
-
-                    <!-- Dynamic Month Data Columns -->
-                    <% display_months.each do |month_symbol, month_name| %>
-                      <%
-                        target_value = detail.send(month_symbol)
-                        achievement_record = existing_achievements[month_symbol.to_s]
-                        achievement_value = achievement_record&.achievement
-                        employee_remarks = achievement_record&.employee_remarks
-                      %>
-                      <!-- Target -->
-                      <td class="px-4 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-gray-50">
-                        <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
-                          <%= target_value.presence || '-' %>
-                        </span>
-                      </td>
-                      
-                      <!-- Achievement -->
-                      <td class="px-4 py-3 text-sm text-center border-r border-gray-200 achievement-cell">
-                        <span class="<%= achievement_value.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
-                          <%= achievement_value.presence || '-' %>
-                        </span>
-                      </td>
-                      
-                      <!-- Remarks -->
-                      <td class="px-4 py-3 text-sm text-center border-r border-gray-200 remarks-cell">
-                        <% if employee_remarks.present? %>
-                          <div class="text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs break-words">
-                            <%= employee_remarks %>
-                          </div>
-                        <% else %>
-                          <span class="text-gray-400 text-xs">-</span>
-                        <% end %>
-                      </td>
+                <% 
+                  # FIXED: Calculate quarterly data for this activity
+                  quarter_achievements = detail.achievements.select { |a| display_months.map(&:first).map(&:to_s).include?(a.month) }
+                  
+                  
+                  # Get weightage from the activity (using 'weight' attribute)
+                  weightage = detail.activity&.weight || 0
+                  total_weightage += weightage
+                  
+                  # FIXED: Calculate average achievement for the quarter
+                  quarter_achievement_values = quarter_achievements.map { |a| a.achievement.to_f rescue 0 }.compact
+                  avg_achievement = quarter_achievement_values.any? ? (quarter_achievement_values.sum / quarter_achievement_values.size) : 0
+                  
+                  # FIXED: If no quarter achievements found, try to get any achievements for this activity
+                  if avg_achievement == 0 && detail.achievements.any?
+                    all_achievement_values = detail.achievements.map { |a| a.achievement.to_f rescue 0 }.compact
+                    avg_achievement = all_achievement_values.any? ? (all_achievement_values.sum / all_achievement_values.size) : 0
+                  end
+                  
+                  
+                  # Calculate weightage score
+                  weightage_score = (weightage * avg_achievement / 100).round(2)
+                  total_weightage_score += weightage_score
+                  
+                  # FIXED: Get remarks (use the first available remark)
+                  remarks = quarter_achievements.map { |a| a.employee_remarks }.compact.first
+                  
+                  # If no quarter remarks, try to get any remarks for this activity
+                  if remarks.blank? && detail.achievements.any?
+                    remarks = detail.achievements.map { |a| a.employee_remarks }.compact.first
+                  end
+                  
+                  # Don't set default remarks - show empty if no remarks provided
+                  remarks = remarks.present? ? remarks : ""
+                  
+                  row_count += 1
+                %>
+                <tr class="<%= detail_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
+                  <td class="px-6 py-4 text-sm text-gray-800 font-medium border-r border-gray-200">
+                    <%= detail.activity&.activity_name || 'N/A' %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= detail.activity&.theme_name || 'N/A' %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= detail.activity&.unit || 'N/A' %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= weightage %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                    <span class="text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
+                      <%= avg_achievement.round(0) %>%
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                    <% if remarks.present? %>
+                      <span class="text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs">
+                        <%= remarks %>
+                      </span>
+                    <% else %>
+                      <span class="text-gray-500 font-medium bg-gray-50 px-2 py-1 rounded text-xs">
+                        No remarks
+                      </span>
                     <% end %>
-                  </tr>
-                <% end %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-center">
+                    <span class="text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
+                      <%= weightage_score %>
+                    </span>
+                  </td>
+                </tr>
               <% end %>
+              
+              <!-- TOTAL COUNT ROW -->
+              <tr class="bg-green-100 font-semibold">
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">TOTAL COUNT</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200"><%= total_weightage.round(2) %></td>
+                <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                  <span class="text-green-800 font-bold">
+                    <%= total_weightage > 0 ? ((total_weightage_score / total_weightage) * 100).round(2) : 0 %>%
+                  </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
+                  <span class="text-gray-600">-</span>
+                </td>
+                <td class="px-6 py-4 text-sm text-center">
+                  <span class="text-green-800 font-bold">
+                    <%= total_weightage_score.round(2) %>
+                  </span>
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>
       </div>
+    </div>
+  <% else %>
+    <div class="text-center py-12">
+      <i class="fas fa-exclamation-triangle text-6xl text-gray-400 mb-4"></i>
+      <h3 class="text-xl font-semibold text-gray-600 mb-2">No Data Available</h3>
+      <p class="text-gray-500">No achievement data found for this quarter.</p>
     </div>
   <% end %>
 
@@ -261,12 +367,10 @@
       l2_percentages = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l2_percentage&.to_f }
       final_l2_average = l2_percentages.any? ? (l2_percentages.sum / l2_percentages.size).round(1) : 0.0
 
-      # UNIQUE remarks collection (no duplicates) - FIXED: Use proper server-side data
-      unique_l1_remarks = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l1_remarks }.uniq.compact
-      unique_l2_remarks = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l2_remarks }.uniq.compact
+      # SINGLE remark per level per quarter (take first non-empty remark)
+      unique_l1_remarks = [all_quarter_achievements.filter_map { |a| a.achievement_remark&.l1_remarks }.compact.first].compact
+      unique_l2_remarks = [all_quarter_achievements.filter_map { |a| a.achievement_remark&.l2_remarks }.compact.first].compact
       
-      # DEBUG: Log the remarks to check what's being collected
-      Rails.logger.debug "L2 Remarks found: #{unique_l2_remarks.inspect}" if defined?(Rails)
     %>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
@@ -281,20 +385,20 @@
         <!-- Quarter Average Percentage -->
         <div class="mb-6 text-center">
           <div class="bg-blue-200 p-4 rounded-lg inline-block">
-            <p class="text-blue-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
+            <p class="style="color: #2d374b;" font-semibold text-sm mb-1">Quarter Average Percentage</p>
             <p class="text-3xl font-bold text-blue-800"><%= final_l1_average %>%</p>
           </div>
         </div>
 
         <!-- UNIQUE L1 Remarks -->
         <div class="space-y-3">
-          <h4 class="text-blue-600 font-semibold text-sm">Quarter Remarks:</h4>
+          <h4 class="style="color: #2d374b;" font-semibold text-sm">Quarter Remarks:</h4>
           <% if unique_l1_remarks.any? %>
             <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto">
               <% unique_l1_remarks.each_with_index do |remark, index| %>
                 <div class="text-gray-700 text-sm mb-3 pb-3 <%= 'border-b border-gray-100' unless index == unique_l1_remarks.length - 1 %>">
                   <div class="flex items-start gap-2">
-                    <span class="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                    <span class="bg-blue-100 style="color: #2d374b;" text-xs px-2 py-1 rounded font-medium flex-shrink-0">
                       Remark <%= index + 1 %>
                     </span>
                     <span class="text-gray-700"><%= remark %></span>
@@ -312,10 +416,19 @@
 
       <!-- L2 Quarterly Summary - FIXED REMARKS DISPLAY -->
       <div class="bg-gradient-to-r from-green-50 via-green-50 to-green-100 border border-green-200 rounded-xl p-6 shadow-md">
-        <h3 class="text-xl font-bold text-green-700 mb-6 flex items-center gap-2">
-          <i class="fas fa-user-shield text-green-500"></i>
-          L2 Quarter Summary
-        </h3>
+        <div class="flex justify-between items-center mb-6">
+          <h3 class="text-xl font-bold text-green-700 flex items-center gap-2">
+            <i class="fas fa-user-shield text-green-500"></i>
+            L2 Quarter Summary
+          </h3>
+          
+          <!-- Edit Button - Show when L3 returned to L2 or L2 returned -->
+          <% if (overall_quarter_status == 'l3_returned' || overall_quarter_status == 'l2_returned') && @can_l2_approve_or_return %>
+            <button onclick="toggleL2EditMode()" id="l2-edit-button" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
+              <i class="fas fa-edit mr-2"></i>Edit
+            </button>
+          <% end %>
+        </div>
 
         <!-- Quarter Average Percentage -->
         <div class="mb-6 text-center">
@@ -323,6 +436,33 @@
             <p class="text-green-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
             <p class="text-3xl font-bold text-green-800" id="l2-percentage-display"><%= final_l2_average %>%</p>
           </div>
+        </div>
+
+        <!-- L2 Edit Form - Hidden by default -->
+        <div id="l2-edit-form" class="hidden mb-6 p-4 bg-white rounded-lg border-2 border-green-300">
+          <h4 class="text-lg font-semibold text-green-700 mb-4">Edit L2 Quarter Details</h4>
+          <form id="l2-edit-form-element" onsubmit="submitL2Edit(event)">
+            <div class="mb-4">
+              <label for="l2-edit-percentage" class="block text-sm font-medium text-gray-700 mb-2">L2 Percentage:</label>
+              <input type="number" id="l2-edit-percentage" name="l2_percentage" step="0.1" min="0" max="100" 
+                     value="<%= final_l2_average %>" 
+                     class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500">
+            </div>
+            <div class="mb-4">
+              <label for="l2-edit-remarks" class="block text-sm font-medium text-gray-700 mb-2">L2 Remarks:</label>
+              <textarea id="l2-edit-remarks" name="l2_remarks" rows="3" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                        placeholder="Enter L2 remarks..."><%= unique_l2_remarks.first %></textarea>
+            </div>
+            <div class="flex justify-end gap-2">
+              <button type="button" onclick="cancelL2Edit()" class="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold rounded-lg transition duration-200">
+                Cancel
+              </button>
+              <button type="submit" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-200">
+                Update
+              </button>
+            </div>
+          </form>
         </div>
 
         <!-- FIXED: L2 Remarks Display -->
@@ -361,8 +501,9 @@
 <!-- FIXED: L2 approve/return buttons - Show only when L2 is truly pending -->
 <% if @can_l2_approve_or_return && @user_details.any? && params[:quarter].present? %>
   <%
-    # CORRECTED: Show buttons only when L2 status is pending AND no L2 data exists
-    can_take_action = l2_status == "pending" && !has_l2_data
+    # CORRECTED: Show buttons when L2 status is pending (regardless of existing L2 data)
+    # This allows L2 to add new data even if old L2 data exists from previous reviews
+    can_take_action = l2_status == "pending"
   %>
   
   <% if can_take_action %>
@@ -379,17 +520,13 @@
   <% else %>
     <div class="mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium">
       This Quarter has been processed and cannot be modified.
-      <!-- Debug info (remove in production) -->
-      <div class="text-xs text-gray-400 mt-2">
-        Debug: L2 Status = <%= l2_status %>, L2 Data = <%= has_l2_data %>, Overall Status = <%= overall_quarter_status %>
-      </div>
     </div>
   <% end %>
 <% end %>
 
-<!-- Modal for L2 Actions - FIXED POSITIONING -->
-<div id="decisionModal" class="hidden fixed inset-0 flex items-start justify-center z-50 pt-20">
-  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative mx-4" style="margin-top: 0;">
+<!-- Modal for L2 Actions - Lower Position -->
+<div id="decisionModal" class="hidden fixed inset-0 flex items-center justify-center z-50">
+  <div class="bg-white rounded-xl p-6 shadow-xl w-full max-w-md relative mx-4" style="margin-top: 350px;">
     <!-- Loading overlay -->
     <div id="modalLoading" class="hidden absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center rounded-xl">
       <div class="flex items-center space-x-2">
@@ -400,7 +537,7 @@
 
     <h2 class="text-xl font-bold mb-4" id="modalTitle">L2 Decision</h2>
 
-    <form id="modalForm" onsubmit="submitDecision(event)">
+    <form id="modalForm" onsubmit="submitDecision(event)" action="<%= @employee_detail.present? ? l2_approve_employee_detail_path(@employee_detail) : '#' %>" method="post">
       <div class="mb-4">
         <label for="l2_remarks" class="block font-semibold mb-1">L2 Remarks</label>
         <textarea id="l2_remarks" name="l2_remarks" rows="3" class="w-full border border-gray-300 rounded-md p-2" required></textarea>
@@ -410,12 +547,24 @@
         <input type="number" id="l2_percentage" name="l2_percentage" step="0.1" min="0" max="100" class="w-full border border-gray-300 rounded-md p-2" required>
       </div>
       
+      <!-- Return Options Dropdown - Only show for return action -->
+      <div id="returnOptionsDiv" class="mb-4 hidden">
+        <label for="return_to" class="block font-semibold mb-1">Return To</label>
+        <select id="return_to" name="return_to" class="w-full border border-gray-300 rounded-md p-2">
+          <option value="employee">Return to Employee (Send email to employee)</option>
+          <option value="l1">Return to L1 (Send email to L1)</option>
+        </select>
+      </div>
+      
       <!-- Hidden fields for quarterly tracking -->
       <% if params[:user_detail_id].present? %>
         <input type="hidden" name="user_detail_id" value="<%= params[:user_detail_id] %>">
       <% end %>
       <input type="hidden" name="selected_quarter" value="<%= params[:quarter] %>">
       <input type="hidden" name="apply_to_all_activities" value="true">
+      <% if @selected_department.present? %>
+        <input type="hidden" name="department_id" value="<%= @selected_department %>">
+      <% end %>
       
       <div class="flex justify-end gap-2">
         <button type="button" onclick="closeModal()" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
@@ -455,18 +604,7 @@
     
     currentActionType = actionType;
     
-    // Position modal over Quarter Overall Status section (not above it)
-    if (quarterStatusSection) {
-      const rect = quarterStatusSection.getBoundingClientRect();
-      const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-      
-      // Calculate position to show modal over the Quarter Overall Status section
-      const modalTopPosition = rect.top + scrollTop + 20; // 20px below the start of the section
-      
-      modal.style.paddingTop = Math.max(modalTopPosition, 20) + 'px';
-      console.log('Set modal position to:', modalTopPosition + 'px');
-    }
-    
+    // Modal is always centered - no dynamic positioning needed
     console.log('Removing hidden class from modal');
     modal.classList.remove("hidden");
     modal.style.display = "flex"; // Force display flex
@@ -476,10 +614,22 @@
       currentActionUrl = "<%= l2_approve_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "L2 Approve Quarter";
       console.log('Set action URL for approve:', currentActionUrl);
+      
+      // Hide return options for approve action
+      const returnOptionsDiv = document.getElementById('returnOptionsDiv');
+      if (returnOptionsDiv) {
+        returnOptionsDiv.classList.add('hidden');
+      }
     } else if (actionType === "l2_reject") {
       currentActionUrl = "<%= l2_return_employee_detail_path(@employee_detail) %>";
       modalTitle.innerText = "L2 Return Quarter";
       console.log('Set action URL for reject:', currentActionUrl);
+      
+      // Show return options for return action
+      const returnOptionsDiv = document.getElementById('returnOptionsDiv');
+      if (returnOptionsDiv) {
+        returnOptionsDiv.classList.remove('hidden');
+      }
     }
 
     // Clear form
@@ -498,7 +648,6 @@
     const modal = document.getElementById("decisionModal");
     modal.classList.add("hidden");
     modal.style.display = "none"; // Force hide
-    modal.style.paddingTop = ""; // Reset padding
     document.body.style.overflow = 'auto';
     currentActionType = '';
     currentActionUrl = '';
@@ -576,7 +725,15 @@
     
     formData.append('action_type', currentActionType);
     
-    // Debug logging
+    // Add return_to parameter if it's a return action
+    if (currentActionType === 'l2_reject') {
+      const returnToSelect = document.getElementById('return_to');
+      if (returnToSelect) {
+        formData.append('return_to', returnToSelect.value);
+      }
+    }
+    
+    // Logging
     console.log('Submitting decision:', {
       actionType: currentActionType,
       actionUrl: currentActionUrl,
@@ -594,7 +751,7 @@
         'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
       }
     })
-    .then(response => {
+    .then(async response => {
       console.log('Response received:', {
         status: response.status,
         statusText: response.statusText,
@@ -602,15 +759,46 @@
       });
       
       if (!response.ok) {
-        if (response.status === 404) {
-          showStatusMessage('❌ Employee detail not found. The record may have been deleted. Please refresh the page.', false);
-          closeModal();
-          setTimeout(() => {
-            window.location.href = '<%= employee_details_path %>';
-          }, 3000);
-          return;
+        // Try to parse JSON error response for better error messages
+        try {
+          const errorData = await response.json();
+          console.log('Error response data:', errorData);
+          
+          if (response.status === 404) {
+            showStatusMessage('❌ Employee detail not found. The record may have been deleted. Please refresh the page.', false);
+            closeModal();
+            setTimeout(() => {
+              window.location.href = '<%= employee_details_path %>';
+            }, 3000);
+            return null;
+          } else if (response.status === 422) {
+            // Handle 422 - Validation errors
+            const errorMessage = errorData.message || errorData.error || 'Validation failed. Please check your input and try again.';
+            showStatusMessage(errorMessage, false);
+            modalLoading.classList.add('hidden');
+            return null;
+          } else if (response.status === 500) {
+            showStatusMessage('❌ Server error occurred. Please try again or contact support.', false);
+            modalLoading.classList.add('hidden');
+            return null;
+          } else if (response.status === 403) {
+            showStatusMessage('❌ Access denied. You are not authorized to perform this action.', false);
+            modalLoading.classList.add('hidden');
+            return null;
+          }
+          
+          // For other errors, show the error message from server if available
+          const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
+          showStatusMessage(errorMessage, false);
+          modalLoading.classList.add('hidden');
+          return null;
+        } catch (parseError) {
+          // If JSON parsing fails, show generic error
+          console.error('Failed to parse error response:', parseError);
+          showStatusMessage(`❌ Server error (${response.status}). Please try again.`, false);
+          modalLoading.classList.add('hidden');
+          return null;
         }
-        throw new Error(`HTTP error! status: ${response.status}`);
       }
       return response.json();
     })
@@ -715,6 +903,143 @@
       closeModal();
     }
   });
+
+  // L2 Edit Mode Functions
+  function toggleL2EditMode() {
+    const editForm = document.getElementById('l2-edit-form');
+    const editButton = document.getElementById('l2-edit-button');
+    
+    if (editForm.classList.contains('hidden')) {
+      // Show edit form
+      editForm.classList.remove('hidden');
+      editButton.innerHTML = '<i class="fas fa-times mr-2"></i>Cancel';
+      editButton.onclick = cancelL2Edit;
+      
+      // Focus on percentage field
+      document.getElementById('l2-edit-percentage').focus();
+    } else {
+      // Hide edit form
+      editForm.classList.add('hidden');
+      editButton.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit';
+      editButton.onclick = toggleL2EditMode;
+    }
+  }
+
+  function cancelL2Edit() {
+    const editForm = document.getElementById('l2-edit-form');
+    const editButton = document.getElementById('l2-edit-button');
+    
+    editForm.classList.add('hidden');
+    editButton.innerHTML = '<i class="fas fa-edit mr-2"></i>Edit';
+    editButton.onclick = toggleL2EditMode;
+    
+    // Reset form values to original
+    const originalPercentage = '<%= final_l2_average %>';
+    const originalRemarks = '<%= unique_l2_remarks.first %>';
+    
+    document.getElementById('l2-edit-percentage').value = originalPercentage;
+    document.getElementById('l2-edit-remarks').value = originalRemarks || '';
+  }
+
+  function submitL2Edit(event) {
+    event.preventDefault();
+    
+    const form = document.getElementById('l2-edit-form-element');
+    const formData = new FormData(form);
+    
+    // Add required parameters
+    formData.append('action_type', 'l2_edit');
+    <% if params[:quarter].present? %>
+      formData.append('selected_quarter', '<%= params[:quarter] %>');
+    <% end %>
+    <% if params[:department_id].present? %>
+      formData.append('department_id', '<%= params[:department_id] %>');
+    <% end %>
+    
+    // Show loading state
+    const submitButton = form.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Updating...';
+    submitButton.disabled = true;
+    
+    // Make AJAX request
+    fetch('<%= edit_l2_employee_detail_path(@employee_detail) %>', {
+      method: 'PATCH',
+      body: formData,
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest',
+        'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      if (data.success) {
+        // Update UI with new values
+        const percentage = formData.get('l2_percentage');
+        const remarks = formData.get('l2_remarks');
+        
+        // Update percentage display
+        const percentageDisplay = document.getElementById('l2-percentage-display');
+        if (percentageDisplay) {
+          percentageDisplay.textContent = parseFloat(percentage).toFixed(1) + '%';
+        }
+        
+        // Update remarks display
+        const remarksContainer = document.getElementById('l2-remarks-container');
+        if (remarksContainer) {
+          if (remarks && remarks.trim() !== '') {
+            remarksContainer.innerHTML = `
+              <div class="text-gray-700 text-sm mb-3 pb-3">
+                <div class="flex items-start gap-2">
+                  <span class="bg-green-100 text-green-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                    Remark 1
+                  </span>
+                  <span class="text-gray-700">${remarks}</span>
+                </div>
+              </div>
+            `;
+          } else {
+            remarksContainer.innerHTML = '<p class="text-gray-500 text-sm">No remarks for this quarter</p>';
+          }
+        }
+        
+        // Hide edit form
+        cancelL2Edit();
+        
+        // Update status badge to l2_approved
+        if (data.updated_status) {
+          updateStatusBadge(data.updated_status);
+          hideActionButtons();
+        }
+        
+        // Show success message
+        showStatusMessage(data.message || '✅ L2 details updated successfully!', true);
+        
+        // Scroll to status message
+        document.getElementById('statusMessage').scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        
+      } else {
+        showStatusMessage(data.message || '❌ Failed to update L2 details', false);
+      }
+    })
+    .catch(error => {
+      console.error('Error updating L2 details:', error);
+      showStatusMessage('❌ An error occurred while updating L2 details', false);
+    })
+    .finally(() => {
+      // Reset button state
+      submitButton.innerHTML = originalText;
+      submitButton.disabled = false;
+    });
+  }
 </script>
 
 <style>
@@ -779,12 +1104,13 @@ button:hover {
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
 }
 
-/* FIXED: Modal positioning to show above Quarter Overall Status */
+/* FIXED: Modal positioning - Lower position */
 #decisionModal {
   backdrop-filter: blur(4px);
   transition: all 0.3s ease;
   align-items: flex-start !important;
-  padding-top: 80px; /* Default top padding */
+  justify-content: center !important;
+  padding-top: 25vh; /* Start from 25% from top, then margin-top pushes it down more */
 }
 
 #decisionModal .bg-white {
@@ -892,7 +1218,7 @@ input:valid, textarea:valid {
   }
   
   #decisionModal {
-    padding-top: 40px; /* Reduced padding for mobile */
+    /* Modal always centered on mobile too */
   }
 }
 

@@ -107,7 +107,7 @@
       <div class="px-6 pt-4 flex items-center">
         <!-- Logo -->
         <a class="d-inline-block rounded-xl text-xl font-weight-semibold" href="#" aria-label="Preline">
-          <%= image_tag "Screenshot from 2025-07-18 13-28-52.png", alt: "Preline Logo", class: "img-fluid", style: "width: 190px; height: 60px" %>
+          <%= image_tag "asa.jpeg", alt: "ASA Logo", class: "img-fluid", style: "width: 180px; height: 80px" %>
         </a>
         <!-- End Logo -->
       </div>
@@ -117,26 +117,59 @@
       <nav class="hs-accordion-group p-3 w-full flex flex-col flex-wrap" data-hs-accordion-always-open>
         <ul class="flex flex-col space-y-1">
 
+          <!-- Dashboard - Show for HOD only -->
+          <% if current_user.hod? %>
+            <li class="hs-accordion" id="dashboard-accordion">
+              <%= link_to dashboard_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(dashboard_path)} text-base text-gray-800 rounded-lg" do %>
+                <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M3 4h18l-1 4H4L3 4z" />
+                  <path d="M4 8h16v12a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" />
+                </svg>
+                <span class="font-semibold">Dashboard</span>
+              <% end %>
+            </li>
+          <% end %>
+
           <!-- Employee Forms - Show for all employee types -->
           <% if current_user.employee? || current_user.l1_employer? || current_user.l2_employer? %>
           <li class="hs-accordion" id="users-accordion">
             <%= link_to user_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(user_details_path)} text-base text-gray-800 rounded-lg" do %>
               <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
               </svg>
               <span class="font-semibold">TARGET FORM</span>
             <% end %>
           </li>
 
           <li class="hs-accordion" id="users-accordion">
-            <%= link_to get_user_detail_user_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(new_target_submission_path)} text-base text-gray-800 rounded-lg" do %>
+            <%= link_to get_user_detail_user_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(get_user_detail_user_details_path)} text-base text-gray-800 rounded-lg" do %>
               <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+                <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+                <path d="M4 22h16" />
+                <path d="M10 14.66V17c0 .55-.47.98-.97 1.21l-1.5.5c-.5.17-1.03.17-1.53 0l-1.5-.5C4.47 17.98 4 17.55 4 17v-2.34" />
+                <path d="M20 14.66V17c0 .55.47.98.97 1.21l1.5.5c.5.17 1.03.17 1.53 0l1.5-.5C25.53 17.98 26 17.55 26 17v-2.34" />
+                <path d="M12 2v13" />
+                <path d="M8 8l4-4 4 4" />
               </svg>
               <span class="font-semibold">ACHIEVEMENT FORM</span>
             <% end %>
           </li>
+
+          <!-- Submitted View Data - Show for employees only, NOT for HOD -->
+          <% unless current_user.hod? %>
+            <li class="hs-accordion" id="users-accordion">
+              <%= link_to submitted_view_data_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(submitted_view_data_path)} text-base text-gray-800 rounded-lg" do %>
+                <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M3 3v18h18" />
+                  <path d="M18.7 8l-5.1 5.2-2.8-2.7L7 14.3" />
+                </svg>
+                <span class="font-semibold">Submitted View Data</span>
+              <% end %>
+            </li>
+          <% end %>
           <% end %>
 
           <!-- HOD Only - Admin Functions -->
@@ -144,10 +177,9 @@
             <li class="hs-accordion" id="users-accordion">
               <%= link_to employee_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(employee_details_path)} text-base text-gray-800 rounded-lg" do %>
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                  <circle cx="9" cy="7" r="4" />
-                  <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-                  <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                  <path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                  <rect x="8" y="6" width="8" height="4" rx="1" />
+                  <path d="M12 14h.01" />
                 </svg>
                 <span class="font-semibold">Employee Details</span>
               <% end %>
@@ -156,10 +188,15 @@
             <li class="hs-accordion" id="users-accordion">
               <%= link_to departments_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(departments_path)} text-base text-gray-800 rounded-lg" do %>
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-                  <polyline points="9 22 9 12 15 12 15 22" />
+                  <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z" />
+                  <path d="M6 12H4a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+                  <path d="M18 9h2a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2h-2" />
+                  <path d="M10 6h4" />
+                  <path d="M10 10h4" />
+                  <path d="M10 14h4" />
+                  <path d="M10 18h4" />
                 </svg>
-                <span class="font-semibold">Add Theme/Account</span>
+                <span class="font-semibold">KPI Details</span>
               <% end %>
             </li>
 
@@ -168,8 +205,10 @@
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
                   <circle cx="9" cy="7" r="4" />
+                  <path d="M19 8v6" />
+                  <path d="M22 11l-3-3-3 3" />
                 </svg>
-                <span class="font-semibold">User Details</span>
+                <span class="font-semibold">Bulk Import Users</span>
               <% end %>
             </li>
           <% end %>
@@ -179,10 +218,14 @@
             <li class="hs-accordion" id="users-accordion">
               <%= link_to l1_employee_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(l1_employee_details_path)} text-base text-gray-800 rounded-lg" do %>
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                  <circle cx="12" cy="12" r="3" />
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                  <circle cx="9" cy="7" r="4" />
+                  <path d="M19 8v6" />
+                  <path d="M22 11l-3-3-3 3" />
+                  <path d="M19 8v6" />
+                  <path d="M22 11l-3-3-3 3" />
                 </svg>
-                <span class="font-semibold">L1 Employee Details</span>
+                <span class="font-semibold">L1 Manager Details</span>
               <% end %>
             </li>
           <% end %>
@@ -192,14 +235,37 @@
             <li class="hs-accordion" id="users-accordion">
               <%= link_to l2_employee_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(l2_employee_details_path)} text-base text-gray-800 rounded-lg" do %>
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                  <circle cx="12" cy="12" r="3" />
-                  <circle cx="18" cy="8" r="2" />
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  <path d="M9 12l2 2 4-4" />
                 </svg>
-                <span class="font-semibold">L2 Employee Details</span>
+                <span class="font-semibold">L2 Manager Details</span>
               <% end %>
             </li>
           <% end %>
+
+          <!-- L3 Employee Details - Show if user has L3 responsibilities -->
+          <% if current_user.hod? || EmployeeDetail.exists?(l3_code: current_user.employee_code) || EmployeeDetail.exists?(l3_employer_name: current_user.email) %>
+            <li class="hs-accordion" id="users-accordion">
+              <%= link_to l3_employee_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(l3_employee_details_path)} text-base text-gray-800 rounded-lg" do %>
+                <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M6 3h12l4 6-10 13L2 9l4-6z" />
+                  <path d="M11 3L8 9l4 13 4-13-3-6" />
+                </svg>
+                <span class="font-semibold">L3 Manager Details</span>
+              <% end %>
+            </li>
+          <% end %>
+
+          <!-- Settings - Show for all roles -->
+          <li class="hs-accordion" id="settings-accordion">
+            <%= link_to settings_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(settings_path)} text-base text-gray-800 rounded-lg" do %>
+              <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                <circle cx="12" cy="7" r="4" />
+              </svg>
+              <span class="font-semibold">User Profile</span>
+            <% end %>
+          </li>
 
           <!-- Logout -->
           
@@ -225,10 +291,16 @@
     <div class="flex-shrink-0 border-t border-gray-200 p-4 bg-gray-50">
       <div class="flex items-center space-x-2 text-gray-700 overflow-hidden"> <!-- changed space-x-3 to space-x-2 -->
 
-        <!-- Your SVG avatar -->
-        <%= image_tag "business_female_male_users.svg",
-                      alt: "User Avatar",
-                      class: "h-14 w-14 rounded-full object-cover shadow-sm border border-gray-300" %>  <!-- increased size from h-10 w-10 to h-14 w-14 -->
+        <!-- User Avatar -->
+        <% if current_user.avatar.attached? %>
+          <%= image_tag current_user.avatar,
+                        alt: "User Avatar",
+                        class: "h-14 w-14 rounded-full object-cover shadow-sm border border-gray-300 sidebar-avatar" %>
+        <% else %>
+          <%= image_tag "business_female_male_users.svg",
+                        alt: "User Avatar",
+                        class: "h-14 w-14 rounded-full object-cover shadow-sm border border-gray-300 sidebar-avatar" %>
+        <% end %>
 
         <!-- Email inside fixed width -->
         <div class="flex flex-col overflow-hidden">
