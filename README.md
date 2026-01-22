@@ -5,6 +5,16 @@ A comprehensive web application for managing employee Key Result Areas (KRAs), t
 
 ---
 
+## 🛠 TECHNOLOGY STACK
+
+*   **Language:** Ruby
+*   **Framework:** Ruby on Rails
+*   **Database:** PostgreSQL
+*   **Frontend UI:** HTML, CSS, JavaScript, jQuery
+*   **Deployment:** Kamal (with Docker)
+
+---
+
 ## 1. ROLE-BASED ACCESS CONTROL
 
 ### 1.1 Employee Role
@@ -698,6 +708,49 @@ A comprehensive web application for managing employee Key Result Areas (KRAs), t
 4. Import/export data
 5. View all approvals and statistics
 6. Manage system settings
+
+---
+
+## 🚀 SERVER UPDATE & DEPLOYMENT (Hinglish Guide)
+
+Agar aapko server me code update karna hai ya koi changes deploy karne hain, toh ye steps follow karein:
+
+### 1. Code Update Kaise Karein?
+Pehle apne local changes ko git me commit aur push karein:
+```bash
+git add .
+git commit -m "Your update message"
+git push origin main
+```
+
+### 2. Server Par Deploy Kaise Karein?
+Iss project mein **Kamal** deployment use ho raha hai. Naya code server par dalne ke liye ye command chalayein:
+```bash
+bin/kamal deploy
+```
+Ye command:
+*   Docker image build karega.
+*   Registry (Docker Hub/GHCR) par push karega.
+*   Server par naya container start karega.
+*   Purane container ko stop karke naya health check pass karega.
+
+### 3. Server Logs Kaise Dekhein?
+Agar server par koi error aa raha hai, toh logs dekhne ke liye:
+```bash
+bin/kamal logs -f
+```
+
+### 4. Rollback Kaise Karein?
+Agar deploy ke baad kuch fat gaya hai aur purane version par wapas jana hai:
+```bash
+bin/kamal rollback
+```
+
+### 5. Rails Console On Server
+Agar server par rails console chalana hai:
+```bash
+bin/kamal console
+```
 
 ---
 
