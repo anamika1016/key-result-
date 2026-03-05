@@ -451,12 +451,14 @@
 </style>
 
 <script>
-  // Initialize toggle state from localStorage or default to active
-  let isActive = localStorage.getItem('dashboardActiveState') !== 'false';
+  // Initialize toggle state from the backend value
+  let isActive = <%= @dashboard_active ? 'true' : 'false' %>;
   
-  // Update toggle UI state
-  function updateToggleState(active) {
+  // Update toggle UI state and notify the backend
+  function updateToggleState(active, shouldSave = true) {
     isActive = active;
+    
+    // Fallback to storing in localStorage just in case
     localStorage.setItem('dashboardActiveState', isActive);
     
     const toggle = document.getElementById('active-inactive-toggle');
@@ -481,8 +483,37 @@
       label.classList.add('text-gray-500');
     }
     
-    // You can add additional logic here to filter data or make API calls
-    // For example: filterDashboardData(isActive);
+    if (shouldSave) {
+      // Create request to save this setting to the backend
+      const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+      
+      fetch('/update_dashboard_status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken
+        },
+        body: JSON.stringify({ active: isActive })
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (!data.success) {
+          console.error('Failed to update dashboard status:', data);
+          // Revert UI if server update fails
+          alert('Failed to update status. Please try again.');
+          // Revert the state without calling server again
+          updateToggleState(!isActive, false); 
+        } else {
+          console.log('Dashboard status successfully updated to', isActive);
+        }
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+        alert('An error occurred while updating the status.');
+        // Revert UI safely
+        updateToggleState(!isActive, false); 
+      });
+    }
   }
   
   // Handle toggle click - detect which side was clicked
@@ -528,7 +559,7 @@
   
   // Set initial state on page load
   function initializeToggle() {
-    updateToggleState(isActive);
+    updateToggleState(isActive, false);
   }
   
   // Initialize on page load

@@ -1462,6 +1462,14 @@ function fetchQuarterlyDetails(quarter, showLoading = true) {
 
 // Function to show quarterly details modal
 function showQuarterlyDetails(quarter) {
+  // Check active state from dashboard (now synced with backend via @dashboard_active)
+  const isActive = <%= @dashboard_active ? 'true' : 'false' %>;
+  
+  if (!isActive) {
+    alert('Quarterly Achievement Details viewing has been disabled by the Administrator/HOD.');
+    return;
+  }
+
   console.log('Showing details for quarter:', quarter);
   currentModalQuarter = quarter;
   

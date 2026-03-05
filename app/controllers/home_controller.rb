@@ -29,7 +29,7 @@ class HomeController < ApplicationController
 
     # FIXED: Use same quarter-based counting logic as L1/L2/L3 pages for consistency
     # This counts employee-quarter combinations, which is more meaningful for management
-    
+
     # Get all employee details with achievements
     employee_details = EmployeeDetail.includes(
       user_details: [
@@ -52,10 +52,10 @@ class HomeController < ApplicationController
     @total_employee_details = 0
 
     quarters = {
-      'Q1' => ['april', 'may', 'june'],
-      'Q2' => ['july', 'august', 'september'], 
-      'Q3' => ['october', 'november', 'december'],
-      'Q4' => ['january', 'february', 'march']
+      "Q1" => [ "april", "may", "june" ],
+      "Q2" => [ "july", "august", "september" ],
+      "Q3" => [ "october", "november", "december" ],
+      "Q4" => [ "january", "february", "march" ]
     }
 
     processed_quarters = {}
@@ -66,37 +66,37 @@ class HomeController < ApplicationController
         # Create unique key for employee + quarter combination
         quarter_key = "#{emp.id}_#{quarter_name}"
         next if processed_quarters[quarter_key]
-        
+
         # Get all achievements for this employee in this quarter
         monthly_achievements = emp.user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month) }
-        
+
         # Also check for quarterly format achievements (q1, q2, q3, q4)
         quarterly_achievements = emp.user_details.flat_map(&:achievements).select do |ach|
           case quarter_name
-          when 'Q1'
-            ach.month == 'q1'
-          when 'Q2'
-            ach.month == 'q2'
-          when 'Q3'
-            ach.month == 'q3'
-          when 'Q4'
-            ach.month == 'q4'
+          when "Q1"
+            ach.month == "q1"
+          when "Q2"
+            ach.month == "q2"
+          when "Q3"
+            ach.month == "q3"
+          when "Q4"
+            ach.month == "q4"
           else
             false
           end
         end
-        
+
         # Combine both types of achievements
         all_quarter_achievements = monthly_achievements + quarterly_achievements
-        
+
         # Only process quarters that have actual achievement data
         if all_quarter_achievements.any?
           processed_quarters[quarter_key] = true
           @total_employee_details += 1
-          
+
           # Get all statuses for this quarter
           quarter_statuses = all_quarter_achievements.map { |ach| ach.status || "pending" }
-          
+
           # Count based on overall status for this quarter - FIXED: Show counts at each level where approved
           # Check each level independently to show proper counts
           if quarter_statuses.any? { |s| s == "l3_approved" }
@@ -117,9 +117,9 @@ class HomeController < ApplicationController
           if quarter_statuses.any? { |s| s == "l1_returned" }
             @l1_returned_count += 1
           end
-          
+
           # Only count as pending if no approvals have been made at any level
-          if quarter_statuses.none? { |s| ["l1_approved", "l2_approved", "l3_approved", "l1_returned", "l2_returned", "l3_returned"].include?(s) }
+          if quarter_statuses.none? { |s| [ "l1_approved", "l2_approved", "l3_approved", "l1_returned", "l2_returned", "l3_returned" ].include?(s) }
             @l1_pending_count += 1
           end
         end
@@ -130,46 +130,46 @@ class HomeController < ApplicationController
     # FIXED: Calculate actual pending counts based on what's ready for each level
     @l2_pending_count = 0
     @l3_pending_count = 0
-    
+
     # Count records that are ready for L2 review (L1 approved but not yet L2 approved/returned)
     employee_details.each do |emp|
       quarters.each do |quarter_name, quarter_months|
         quarter_key = "#{emp.id}_#{quarter_name}"
         next if processed_quarters[quarter_key]
-        
+
         # Get all achievements for this employee in this quarter
         monthly_achievements = emp.user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month) }
-        
+
         # Also check for quarterly format achievements (q1, q2, q3, q4)
         quarterly_achievements = emp.user_details.flat_map(&:achievements).select do |ach|
           case quarter_name
-          when 'Q1'
-            ach.month == 'q1'
-          when 'Q2'
-            ach.month == 'q2'
-          when 'Q3'
-            ach.month == 'q3'
-          when 'Q4'
-            ach.month == 'q4'
+          when "Q1"
+            ach.month == "q1"
+          when "Q2"
+            ach.month == "q2"
+          when "Q3"
+            ach.month == "q3"
+          when "Q4"
+            ach.month == "q4"
           else
             false
           end
         end
-        
+
         all_quarter_achievements = monthly_achievements + quarterly_achievements
-        
+
         if all_quarter_achievements.any?
           quarter_statuses = all_quarter_achievements.map { |ach| ach.status || "pending" }
-          
+
           # L2 pending: L1 approved but not yet L2 approved/returned
-          if quarter_statuses.any? { |s| s == "l1_approved" } && 
-             quarter_statuses.none? { |s| ["l2_approved", "l2_returned", "l3_approved", "l3_returned"].include?(s) }
+          if quarter_statuses.any? { |s| s == "l1_approved" } &&
+             quarter_statuses.none? { |s| [ "l2_approved", "l2_returned", "l3_approved", "l3_returned" ].include?(s) }
             @l2_pending_count += 1
           end
-          
+
           # L3 pending: L2 approved but not yet L3 approved/returned
-          if quarter_statuses.any? { |s| s == "l2_approved" } && 
-             quarter_statuses.none? { |s| ["l3_approved", "l3_returned"].include?(s) }
+          if quarter_statuses.any? { |s| s == "l2_approved" } &&
+             quarter_statuses.none? { |s| [ "l3_approved", "l3_returned" ].include?(s) }
             @l3_pending_count += 1
           end
         end
@@ -210,6 +210,18 @@ class HomeController < ApplicationController
     @total_departments = Department.count
     @total_activities = Activity.count
     @total_user_details = UserDetail.count
+
+    @dashboard_active = SystemSetting.dashboard_active?
+  end
+
+  def update_dashboard_status
+    if current_user.hod?
+      status = params[:active] == "true" || params[:active] == true
+      SystemSetting.set_dashboard_active(status)
+      render json: { success: true, active: status }
+    else
+      render json: { success: false, error: "Unauthorized" }, status: :unauthorized
+    end
   end
 
   def submitted_view_data
@@ -219,10 +231,10 @@ class HomeController < ApplicationController
       # Show current employee's data that has either achievements OR quarterly targets
       # STRICT FILTERING: Match by BOTH email AND employee_code to ensure we ONLY get current user's data
       # This prevents showing other users' data even if they have similar employee_codes
-      
+
       # Build strict query - must match BOTH email AND employee_code
       employee_details = EmployeeDetail.all
-      
+
       # Apply strict filtering conditions
       if current_user.employee_code.present? && current_user.email.present?
         # Most secure: match BOTH email AND employee_code
@@ -240,7 +252,7 @@ class HomeController < ApplicationController
         # No matching criteria - show nothing
         employee_details = EmployeeDetail.none
       end
-      
+
       # Additional safety: Filter UserDetails directly by current user's email/employee_code
       # This double-checks to ensure we never show wrong data
       if employee_details.any?
@@ -256,12 +268,12 @@ class HomeController < ApplicationController
         @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
                                   .where(id: min_ids.values)
                                   .joins(:employee_detail)
-        
+
         # Apply strict filtering - must match current user's credentials
         if current_user.employee_code.present? && current_user.email.present?
-          @user_details = @user_details.where(employee_details: { 
+          @user_details = @user_details.where(employee_details: {
             employee_code: current_user.employee_code,
-            employee_email: current_user.email 
+            employee_email: current_user.email
           })
         elsif current_user.employee_code.present?
           @user_details = @user_details.where(employee_details: { employee_code: current_user.employee_code })
@@ -271,9 +283,9 @@ class HomeController < ApplicationController
           # No credentials - show nothing for security
           @user_details = UserDetail.none
         end
-        
+
         @user_details = @user_details.order("departments.department_type, activities.activity_name")
-        
+
         # Log for debugging if we found data
         if @user_details.any?
           Rails.logger.info "Submitted View Data - Employee role: Found #{@user_details.count} records for user #{current_user.email} (#{current_user.employee_code})"
@@ -281,10 +293,10 @@ class HomeController < ApplicationController
             Rails.logger.info "  - Employee: #{ud.employee_detail.employee_name}, Email: #{ud.employee_detail.employee_email}, Code: #{ud.employee_detail.employee_code}"
           end
         end
-        
+
         # Force a fresh database query to ensure we get the latest data
         # This is especially important after updates
-        if params[:updated] == 'true' || params[:refresh].present?
+        if params[:updated] == "true" || params[:refresh].present?
           Rails.logger.info "Forcing fresh database query in submitted_view_data due to update/refresh parameters"
           # Re-query the database to get fresh data
           fresh_user_detail_ids = @user_details.pluck(:id)
@@ -292,7 +304,7 @@ class HomeController < ApplicationController
                                   .where(id: fresh_user_detail_ids)
                                   .order("departments.department_type, activities.activity_name")
         end
-        
+
         # Force reload achievements to get fresh data from database
         # Clear all cached associations first
         @user_details.each do |user_detail|
@@ -301,11 +313,11 @@ class HomeController < ApplicationController
           user_detail.association(:department).reset
           user_detail.association(:activity).reset
           user_detail.association(:employee_detail).reset
-          
+
           # Reload the record and its associations
           user_detail.reload
           user_detail.achievements.reload
-          
+
           # Force reload each achievement individually to ensure fresh data
           user_detail.achievements.each do |achievement|
             achievement.reload
@@ -330,10 +342,10 @@ class HomeController < ApplicationController
                                    (user_details.q4 IS NOT NULL AND user_details.q4 != '')"
                                 )
                                 .order("departments.department_type, employee_details.employee_name, activities.activity_name")
-      
+
       # Force a fresh database query to ensure we get the latest data
       # This is especially important after updates
-      if params[:updated] == 'true' || params[:refresh].present?
+      if params[:updated] == "true" || params[:refresh].present?
         Rails.logger.info "Forcing fresh database query in submitted_view_data (HOD) due to update/refresh parameters"
         # Re-query the database to get fresh data
         fresh_user_detail_ids = @user_details.pluck(:id)
@@ -348,7 +360,7 @@ class HomeController < ApplicationController
                                 )
                                 .order("departments.department_type, employee_details.employee_name, activities.activity_name")
       end
-      
+
       # Force reload achievements to get fresh data from database
       # Clear all cached associations first
       @user_details.each do |user_detail|
@@ -357,11 +369,11 @@ class HomeController < ApplicationController
         user_detail.association(:department).reset
         user_detail.association(:activity).reset
         user_detail.association(:employee_detail).reset
-        
+
         # Reload the record and its associations
         user_detail.reload
         user_detail.achievements.reload
-        
+
         # Force reload each achievement individually to ensure fresh data
         user_detail.achievements.each do |achievement|
           achievement.reload
@@ -390,10 +402,10 @@ class HomeController < ApplicationController
                                      (user_details.q4 IS NOT NULL AND user_details.q4 != '')"
                                   )
                                   .order("departments.department_type, employee_details.employee_name, activities.activity_name")
-        
+
         # Force a fresh database query to ensure we get the latest data
         # This is especially important after updates
-        if params[:updated] == 'true' || params[:refresh].present?
+        if params[:updated] == "true" || params[:refresh].present?
           Rails.logger.info "Forcing fresh database query in submitted_view_data (L1) due to update/refresh parameters"
           # Re-query the database to get fresh data
           fresh_user_detail_ids = @user_details.pluck(:id)
@@ -408,7 +420,7 @@ class HomeController < ApplicationController
                                   )
                                   .order("departments.department_type, employee_details.employee_name, activities.activity_name")
         end
-        
+
         # Force reload achievements to get fresh data from database
         # Clear all cached associations first
         @user_details.each do |user_detail|
@@ -417,11 +429,11 @@ class HomeController < ApplicationController
           user_detail.association(:department).reset
           user_detail.association(:activity).reset
           user_detail.association(:employee_detail).reset
-          
+
           # Reload the record and its associations
           user_detail.reload
           user_detail.achievements.reload
-          
+
           # Force reload each achievement individually to ensure fresh data
           user_detail.achievements.each do |achievement|
             achievement.reload
@@ -454,10 +466,10 @@ class HomeController < ApplicationController
                                      (user_details.q4 IS NOT NULL AND user_details.q4 != '')"
                                   )
                                   .order("departments.department_type, employee_details.employee_name, activities.activity_name")
-        
+
         # Force a fresh database query to ensure we get the latest data
         # This is especially important after updates
-        if params[:updated] == 'true' || params[:refresh].present?
+        if params[:updated] == "true" || params[:refresh].present?
           Rails.logger.info "Forcing fresh database query in submitted_view_data (L2) due to update/refresh parameters"
           # Re-query the database to get fresh data
           fresh_user_detail_ids = @user_details.pluck(:id)
@@ -472,7 +484,7 @@ class HomeController < ApplicationController
                                   )
                                   .order("departments.department_type, employee_details.employee_name, activities.activity_name")
         end
-        
+
         # Force reload achievements to get fresh data from database
         # Clear all cached associations first
         @user_details.each do |user_detail|
@@ -481,11 +493,11 @@ class HomeController < ApplicationController
           user_detail.association(:department).reset
           user_detail.association(:activity).reset
           user_detail.association(:employee_detail).reset
-          
+
           # Reload the record and its associations
           user_detail.reload
           user_detail.achievements.reload
-          
+
           # Force reload each achievement individually to ensure fresh data
           user_detail.achievements.each do |achievement|
             achievement.reload
@@ -498,6 +510,8 @@ class HomeController < ApplicationController
       # Fallback - show no data for unknown roles
       @user_details = UserDetail.none
     end
+
+    @dashboard_active = SystemSetting.dashboard_active?
   end
 
   def submitted_view_data_test
@@ -513,7 +527,7 @@ class HomeController < ApplicationController
     when "employee"
       # Use same strict filtering as submitted_view_data - match by both email and employee_code
       employee_details = EmployeeDetail.all
-      
+
       if current_user.employee_code.present? && current_user.email.present?
         employee_details = employee_details.where(
           employee_code: current_user.employee_code,
@@ -526,21 +540,21 @@ class HomeController < ApplicationController
       else
         employee_details = EmployeeDetail.none
       end
-      
+
       if employee_details.any?
         employee_detail_ids = employee_details.pluck(:id)
         min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
                            .group(:activity_id, :department_id)
                            .minimum(:id)
-        
+
         user_details = UserDetail.includes(achievements: :achievement_remark)
                                 .where(id: min_ids.values)
                                 .joins(:employee_detail)
-        
+
         if current_user.employee_code.present? && current_user.email.present?
-          user_details = user_details.where(employee_details: { 
+          user_details = user_details.where(employee_details: {
             employee_code: current_user.employee_code,
-            employee_email: current_user.email 
+            employee_email: current_user.email
           })
         elsif current_user.employee_code.present?
           user_details = user_details.where(employee_details: { employee_code: current_user.employee_code })
@@ -586,7 +600,7 @@ class HomeController < ApplicationController
     # Get quarter months (both monthly and quarterly formats)
     quarter_months = quarter_to_months(quarter)
     quarter_key = quarter.downcase  # q1, q2, q3, q4
-    
+
     # Get all achievements for this quarter (both monthly and quarterly formats)
     achievements = user_details.flat_map(&:achievements).select do |a|
       next false unless a.month
@@ -597,14 +611,14 @@ class HomeController < ApplicationController
     if achievements.any?
       # Get achievements with achievement_remark
       achievements_with_remarks = achievements.select { |a| a.achievement_remark.present? }
-      
+
       # Get statuses from achievements
       statuses = achievements.map(&:status).compact.uniq
-      
+
       # Calculate level-specific data
       percentages = []
       remarks = []
-      
+
       if achievements_with_remarks.any?
         # Calculate average percentage from achievement_remark for this level
         percentages = achievements_with_remarks.filter_map do |a|
@@ -630,7 +644,7 @@ class HomeController < ApplicationController
           end
         end.compact.uniq.reject(&:blank?)
       end
-      
+
       # Check prerequisite levels first (hierarchy: L1 → L2 → L3)
       l1_approved = statuses.include?("l1_approved")
       l1_returned = statuses.include?("l1_returned")
@@ -638,7 +652,7 @@ class HomeController < ApplicationController
       l2_returned = statuses.include?("l2_returned")
       l3_approved = statuses.include?("l3_approved")
       l3_returned = statuses.include?("l3_returned")
-      
+
       # Determine level-specific status based on hierarchy and data availability
       # IMPORTANT: Respect approval hierarchy - L1 must approve before L2, L2 must approve before L3
       level_status = case level
@@ -703,7 +717,7 @@ class HomeController < ApplicationController
       else
         "Pending"
       end
-      
+
       average_percentage = percentages.any? ? (percentages.sum / percentages.size).round(1) : 0.0
 
       {

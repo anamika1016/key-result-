@@ -81,6 +81,7 @@ Rails.application.routes.draw do
   # Add a specific route for the dashboard
   root to: "home#dashboard"  # 👈 now root goes to dashboard
   get "dashboard", to: "home#dashboard"
+  post "update_dashboard_status", to: "home#update_dashboard_status"
 
   # Submitted View Data route
   get "submitted_view_data", to: "home#submitted_view_data"

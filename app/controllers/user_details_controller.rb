@@ -408,26 +408,29 @@ class UserDetailsController < ApplicationController
         # Map quarter to actual month names for status reset
         quarter_months_for_reset = case selected_quarter
         when "Q1"
-          [ "april", "may", "june" ]  # Q1 = Apr-May-Jun
+          [ "april", "may", "june", "q1", "Q1" ]  # Q1 = Apr-May-Jun
         when "Q2"
-          [ "july", "august", "september" ]  # Q2 = Jul-Aug-Sep
+          [ "july", "august", "september", "q2", "Q2" ]  # Q2 = Jul-Aug-Sep
         when "Q3"
-          [ "october", "november", "december" ]  # Q3 = Oct-Nov-Dec
+          [ "october", "november", "december", "q3", "Q3" ]  # Q3 = Oct-Nov-Dec
         when "Q4"
-          [ "january", "february", "march" ]  # Q4 = Jan-Feb-Mar
+          [ "january", "february", "march", "q4", "Q4" ]  # Q4 = Jan-Feb-Mar
         else
-          quarter_months
+          quarter_months + [ "q1", "q2", "q3", "q4", "Q1", "Q2", "Q3", "Q4" ]
         end
 
-        # FIXED: Only reset achievements for the specific department that was edited
-        # Get all achievements for this department in the selected quarter
+        # FIXED: Only reset achievements for the specific department AND employees that were edited
+        # Get all achievements for this department in the selected quarter for modified employees
         department_achievements = Achievement.joins(:user_detail)
-                                           .where(user_details: { department_id: department_id })
+                                           .where(user_details: {
+                                             department_id: department_id,
+                                             employee_detail_id: employee_details_with_changes.to_a
+                                           })
                                            .where(month: quarter_months_for_reset)
 
         # Set status to pending for this department's achievements only
         updated_count = department_achievements.update_all(status: "pending")
-        Rails.logger.info "Updated #{updated_count} achievements to pending status for department #{department.department_type} ONLY"
+        Rails.logger.info "Updated #{updated_count} achievements to pending status for edited employees in department #{department.department_type} ONLY"
 
         # FIXED: Don't update EmployeeDetail status - let each department manage its own status
         # The L1 view now calculates status based on department-specific achievements
