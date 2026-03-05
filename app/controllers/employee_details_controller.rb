@@ -475,6 +475,26 @@ class EmployeeDetailsController < ApplicationController
     send_file tempfile.path, filename: "quarterly_l1_l2_data.xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   end
 
+  def download_template
+    package = Axlsx::Package.new
+    workbook = package.workbook
+
+    workbook.add_worksheet(name: "Employee Template") do |sheet|
+      sheet.add_row [
+        "Name", "Email", "Employee Code", "Mobile Number",
+        "L1 Code", "L1 Name", "L2 Code", "L2 Name",
+        "L3 Code", "L3 Name", "Post", "Department"
+      ]
+    end
+
+    tempfile = Tempfile.new([ "employee_template", ".xlsx" ])
+    package.serialize(tempfile.path)
+    send_file tempfile.path,
+              filename: "employee_template.xlsx",
+              type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+              disposition: "attachment"
+  end
+
   def import
     file = params[:file]
 
@@ -490,6 +510,7 @@ class EmployeeDetailsController < ApplicationController
       "Name" => "employee_name",
       "Email" => "employee_email",
       "Employee Code" => "employee_code",
+      "Mobile Number" => "mobile_number",
       "L1 Code" => "l1_code",
       "L2 Code" => "l2_code",
       "L3 Code" => "l3_code",
@@ -544,7 +565,7 @@ class EmployeeDetailsController < ApplicationController
   # L1 Dashboard - Show quarterly data
   def l1
     authorize! :l1, EmployeeDetail
-    
+
     # Get department filter parameter
     @selected_department = params[:department_filter]
 
@@ -576,9 +597,9 @@ class EmployeeDetailsController < ApplicationController
       all_employees = all_assigned_employees.select do |emp|
         # Only show employees who have submitted quarterly achievements (q1, q2, q3, q4) with actual data
         # Check if employee has quarterly achievements with meaningful data in any of their departments
-        emp.user_details.any? do |ud| 
-          ud.achievements.any? do |ach| 
-            ['q1', 'q2', 'q3', 'q4'].include?(ach.month) && ach.achievement.present?
+        emp.user_details.any? do |ud|
+          ud.achievements.any? do |ach|
+            [ "q1", "q2", "q3", "q4" ].include?(ach.month) && ach.achievement.present?
           end
         end
       end
@@ -614,17 +635,17 @@ class EmployeeDetailsController < ApplicationController
 
     # Calculate status using same logic as show.html.erb
     quarter_months = case quarter
-                     when 'Q1'
-                       ['april', 'may', 'june']
-                     when 'Q2'
-                       ['july', 'august', 'september']
-                     when 'Q3'
-                       ['october', 'november', 'december']
-                     when 'Q4'
-                       ['january', 'february', 'march']
-                     else
+    when "Q1"
+                       [ "april", "may", "june" ]
+    when "Q2"
+                       [ "july", "august", "september" ]
+    when "Q3"
+                       [ "october", "november", "december" ]
+    when "Q4"
+                       [ "january", "february", "march" ]
+    else
                        []
-                     end
+    end
 
     # Get user details for this department
     if department_id.present?
@@ -650,26 +671,26 @@ class EmployeeDetailsController < ApplicationController
       # Include BOTH monthly and quarterly achievements for status calculation
       # Monthly achievements (april, may, june, etc.)
       monthly_achievements = detail.achievements.select { |a| quarter_months.include?(a.month) }
-      
+
       # Quarterly achievements (q1, q2, q3, q4)
       quarterly_achievements = detail.achievements.select do |a|
         case quarter
-        when 'Q1'
-          a.month == 'q1'
-        when 'Q2'
-          a.month == 'q2'
-        when 'Q3'
-          a.month == 'q3'
-        when 'Q4'
-          a.month == 'q4'
+        when "Q1"
+          a.month == "q1"
+        when "Q2"
+          a.month == "q2"
+        when "Q3"
+          a.month == "q3"
+        when "Q4"
+          a.month == "q4"
         else
           false
         end
       end
-      
+
       # Combine both types of achievements
       all_quarter_achievements = monthly_achievements + quarterly_achievements
-      
+
       all_quarter_achievements.each do |achievement|
         status = achievement.status || "pending"
         quarterly_statuses << status
@@ -698,28 +719,28 @@ class EmployeeDetailsController < ApplicationController
     else
       status = if quarterly_statuses.include?("returned_to_employee")
                 "returned_to_employee"
-              elsif quarterly_statuses.include?("l3_approved")
+      elsif quarterly_statuses.include?("l3_approved")
                 "l3_approved"
-              elsif quarterly_statuses.include?("l3_returned")
+      elsif quarterly_statuses.include?("l3_returned")
                 "l3_returned"
-              elsif quarterly_statuses.include?("l2_approved")
+      elsif quarterly_statuses.include?("l2_approved")
                 "l2_approved"
-              elsif quarterly_statuses.include?("l2_returned")
+      elsif quarterly_statuses.include?("l2_returned")
                 "l2_returned"
-              elsif quarterly_statuses.include?("l1_returned")
+      elsif quarterly_statuses.include?("l1_returned")
                 "l1_returned"
-              elsif quarterly_statuses.include?("l1_approved")
+      elsif quarterly_statuses.include?("l1_approved")
                 "l1_approved"
-              elsif quarterly_statuses.include?("submitted")
+      elsif quarterly_statuses.include?("submitted")
                 "submitted"
-              elsif quarterly_statuses.include?("pending")
+      elsif quarterly_statuses.include?("pending")
                 "pending"
-              else
+      else
                 "pending"
-              end
+      end
     end
 
-    render json: { 
+    render json: {
       status: status,
       employee_name: @employee_detail.employee_name,
       department_id: department_id,
@@ -748,7 +769,7 @@ class EmployeeDetailsController < ApplicationController
     if @selected_department.present?
       # Get all EmployeeDetail records for this employee (same employee name)
       all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
-      
+
       # Get all user_details from ALL employee records for this department
       @user_details = []
       all_employee_records.each do |emp|
@@ -769,7 +790,7 @@ class EmployeeDetailsController < ApplicationController
       if first_department
         # Get all EmployeeDetail records for this employee (same employee name)
         all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
-        
+
         # Get all user_details from ALL employee records for this department
         @user_details = []
         all_employee_records.each do |emp|
@@ -876,7 +897,7 @@ class EmployeeDetailsController < ApplicationController
         else
           " for all departments"
         end
-        
+
         if request.xhr? || params[:action_type].present?
           render json: {
             success: true,
@@ -967,7 +988,7 @@ class EmployeeDetailsController < ApplicationController
         else
           " for all departments"
         end
-        
+
         if request.xhr? || params[:action_type].present?
           render json: {
             success: true,
@@ -1022,7 +1043,7 @@ class EmployeeDetailsController < ApplicationController
 def l2
   # Get department filter parameter
   @selected_department = params[:department_filter]
-  
+
   if current_user.hod?
     # HOD can see all employee details, but only those with L1+ approved achievements
     all_employees = EmployeeDetail.includes(
@@ -1066,66 +1087,66 @@ def l2
       if @selected_department.present?
         next unless ud.department&.department_type == @selected_department
       end
-      
+
       # Check each quarter to ensure L1 has approved before L2 can see it
       quarters = {
-        'Q1' => ['april', 'may', 'june'],
-        'Q2' => ['july', 'august', 'september'], 
-        'Q3' => ['october', 'november', 'december'],
-        'Q4' => ['january', 'february', 'march']
+        "Q1" => [ "april", "may", "june" ],
+        "Q2" => [ "july", "august", "september" ],
+        "Q3" => [ "october", "november", "december" ],
+        "Q4" => [ "january", "february", "march" ]
       }
-      
+
       quarters.any? do |quarter_name, quarter_months|
         # Get all achievements for this quarter
         quarter_achievements = ud.achievements.select do |achievement|
-          (quarter_months.include?(achievement.month) || 
-           (quarter_name == 'Q1' && achievement.month == 'q1') ||
-           (quarter_name == 'Q2' && achievement.month == 'q2') ||
-           (quarter_name == 'Q3' && achievement.month == 'q3') ||
-           (quarter_name == 'Q4' && achievement.month == 'q4'))
+          (quarter_months.include?(achievement.month) ||
+           (quarter_name == "Q1" && achievement.month == "q1") ||
+           (quarter_name == "Q2" && achievement.month == "q2") ||
+           (quarter_name == "Q3" && achievement.month == "q3") ||
+           (quarter_name == "Q4" && achievement.month == "q4"))
         end
-        
+
         # Skip if no achievements for this quarter
         next if quarter_achievements.empty?
-        
+
         # Show this quarter if it has achievements that L2 should see:
         # CRITICAL: L2 can ONLY see records that have been L1 approved
         # Check if this specific department/quarter has been L1 approved (same logic as L1 view)
-        
+
         # First check if L1 has provided remarks and percentage (same as L1 view logic)
         quarter_l1_total = 0
         quarter_remarks_l1 = Set.new
-        
+
         quarter_achievements.each do |achievement|
           if achievement.achievement_remark.present?
             # Collect L1 data
             if achievement.achievement_remark.l1_percentage.present?
               quarter_l1_total += achievement.achievement_remark.l1_percentage.to_f
             end
-            
+
             # Add unique L1 remarks only
             if achievement.achievement_remark.l1_remarks.present?
               quarter_remarks_l1.add(achievement.achievement_remark.l1_remarks)
             end
           end
         end
-        
+
         has_l1_remarks = quarter_remarks_l1.any? { |remark| remark.present? && remark != "No remarks for this quarter" }
         has_l1_percentage = quarter_l1_total > 0
-        
+
         # CRITICAL: Only show records that have been L1 approved (workflow hierarchy)
         # L2 cannot see records that are still pending L1 approval
         # Check if this specific department/quarter combination has been L1 approved
-        has_l1_approved = quarter_achievements.any? { |ach| ach.status == 'l1_approved' }
-        has_l2_approved = quarter_achievements.any? { |ach| ach.status == 'l2_approved' }
-        has_l2_returned = quarter_achievements.any? { |ach| ach.status == 'l2_returned' }
-        has_l3_approved = quarter_achievements.any? { |ach| ach.status == 'l3_approved' }
-        has_l3_returned = quarter_achievements.any? { |ach| ach.status == 'l3_returned' }
-        
+        has_l1_approved = quarter_achievements.any? { |ach| ach.status == "l1_approved" }
+        has_l2_approved = quarter_achievements.any? { |ach| ach.status == "l2_approved" }
+        has_l2_returned = quarter_achievements.any? { |ach| ach.status == "l2_returned" }
+        has_l3_approved = quarter_achievements.any? { |ach| ach.status == "l3_approved" }
+        has_l3_returned = quarter_achievements.any? { |ach| ach.status == "l3_returned" }
+
         # Only show if L1 has actually approved (provided remarks/percentage) OR if it's already been processed by L2/L3
         has_ready_for_l2 = (has_l1_remarks || has_l1_percentage) && (has_l1_approved || has_l2_approved || has_l2_returned || has_l3_approved || has_l3_returned)
-        
-        
+
+
         # Show this quarter if achievements are ready for L2
         has_ready_for_l2
       end
@@ -1136,7 +1157,6 @@ def l2
   # FIXED: Don't deduplicate employees - show separate records for each department with L1 approved achievements
   # This allows the same employee to appear multiple times if they have L1 approved achievements in different departments
   @employee_details = filtered_employees
-
 end
 
   def show_l2
@@ -1160,7 +1180,7 @@ end
     if @selected_department.present?
       # Get all EmployeeDetail records for this employee (same employee name)
       all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
-      
+
       # Get all user_details from ALL employee records for this department
       @user_details = []
       all_employee_records.each do |emp|
@@ -1181,7 +1201,7 @@ end
       if first_department
         # Get all EmployeeDetail records for this employee (same employee name)
         all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
-        
+
         # Get all user_details from ALL employee records for this department
         @user_details = []
         all_employee_records.each do |emp|
@@ -1343,9 +1363,9 @@ end
         # Show employees with L2 approved, L3 approved, or L3 returned achievements
         qualifying_achievements = ud.achievements.select do |achievement|
           # Must be L2 approved, L3 approved, or L3 returned AND have quarterly data
-          (achievement.status == 'l2_approved' || achievement.status == 'l3_approved' || achievement.status == 'l3_returned') && 
-          (['april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december', 'january', 'february', 'march'].include?(achievement.month) ||
-           ['q1', 'q2', 'q3', 'q4'].include?(achievement.month))
+          (achievement.status == "l2_approved" || achievement.status == "l3_approved" || achievement.status == "l3_returned") &&
+          ([ "april", "may", "june", "july", "august", "september", "october", "november", "december", "january", "february", "march" ].include?(achievement.month) ||
+           [ "q1", "q2", "q3", "q4" ].include?(achievement.month))
         end
         qualifying_achievements.any?
       end
@@ -1355,7 +1375,6 @@ end
     # FIXED: Don't deduplicate employees - show separate records for each department with L2/L3 approved/returned achievements
     # This allows the same employee to appear multiple times if they have achievements in different departments
     @employee_details = filtered_employees
-
   end
 
   def show_l3
@@ -1382,7 +1401,7 @@ end
     if @selected_department.present?
       # Get all EmployeeDetail records for this employee (same employee name)
       all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
-      
+
       # Get all user_details from ALL employee records for this department
       @user_details = []
       all_employee_records.each do |emp|
@@ -1403,7 +1422,7 @@ end
       if first_department
         # Get all EmployeeDetail records for this employee (same employee name)
         all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
-        
+
         # Get all user_details from ALL employee records for this department
         @user_details = []
         all_employee_records.each do |emp|
@@ -1439,7 +1458,7 @@ end
     # Enhanced debugging for employee detail lookup
     employee_id = params[:id]
     Rails.logger.info "Looking for employee detail with ID: #{employee_id}"
-    
+
     # Check if employee detail exists
     if employee_id.blank?
       Rails.logger.error "Employee ID is blank in params: #{params.inspect}"
@@ -1457,7 +1476,7 @@ end
     rescue ActiveRecord::RecordNotFound => e
       Rails.logger.error "Employee detail not found: #{employee_id} - #{e.message}"
       Rails.logger.error "Available employee details: #{EmployeeDetail.pluck(:id, :employee_code).inspect}"
-      
+
       if request.xhr?
         render json: { success: false, message: "❌ Employee detail not found. The record may have been deleted." }, status: :not_found
       else
@@ -1597,49 +1616,49 @@ end
       # Get the selected quarter
       selected_quarter = params[:selected_quarter]
       quarter_months = case selected_quarter
-                      when 'Q1'
-                        ['april', 'may', 'june']
-                      when 'Q2'
-                        ['july', 'august', 'september']
-                      when 'Q3'
-                        ['october', 'november', 'december']
-                      when 'Q4'
-                        ['january', 'february', 'march']
-                      else
+      when "Q1"
+                        [ "april", "may", "june" ]
+      when "Q2"
+                        [ "july", "august", "september" ]
+      when "Q3"
+                        [ "october", "november", "december" ]
+      when "Q4"
+                        [ "january", "february", "march" ]
+      else
                         []
-                      end
+      end
 
       # Get the department_id from params
       department_id = params[:department_id]
-      
+
       # FIXED: Filter by department to only update achievements for the specific department
       # Find all achievements for the quarter that have L2 returned status
       updated_count = 0
-      
+
       # Get all EmployeeDetail records for this employee (same employee name)
       all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
-      
+
       all_employee_records.each do |emp|
         emp.user_details.each do |user_detail|
           # FIXED: Only process user_details for the specific department
           next if department_id.present? && user_detail.department_id.to_s != department_id.to_s
-          
+
           quarter_achievements = user_detail.achievements.select { |a| quarter_months.include?(a.month) }
-          
+
           quarter_achievements.each do |achievement|
             # Update achievements that are in l2_returned, l3_returned, or l1_returned status
-            if achievement.status == 'l2_returned' || achievement.status == 'l3_returned' || achievement.status == 'l1_returned'
+            if achievement.status == "l2_returned" || achievement.status == "l3_returned" || achievement.status == "l1_returned"
               # Find or create achievement remark
               achievement_remark = achievement.achievement_remark || achievement.build_achievement_remark
-              
+
               # Update L1 data
               achievement_remark.l1_percentage = params[:l1_percentage].to_f
               achievement_remark.l1_remarks = params[:l1_remarks]
               achievement_remark.save!
-              
+
               # Update achievement status to l1_approved since L1 has edited and approved
-              achievement.update!(status: 'l1_approved')
-              
+              achievement.update!(status: "l1_approved")
+
               updated_count += 1
             end
           end
@@ -1663,7 +1682,7 @@ end
     rescue => e
       Rails.logger.error "Error in L1 Edit: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
-      
+
       if request.xhr?
         render json: { success: false, message: "❌ An error occurred while updating L1 details: #{e.message}" }, status: :internal_server_error
       else
@@ -1712,49 +1731,49 @@ end
       # Get the selected quarter
       selected_quarter = params[:selected_quarter]
       quarter_months = case selected_quarter
-                      when 'Q1'
-                        ['april', 'may', 'june']
-                      when 'Q2'
-                        ['july', 'august', 'september']
-                      when 'Q3'
-                        ['october', 'november', 'december']
-                      when 'Q4'
-                        ['january', 'february', 'march']
-                      else
+      when "Q1"
+                        [ "april", "may", "june" ]
+      when "Q2"
+                        [ "july", "august", "september" ]
+      when "Q3"
+                        [ "october", "november", "december" ]
+      when "Q4"
+                        [ "january", "february", "march" ]
+      else
                         []
-                      end
+      end
 
       # Get the department_id from params
       department_id = params[:department_id]
-      
+
       # FIXED: Filter by department to only update achievements for the specific department
       # Find all achievements for the quarter that have L3 returned status
       updated_count = 0
-      
+
       # Get all EmployeeDetail records for this employee (same employee name)
       all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
-      
+
       all_employee_records.each do |emp|
         emp.user_details.each do |user_detail|
           # FIXED: Only process user_details for the specific department
           next if department_id.present? && user_detail.department_id.to_s != department_id.to_s
-          
+
           quarter_achievements = user_detail.achievements.select { |a| quarter_months.include?(a.month) }
-          
+
           quarter_achievements.each do |achievement|
             # Update achievements that are in l3_returned or l2_returned status
-            if achievement.status == 'l3_returned' || achievement.status == 'l2_returned'
+            if achievement.status == "l3_returned" || achievement.status == "l2_returned"
               # Find or create achievement remark
               achievement_remark = achievement.achievement_remark || achievement.build_achievement_remark
-              
+
               # Update L2 data
               achievement_remark.l2_percentage = params[:l2_percentage].to_f
               achievement_remark.l2_remarks = params[:l2_remarks]
               achievement_remark.save!
-              
+
               # Update achievement status to l2_approved since L2 has edited and approved
-              achievement.update!(status: 'l2_approved')
-              
+              achievement.update!(status: "l2_approved")
+
               updated_count += 1
             end
           end
@@ -1778,7 +1797,7 @@ end
     rescue => e
       Rails.logger.error "Error in L2 Edit: #{e.message}"
       Rails.logger.error e.backtrace.join("\n")
-      
+
       if request.xhr?
         render json: { success: false, message: "❌ An error occurred while updating L2 details: #{e.message}" }, status: :internal_server_error
       else
@@ -2093,7 +2112,7 @@ end
     # Determine if this is an approval or return action
     action_type = params[:action_type] || "approve"
     is_approval = action_type.include?("approve")
-    
+
     # Handle return level for return actions
     if !is_approval && params[:return_level].present?
       case params[:return_level]
@@ -2115,11 +2134,11 @@ end
       # IMPORTANT: Search across ALL EmployeeDetail records with the same employee_name (like show method does)
       user_details_to_process = if params[:department_id].present?
         Rails.logger.info "Processing department-wise for department_id: #{params[:department_id]}"
-        
+
         # Get all EmployeeDetail records for this employee (same employee_name)
         all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
         Rails.logger.info "Found #{all_employee_records.count} EmployeeDetail records for employee: #{@employee_detail.employee_name}"
-        
+
         # Get all user_details from ALL employee records for this department
         user_details = []
         all_employee_records.each do |emp|
@@ -2129,9 +2148,9 @@ end
             user_details << ud
           end
         end
-        
+
         Rails.logger.info "Found #{user_details.count} user_details for department_id: #{params[:department_id]}"
-        
+
         # If no user_details found, check what departments actually exist for this employee
         if user_details.empty?
           all_user_details = []
@@ -2140,21 +2159,21 @@ end
           end
           all_department_ids = all_user_details.map(&:department_id).uniq.compact
           Rails.logger.warn "No user_details found for department_id: #{params[:department_id]}. Available department IDs: #{all_department_ids.join(', ')}"
-          
+
           if all_department_ids.any?
             department_names = all_user_details.map { |ud| "#{ud.department&.department_type || 'Unknown'} (ID: #{ud.department_id})" }.uniq
-            return { 
-              success: false, 
-              message: "❌ No activities found for department ID #{params[:department_id]}. Available departments: #{department_names.join(', ')}. Please select the correct department." 
+            return {
+              success: false,
+              message: "❌ No activities found for department ID #{params[:department_id]}. Available departments: #{department_names.join(', ')}. Please select the correct department."
             }
           else
-            return { 
-              success: false, 
-              message: "❌ No activities found for this employee. Please ensure activities are assigned to the employee first." 
+            return {
+              success: false,
+              message: "❌ No activities found for this employee. Please ensure activities are assigned to the employee first."
             }
           end
         end
-        
+
         if user_details.any?
           Rails.logger.info "User detail IDs: #{user_details.map(&:id).join(', ')}"
         end
@@ -2229,7 +2248,7 @@ end
                 remark.achievement = achievement # Ensure association is set
                 remark.l1_remarks = params[:remarks] if params[:remarks].present?
                 remark.l1_percentage = params[:percentage].to_f if params[:percentage].present?
-                
+
                 unless remark.save
                   Rails.logger.error "Failed to save achievement remark: #{remark.errors.full_messages.join(', ')}"
                   raise ActiveRecord::RecordInvalid.new(remark)
@@ -2292,7 +2311,7 @@ end
     end
 
     Rails.logger.info "Final approved_count: #{approved_count} for quarter #{params[:selected_quarter]}"
-    
+
     if approved_count > 0
       # FIXED: Department-wise status update logic
       if params[:department_id].present?
@@ -2300,7 +2319,7 @@ end
         # If so, update the overall EmployeeDetail status
         all_departments = @employee_detail.user_details.includes(:achievements).group_by(&:department_id)
         all_departments_same_status = true
-        
+
         all_departments.each do |dept_id, user_details|
           dept_achievements = user_details.flat_map(&:achievements)
           if params[:selected_quarter].present?
@@ -2309,7 +2328,7 @@ end
           else
             dept_quarter_achievements = dept_achievements
           end
-          
+
           dept_statuses = dept_quarter_achievements.map { |a| a.status || "pending" }
           dept_primary_status = if dept_statuses.any? { |s| s == "l3_approved" }
             "l3_approved"
@@ -2330,13 +2349,13 @@ end
           else
             "pending"
           end
-          
+
           if dept_primary_status != new_status
             all_departments_same_status = false
             break
           end
         end
-        
+
         if all_departments_same_status
           @employee_detail.update!(status: new_status)
           Rails.logger.info "All departments have same status (#{new_status}), updated EmployeeDetail status"
@@ -2348,20 +2367,20 @@ end
         @employee_detail.update!(status: new_status)
         Rails.logger.info "Updated EmployeeDetail status to: #{new_status}"
       end
-      
+
       # Send email notifications after successful processing
       if params[:selected_quarter].present?
         # Get processed achievements for email notification
         quarter_months = get_quarter_months(params[:selected_quarter])
         processed_achievements = []
-        
+
         # FIXED: Department-wise email notification
         user_details_for_email = if params[:department_id].present?
           @employee_detail.user_details.where(department_id: params[:department_id])
         else
           @employee_detail.user_details
         end
-        
+
         user_details_for_email.each do |detail|
           quarter_months.each do |month|
             achievement = detail.achievements.find_by(month: month, status: new_status)
@@ -2424,11 +2443,11 @@ def process_quarterly_l2_approval
     # FIXED: Department-wise processing - only process specific department if department_id is provided
     user_details_to_process = if params[:department_id].present?
       Rails.logger.info "Processing L2 department-wise for department_id: #{params[:department_id]}"
-      
+
       # FIXED: Use the same logic as show_l2 action - get user_details from ALL EmployeeDetail records for this employee
       all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
       user_details_to_process = []
-      
+
       all_employee_records.each do |emp|
         emp.user_details.includes(:activity, :department, { achievements: :achievement_remark })
            .where(department_id: params[:department_id])
@@ -2436,7 +2455,7 @@ def process_quarterly_l2_approval
           user_details_to_process << ud
         end
       end
-      
+
       Rails.logger.info "Found #{user_details_to_process.count} user_details for department #{params[:department_id]}"
       user_details_to_process
     else
@@ -2567,7 +2586,7 @@ def process_quarterly_l2_approval
     # Update EmployeeDetail status to match the new status
     @employee_detail.update!(status: new_status)
     Rails.logger.info "Updated EmployeeDetail status to: #{new_status}"
-    
+
     # Send email notifications after successful L2 processing
     if params[:selected_quarter].present?
       # Get processed achievements for email notification
@@ -2579,7 +2598,7 @@ def process_quarterly_l2_approval
           processed_achievements << achievement if achievement
         end
       end
-      
+
       # Handle L2 return with return_to parameter
       if !is_approval && params[:return_to].present?
         send_l2_return_emails(params[:return_to], @employee_detail, processed_achievements, params[:selected_quarter])
@@ -2628,7 +2647,7 @@ def process_quarterly_l3_approval
   # Determine if this is an approval or return action
   action_type = params[:action_type] || "approve"
   is_approval = action_type.include?("approve")
-  
+
   # Handle return level for return actions
   if !is_approval && params[:return_level].present?
     case params[:return_level]
@@ -2655,16 +2674,16 @@ def process_quarterly_l3_approval
 
     # Get the department_id from params
     department_id = params[:department_id]
-    
+
     # FIXED: Filter by department to only process achievements for the specific department
     # Get all EmployeeDetail records for this employee (same employee name)
     all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
-    
+
     all_employee_records.each do |emp|
       emp.user_details.each do |detail|
         # FIXED: Only process user_details for the specific department
         next if department_id.present? && detail.department_id.to_s != department_id.to_s
-        
+
         Rails.logger.info "Processing user_detail: #{detail.id} for activity: #{detail.activity.activity_name}"
 
         # Process the entire quarter as one unit
@@ -2706,23 +2725,23 @@ def process_quarterly_l3_approval
               # Create or update achievement remark with COMMON remarks for quarter
               # FIXED: Preserve existing L1 and L2 data when L3 approves
               remark = achievement.achievement_remark || achievement.build_achievement_remark
-              
+
               # Preserve existing L1 and L2 data if they exist
               existing_l1_percentage = remark.l1_percentage
               existing_l1_remarks = remark.l1_remarks
               existing_l2_percentage = remark.l2_percentage
               existing_l2_remarks = remark.l2_remarks
-              
+
               # Set L3 data
               remark.l3_remarks = params[:l3_remarks] || params[:remarks] if params[:l3_remarks].present? || params[:remarks].present?
               remark.l3_percentage = (params[:l3_percentage] || params[:percentage]).to_f if params[:l3_percentage].present? || params[:percentage].present?
-              
+
               # Restore L1 and L2 data if they were present
               remark.l1_percentage = existing_l1_percentage if existing_l1_percentage.present?
               remark.l1_remarks = existing_l1_remarks if existing_l1_remarks.present?
               remark.l2_percentage = existing_l2_percentage if existing_l2_percentage.present?
               remark.l2_remarks = existing_l2_remarks if existing_l2_remarks.present?
-              
+
               remark.save!
 
               approved_count += 1
@@ -2738,23 +2757,23 @@ def process_quarterly_l3_approval
             # Create or update achievement remark with COMMON remarks for quarter
             # FIXED: Preserve existing L1 and L2 data when L3 returns
             remark = achievement.achievement_remark || achievement.build_achievement_remark
-            
+
             # Preserve existing L1 and L2 data if they exist
             existing_l1_percentage = remark.l1_percentage
             existing_l1_remarks = remark.l1_remarks
             existing_l2_percentage = remark.l2_percentage
             existing_l2_remarks = remark.l2_remarks
-            
+
             # Set L3 data
             remark.l3_remarks = params[:l3_remarks] || params[:remarks] if params[:l3_remarks].present? || params[:remarks].present?
             remark.l3_percentage = (params[:l3_percentage] || params[:percentage]).to_f if params[:l3_percentage].present? || params[:percentage].present?
-            
+
             # Restore L1 and L2 data if they were present
             remark.l1_percentage = existing_l1_percentage if existing_l1_percentage.present?
             remark.l1_remarks = existing_l1_remarks if existing_l1_remarks.present?
             remark.l2_percentage = existing_l2_percentage if existing_l2_percentage.present?
             remark.l2_remarks = existing_l2_remarks if existing_l2_remarks.present?
-            
+
             remark.save!
 
             approved_count += 1
@@ -2801,7 +2820,7 @@ def process_quarterly_l3_approval
     # Update EmployeeDetail status to match the new status
     @employee_detail.update!(status: new_status)
     Rails.logger.info "Updated EmployeeDetail status to: #{new_status}"
-    
+
     # Send email notifications after successful L3 processing
     if params[:selected_quarter].present?
       # Get processed achievements for email notification
@@ -2863,9 +2882,9 @@ def send_l1_approval_emails(employee_detail, achievements)
         # Send quarterly email to employee
         quarter = params[:selected_quarter] || determine_quarter_from_achievements(achievements)
         ApprovalMailer.quarterly_l1_approved(employee_detail, quarter, achievements).deliver_now
-        
+
         # Send SMS to employee for L1 approval
-        send_sms_to_employee(employee_detail, quarter, 'l1_approved')
+        send_sms_to_employee(employee_detail, quarter, "l1_approved")
       else
         # Send individual emails for each achievement to employee
         employee_detail.user_details.each do |user_detail|
@@ -2873,10 +2892,10 @@ def send_l1_approval_emails(employee_detail, achievements)
             ApprovalMailer.l1_approved(achievement).deliver_now
           end
         end
-        
+
         # Send SMS to employee for individual L1 approval
         quarter = determine_quarter_from_achievements(achievements) || "achievements"
-        send_sms_to_employee(employee_detail, quarter, 'l1_approved')
+        send_sms_to_employee(employee_detail, quarter, "l1_approved")
       end
     rescue => e
       Rails.logger.error "Failed to send L1 approval emails to employee: #{e.message}"
@@ -2915,10 +2934,10 @@ def send_l2_approval_emails_to_employee(employee_detail, achievements)
         # Send quarterly email to employee
         quarter = params[:selected_quarter] || determine_quarter_from_achievements(achievements)
         ApprovalMailer.quarterly_l2_approved(employee_detail, quarter, achievements).deliver_now
-        
+
         # Send SMS to employee and L1 for L2 approval
-        send_sms_to_employee(employee_detail, quarter, 'l2_approved')
-        send_sms_to_l1_for_l2_action(employee_detail, quarter, 'approved')
+        send_sms_to_employee(employee_detail, quarter, "l2_approved")
+        send_sms_to_l1_for_l2_action(employee_detail, quarter, "approved")
       else
         # Send individual emails for each achievement to employee
         employee_detail.user_details.each do |user_detail|
@@ -2926,11 +2945,11 @@ def send_l2_approval_emails_to_employee(employee_detail, achievements)
             ApprovalMailer.l2_approved(achievement).deliver_now
           end
         end
-        
+
         # Send SMS to employee and L1 for individual L2 approval
         quarter = determine_quarter_from_achievements(achievements) || "achievements"
-        send_sms_to_employee(employee_detail, quarter, 'l2_approved')
-        send_sms_to_l1_for_l2_action(employee_detail, quarter, 'approved')
+        send_sms_to_employee(employee_detail, quarter, "l2_approved")
+        send_sms_to_l1_for_l2_action(employee_detail, quarter, "approved")
       end
     rescue => e
       Rails.logger.error "Failed to send L2 approval emails to employee: #{e.message}"
@@ -2969,11 +2988,11 @@ def send_final_approval_emails(employee_detail, achievements)
         # Send quarterly L3 approved email to employee
         quarter = params[:selected_quarter] || determine_quarter_from_achievements(achievements)
         ApprovalMailer.quarterly_l3_approved(employee_detail, quarter, achievements).deliver_now
-        
+
         # Send SMS to employee, L1, and L2 for L3 approval
-        send_sms_to_employee(employee_detail, quarter, 'l3_approved')
-        send_sms_to_l1_for_l3_action(employee_detail, quarter, 'approved')
-        send_sms_to_l2_for_l3_action(employee_detail, quarter, 'approved')
+        send_sms_to_employee(employee_detail, quarter, "l3_approved")
+        send_sms_to_l1_for_l3_action(employee_detail, quarter, "approved")
+        send_sms_to_l2_for_l3_action(employee_detail, quarter, "approved")
       else
         # Send individual emails for each achievement to employee
         employee_detail.user_details.each do |user_detail|
@@ -2981,12 +3000,12 @@ def send_final_approval_emails(employee_detail, achievements)
             ApprovalMailer.l3_approved(achievement).deliver_now
           end
         end
-        
+
         # Send SMS to employee, L1, and L2 for individual L3 approval
         quarter = determine_quarter_from_achievements(achievements) || "achievements"
-        send_sms_to_employee(employee_detail, quarter, 'l3_approved')
-        send_sms_to_l1_for_l3_action(employee_detail, quarter, 'approved')
-        send_sms_to_l2_for_l3_action(employee_detail, quarter, 'approved')
+        send_sms_to_employee(employee_detail, quarter, "l3_approved")
+        send_sms_to_l1_for_l3_action(employee_detail, quarter, "approved")
+        send_sms_to_l2_for_l3_action(employee_detail, quarter, "approved")
       end
     rescue => e
       Rails.logger.error "Failed to send final approval emails: #{e.message}"
@@ -3010,7 +3029,7 @@ def send_return_emails(action_type, employee_detail, achievements)
       if achievements&.any?
         # Check if this is a quarterly return (has selected_quarter or multiple achievements from same quarter)
         quarter = params[:selected_quarter] || determine_quarter_from_achievements(achievements)
-        
+
         # For quarterly returns, send quarterly email (similar to L2)
         # If selected_quarter is present, it's definitely a quarterly return
         # Otherwise, check if we have multiple achievements (likely a quarter)
@@ -3035,19 +3054,19 @@ def send_return_emails(action_type, employee_detail, achievements)
             ApprovalMailer.achievement_returned(achievement, employee_detail.employee_email).deliver_now
           end
         end
-        
+
         # Send SMS based on return level
         quarter ||= determine_quarter_from_achievements(achievements)
         case action_type
         when "l1_returned"
-          send_sms_to_employee(employee_detail, quarter, 'l1_returned')
+          send_sms_to_employee(employee_detail, quarter, "l1_returned")
         when "l2_returned"
-          send_sms_to_employee(employee_detail, quarter, 'l2_returned')
-          send_sms_to_l1_for_l2_action(employee_detail, quarter, 'returned')
+          send_sms_to_employee(employee_detail, quarter, "l2_returned")
+          send_sms_to_l1_for_l2_action(employee_detail, quarter, "returned")
         when "l3_returned"
-          send_sms_to_employee(employee_detail, quarter, 'l3_returned')
-          send_sms_to_l1_for_l3_action(employee_detail, quarter, 'returned')
-          send_sms_to_l2_for_l3_action(employee_detail, quarter, 'returned')
+          send_sms_to_employee(employee_detail, quarter, "l3_returned")
+          send_sms_to_l1_for_l3_action(employee_detail, quarter, "returned")
+          send_sms_to_l2_for_l3_action(employee_detail, quarter, "returned")
         end
       else
         # Send for all returned achievements
@@ -3057,19 +3076,19 @@ def send_return_emails(action_type, employee_detail, achievements)
             ApprovalMailer.achievement_returned(achievement, employee_detail.employee_email).deliver_now
           end
         end
-        
+
         # Send SMS for individual returns
         quarter = determine_quarter_from_achievements(achievements) || "achievements"
         case action_type
         when "l1_returned"
-          send_sms_to_employee(employee_detail, quarter, 'l1_returned')
+          send_sms_to_employee(employee_detail, quarter, "l1_returned")
         when "l2_returned"
-          send_sms_to_employee(employee_detail, quarter, 'l2_returned')
-          send_sms_to_l1_for_l2_action(employee_detail, quarter, 'returned')
+          send_sms_to_employee(employee_detail, quarter, "l2_returned")
+          send_sms_to_l1_for_l2_action(employee_detail, quarter, "returned")
         when "l3_returned"
-          send_sms_to_employee(employee_detail, quarter, 'l3_returned')
-          send_sms_to_l1_for_l3_action(employee_detail, quarter, 'returned')
-          send_sms_to_l2_for_l3_action(employee_detail, quarter, 'returned')
+          send_sms_to_employee(employee_detail, quarter, "l3_returned")
+          send_sms_to_l1_for_l3_action(employee_detail, quarter, "returned")
+          send_sms_to_l2_for_l3_action(employee_detail, quarter, "returned")
         end
       end
     rescue => e
@@ -3081,10 +3100,10 @@ end
 
 def determine_quarter_from_achievements(achievements)
   return nil if achievements.blank?
-  
+
   # Get the first achievement's month to determine quarter
   first_month = achievements.first.month
-  
+
   case first_month
   when "april", "may", "june"
     "Q1"
@@ -3102,23 +3121,23 @@ end
 # SMS helper methods
 def send_sms_to_employee(employee_detail, quarter, action_type)
   return unless employee_detail.mobile_number.present?
-  
+
   begin
     message = case action_type
-    when 'l1_approved'
+    when "l1_approved"
       SmsService.l1_approval_message(employee_detail.employee_name, quarter)
-    when 'l1_returned'
+    when "l1_returned"
       SmsService.l1_return_message(employee_detail.employee_name, quarter)
-    when 'l2_approved'
+    when "l2_approved"
       SmsService.l2_approval_message(employee_detail.employee_name, quarter)
-    when 'l2_returned'
+    when "l2_returned"
       SmsService.l2_return_message(employee_detail.employee_name, quarter)
-    when 'l3_approved'
+    when "l3_approved"
       SmsService.l3_approval_message(employee_detail.employee_name, quarter)
-    when 'l3_returned'
+    when "l3_returned"
       SmsService.l3_return_message(employee_detail.employee_name, quarter)
     end
-    
+
     result = SmsService.send_sms(employee_detail.mobile_number, message)
     if result[:success]
       Rails.logger.info "SMS sent to employee #{employee_detail.employee_name} (#{employee_detail.mobile_number}) for #{action_type}"
@@ -3132,11 +3151,11 @@ end
 
 def send_sms_to_l1_for_l2_action(employee_detail, quarter, action)
   return unless employee_detail.l1_code.present?
-  
+
   begin
     l1_manager = EmployeeDetail.find_by("employee_code LIKE ?", employee_detail.l1_code.strip + "%")
     return unless l1_manager&.mobile_number.present?
-    
+
     message = SmsService.l1_notification_message(employee_detail.employee_name, quarter, action)
     result = SmsService.send_sms(l1_manager.mobile_number, message)
     if result[:success]
@@ -3151,11 +3170,11 @@ end
 
 def send_sms_to_l1_for_l3_action(employee_detail, quarter, action)
   return unless employee_detail.l1_code.present?
-  
+
   begin
     l1_manager = EmployeeDetail.find_by("employee_code LIKE ?", employee_detail.l1_code.strip + "%")
     return unless l1_manager&.mobile_number.present?
-    
+
     message = SmsService.l1_notification_message(employee_detail.employee_name, quarter, action)
     result = SmsService.send_sms(l1_manager.mobile_number, message)
     if result[:success]
@@ -3170,11 +3189,11 @@ end
 
 def send_sms_to_l2_for_l3_action(employee_detail, quarter, action)
   return unless employee_detail.l2_code.present?
-  
+
   begin
     l2_manager = EmployeeDetail.find_by("employee_code LIKE ?", employee_detail.l2_code.strip + "%")
     return unless l2_manager&.mobile_number.present?
-    
+
     message = SmsService.l2_notification_message_for_l3(employee_detail.employee_name, quarter, action)
     result = SmsService.send_sms(l2_manager.mobile_number, message)
     if result[:success]
@@ -3193,7 +3212,7 @@ def send_employee_return_emails(employee_detail, achievements)
       if achievements&.any?
         # Group achievements by quarter and send one email per quarter
         quarter_achievements = group_achievements_by_quarter(achievements)
-        
+
         quarter_achievements.each do |quarter, quarter_achievements_list|
           # Send one email per quarter
           ApprovalMailer.quarterly_achievement_returned_to_employee(employee_detail, quarter, quarter_achievements_list).deliver_now
@@ -3206,10 +3225,10 @@ def send_employee_return_emails(employee_detail, achievements)
             all_returned_achievements << achievement
           end
         end
-        
+
         if all_returned_achievements.any?
           quarter_achievements = group_achievements_by_quarter(all_returned_achievements)
-          
+
           quarter_achievements.each do |quarter, quarter_achievements_list|
             # Send one email per quarter
             ApprovalMailer.quarterly_achievement_returned_to_employee(employee_detail, quarter, quarter_achievements_list).deliver_now
@@ -3227,13 +3246,13 @@ end
 # Helper method to group achievements by quarter
 def group_achievements_by_quarter(achievements)
   quarter_groups = {}
-  
+
   achievements.each do |achievement|
     quarter = determine_quarter_from_month(achievement.month)
     quarter_groups[quarter] ||= []
     quarter_groups[quarter] << achievement
   end
-  
+
   quarter_groups
 end
 
@@ -3328,12 +3347,12 @@ def send_l2_return_emails(return_to, employee_detail, achievements, quarter)
       # Send email to employee for refilling
       ApprovalMailer.l2_quarterly_returned_to_employee(employee_detail, quarter, achievements).deliver_now
       Rails.logger.info "Sent L2 return email to employee: #{employee_detail.employee_email}"
-      
+
     when "l1"
       # Send email to L1 for review
       ApprovalMailer.l2_quarterly_returned_to_l1(employee_detail, quarter, achievements).deliver_now
       Rails.logger.info "Sent L2 return email to L1 for employee: #{employee_detail.employee_name}"
-      
+
     else
       Rails.logger.error "Invalid return_to parameter: #{return_to}"
     end
@@ -3350,17 +3369,17 @@ def send_l3_return_emails(return_level, employee_detail, achievements, quarter)
       # Send email to employee for refilling
       ApprovalMailer.l3_quarterly_returned_to_employee(employee_detail, quarter, achievements).deliver_now
       Rails.logger.info "Sent L3 return email to employee: #{employee_detail.employee_email}"
-      
+
     when "l1"
       # Send email to L1 for review
       ApprovalMailer.l3_quarterly_returned_to_l1(employee_detail, quarter, achievements).deliver_now
       Rails.logger.info "Sent L3 return email to L1 for employee: #{employee_detail.employee_name}"
-      
+
     when "l2"
       # Send email to L2 for review
       ApprovalMailer.l3_quarterly_returned_to_l2(employee_detail, quarter, achievements).deliver_now
       Rails.logger.info "Sent L3 return email to L2 for employee: #{employee_detail.employee_name}"
-      
+
     else
       Rails.logger.error "Invalid return_level parameter: #{return_level}"
     end
@@ -3369,4 +3388,3 @@ def send_l3_return_emails(return_level, employee_detail, achievements, quarter)
   end
 end
 end
-
