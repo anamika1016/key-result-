@@ -3,7 +3,7 @@ class SystemSetting < ApplicationRecord
 
   def self.dashboard_active?
     setting = find_by(key: "dashboard_active")
-    setting.nil? ? true : setting.value == "true"
+    setting.nil? ? false : setting.value == "true"
   end
 
   def self.set_dashboard_active(status)

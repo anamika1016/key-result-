@@ -478,46 +478,58 @@ class DepartmentManager {
       });
     }
 
-    // Department change event to filter employees
-    const deptSelect = document.getElementById('department_department_type');
-    if (deptSelect) {
-      deptSelect.addEventListener('change', (e) => {
-        this.filterEmployeesByDepartment(e.target.value);
+    // Use delegation for change events - only bind once to document
+    if (!window.departmentChangeDelegated) {
+      document.addEventListener('change', (e) => {
+        if (e.target.id === 'department_department_type') {
+          console.log('Vertical filter changed via delegation');
+          if (window.departmentManagerInstance) {
+            window.departmentManagerInstance.filterEmployeesByDepartment(e.target.value);
+          }
+        }
       });
+      window.departmentChangeDelegated = true;
     }
 
-    // Use event delegation for dynamic elements
-    document.addEventListener('click', (e) => {
-      if (e.target.closest('.remove-activity')) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.removeActivity(e.target.closest('.activity-fields'));
-      }
+    // Use event delegation for dynamic elements - only bind once to document
+    if (!window.departmentDelegated) {
+      document.addEventListener('click', (e) => {
+        // Always use the latest instance from the global scope
+        const instance = window.departmentManagerInstance;
+        if (!instance) return;
 
-      if (e.target.classList.contains('edit-btn')) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.editDepartment(e.target.dataset.employeeId, e.target.dataset.departmentId);
-      }
+        if (e.target.closest('.remove-activity')) {
+          e.preventDefault();
+          e.stopPropagation();
+          instance.removeActivity(e.target.closest('.activity-fields'));
+        }
 
-      if (e.target.classList.contains('delete-btn')) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.deleteDepartment(e.target.dataset.departmentId);
-      }
+        if (e.target.classList.contains('edit-btn')) {
+          e.preventDefault();
+          e.stopPropagation();
+          instance.editDepartment(e.target.dataset.employeeId, e.target.dataset.departmentId);
+        }
 
-      if (e.target.classList.contains('delete-user-btn')) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.deleteUserActivities(e.target.dataset.departmentId, e.target.dataset.employeeId);
-      }
+        if (e.target.classList.contains('delete-btn')) {
+          e.preventDefault();
+          e.stopPropagation();
+          instance.deleteDepartment(e.target.dataset.departmentId);
+        }
 
-      if (e.target.classList.contains('delete-dept-btn')) {
-        e.preventDefault();
-        e.stopPropagation();
-        this.deleteDepartment(e.target.dataset.departmentId);
-      }
-    });
+        if (e.target.classList.contains('delete-user-btn')) {
+          e.preventDefault();
+          e.stopPropagation();
+          instance.deleteUserActivities(e.target.dataset.departmentId, e.target.dataset.employeeId);
+        }
+
+        if (e.target.classList.contains('delete-dept-btn')) {
+          e.preventDefault();
+          e.stopPropagation();
+          instance.deleteDepartment(e.target.dataset.departmentId);
+        }
+      });
+      window.departmentDelegated = true;
+    }
   }
 
   removeEventListeners() {
@@ -527,26 +539,50 @@ class DepartmentManager {
   }
 
   filterEmployeesByDepartment(selectedDept) {
+    console.log('filterEmployeesByDepartment called with:', selectedDept);
     const employeeSelect = document.getElementById('department_employee_reference');
-    if (!employeeSelect || !selectedDept) {
-      // Show all employees if no department selected
-      const options = employeeSelect.querySelectorAll('option[data-department]');
-      options.forEach(option => option.style.display = '');
+    if (!employeeSelect) {
+      console.error('Employee dropdown not found!');
       return;
     }
 
-    // Hide/show options based on department
-    const options = employeeSelect.querySelectorAll('option[data-department]');
-    options.forEach(option => {
-      const employeeDepartments = option.getAttribute('data-department');
-      if (employeeDepartments && employeeDepartments.split(',').includes(selectedDept)) {
-        option.style.display = '';
-      } else {
-        option.style.display = 'none';
+    // Initialize or refresh original options list
+    // Crucial: we should refresh it if the dropdown has more options than our cache
+    // especially after a page load/navigation
+    if (!this.originalEmployeeOptions || employeeSelect.options.length > (this.originalEmployeeOptions.length || 0)) {
+       console.log('Caching/Updating original employee options list. Count:', employeeSelect.options.length);
+       this.originalEmployeeOptions = Array.from(employeeSelect.options).map(opt => ({
+         value: opt.value,
+         text: opt.text,
+         department: opt.getAttribute('data-department') || ''
+       }));
+    }
+
+    // Reset current selection logic
+    const currentValue = employeeSelect.value;
+
+    // Clear and rebuild options
+    // This is the most reliable way to filter a select across all browsers
+    employeeSelect.innerHTML = '';
+    
+    this.originalEmployeeOptions.forEach(optData => {
+      const depts = optData.department.split(',').map(d => d.trim()).filter(d => d !== '');
+      
+      // Always show placeholder, show all if none selected, or filter by dept
+      const shouldShow = optData.value === "" || 
+                        !selectedDept || 
+                        depts.includes(selectedDept);
+      
+      if (shouldShow) {
+        const option = document.createElement('option');
+        option.value = optData.value;
+        option.text = optData.text;
+        if (optData.department) option.setAttribute('data-department', optData.department);
+        employeeSelect.appendChild(option);
       }
     });
 
-    // Reset employee selection
+    // Reset value to blank unless we want to keep it (only keep if it's still in the list)
     employeeSelect.value = '';
   }
 
@@ -1389,9 +1425,20 @@ let isInitializing = false;
 function initializeDepartmentManager() {
   console.log('initializeDepartmentManager called');
 
-  // Prevent multiple initializations
-  if (departmentManagerInstance || isInitializing) {
-    console.log('DepartmentManager already initialized or initializing, skipping...');
+  // Prevent multiple initializations on the same DOM cycle
+  if (isInitializing) {
+    console.log('DepartmentManager already initializing, skipping...');
+    return;
+  }
+  
+  // If instance exists but form is gone (Turbo navigation), we need a new instance
+  if (departmentManagerInstance && !document.getElementById('department-form')) {
+    departmentManagerInstance = null;
+  }
+  
+  // If we already have a valid instance for the current DOM, skip
+  if (departmentManagerInstance) {
+    console.log('DepartmentManager already initialized for this DOM, skipping...');
     return;
   }
   
@@ -1433,9 +1480,13 @@ function initializeDepartmentManager() {
   console.log('Department dropdown options:', deptSelect ? deptSelect.options.length : 'not found');
   console.log('Employee dropdown options:', empSelect ? empSelect.options.length : 'not found');
   
-      // Initialize DepartmentManager for form handling
     try {
       console.log('Creating DepartmentManager instance...');
+      // Clean up previous instance first
+      if (window.departmentManagerInstance && typeof window.departmentManagerInstance.destroy === 'function') {
+        window.departmentManagerInstance.destroy();
+      }
+      
       departmentManagerInstance = new DepartmentManager();
       console.log('DepartmentManager initialized successfully');
 
@@ -1453,6 +1504,14 @@ function initializeDepartmentManager() {
       
       // Make DepartmentManager globally accessible for debugging
       window.departmentManagerInstance = departmentManagerInstance;
+      
+      // Apply filter immediately if Vertical is already selected
+      const deptSelect = document.getElementById('department_department_type');
+      if (deptSelect && deptSelect.value) {
+        console.log('Vertical already selected on load, applying filter:', deptSelect.value);
+        departmentManagerInstance.filterEmployeesByDepartment(deptSelect.value);
+      }
+      
       console.log('DepartmentManager ready and accessible');
       
     } catch (error) {
@@ -1480,11 +1539,12 @@ function clearEmployeeFilter() {
 
 
 
-// For Turbo compatibility, but only if not already initialized
+// For Turbo compatibility, ensures re-initialization on every visit because DOM elements are new
 document.addEventListener('turbo:load', () => {
-  if (!departmentManagerInstance) {
-    initializeDepartmentManager();
-  }
+  console.log('Turbo load event fired');
+  // Clear the instance to allow fresh initialization for the new DOM
+  departmentManagerInstance = null;
+  initializeDepartmentManager();
 });
 
 

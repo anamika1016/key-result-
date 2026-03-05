@@ -320,18 +320,26 @@ class EmployeeDetailsController < ApplicationController
     package = Axlsx::Package.new
     workbook = package.workbook
 
-    workbook.add_worksheet(name: "Quarterly L1 L2 L3 Data") do |sheet|
-      # Add header row
+    workbook.add_worksheet(name: "Quarterly Data") do |sheet|
+      # Define styles
+      header_style = workbook.styles.add_style(bg_color: "1F4E78", fg_color: "FFFFFF", b: true, alignment: { horizontal: :center })
+      data_style = workbook.styles.add_style(alignment: { horizontal: :left })
+      percentage_style = workbook.styles.add_style(alignment: { horizontal: :center })
+
+      # Add header row as per user request
       sheet.add_row [
-        "Employee Name", "Employee Code", "Mobile Number", "Department", "Status"
-      ]
+        "Employee Code", "Employee Name", "Department", "Quarter", "Status",
+        "L1 Name", "L1 Employee Code", "L1 Remarks", "L1 Percentage",
+        "L2 Name", "L2 Employee Code", "L2 Remarks", "L2 Percentage",
+        "L3 Name", "L3 Employee Code", "L3 Remarks", "L3 Percentage"
+      ], style: header_style
 
       # Define quarters
       quarters = {
-        "Q1" => [ "april", "may", "june" ],
-        "Q2" => [ "july", "august", "september" ],
-        "Q3" => [ "october", "november", "december" ],
-        "Q4" => [ "january", "february", "march" ]
+        "Q1" => [ "april", "may", "june", "q1" ],
+        "Q2" => [ "july", "august", "september", "q2" ],
+        "Q3" => [ "october", "november", "december", "q3" ],
+        "Q4" => [ "january", "february", "march", "q4" ]
       }
 
       # Create unique employee-department entries for quarterly export
@@ -340,16 +348,12 @@ class EmployeeDetailsController < ApplicationController
 
       employee_details.each do |emp|
         if emp.user_details.any?
-          # If employee has user_details (multiple departments), show each unique department as separate entry
-          # Group user_details by department to ensure we only get one entry per department
           emp.user_details.includes(:department).group_by(&:department).each do |department, user_details_for_dept|
-            # Create a unique key for employee-department combination
+            next if department.nil?
             combination_key = "#{emp.id}_#{department.id}"
 
-            # Only add if we haven't seen this combination before
             unless seen_combinations.include?(combination_key)
               seen_combinations.add(combination_key)
-              # Use the first user_detail for this department (they should all be the same department)
               user_detail = user_details_for_dept.first
               employee_department_entries << {
                 employee: emp,
@@ -359,9 +363,7 @@ class EmployeeDetailsController < ApplicationController
             end
           end
         else
-          # If employee has no user_details, show with default department
           combination_key = "#{emp.id}_default"
-
           unless seen_combinations.include?(combination_key)
             seen_combinations.add(combination_key)
             employee_department_entries << {
@@ -379,11 +381,9 @@ class EmployeeDetailsController < ApplicationController
         quarters.each do |quarter_name, quarter_months|
           # Get achievements for this specific department
           if entry[:user_detail]
-            # Get achievements for this specific user_detail (department)
-            all_quarter_achievements = entry[:user_detail].achievements.select { |ach| quarter_months.include?(ach.month) }
+            all_quarter_achievements = entry[:user_detail].achievements.select { |ach| quarter_months.include?(ach.month&.downcase) }
           else
-            # Fallback to all user_details if no specific department
-            all_quarter_achievements = emp.user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month) }
+            all_quarter_achievements = emp.user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month&.downcase) }
           end
 
           # Only add row if there are achievements in this quarter
@@ -398,24 +398,12 @@ class EmployeeDetailsController < ApplicationController
 
             all_quarter_achievements.each do |achievement|
               if achievement.achievement_remark.present?
-                if achievement.achievement_remark.l1_remarks.present?
-                  l1_remarks << achievement.achievement_remark.l1_remarks
-                end
-                if achievement.achievement_remark.l1_percentage.present?
-                  l1_percentages << achievement.achievement_remark.l1_percentage.to_f
-                end
-                if achievement.achievement_remark.l2_remarks.present?
-                  l2_remarks << achievement.achievement_remark.l2_remarks
-                end
-                if achievement.achievement_remark.l2_percentage.present?
-                  l2_percentages << achievement.achievement_remark.l2_percentage.to_f
-                end
-                if achievement.achievement_remark.l3_remarks.present?
-                  l3_remarks << achievement.achievement_remark.l3_remarks
-                end
-                if achievement.achievement_remark.l3_percentage.present?
-                  l3_percentages << achievement.achievement_remark.l3_percentage.to_f
-                end
+                l1_remarks << achievement.achievement_remark.l1_remarks if achievement.achievement_remark.l1_remarks.present?
+                l1_percentages << achievement.achievement_remark.l1_percentage.to_f if achievement.achievement_remark.l1_percentage.present?
+                l2_remarks << achievement.achievement_remark.l2_remarks if achievement.achievement_remark.l2_remarks.present?
+                l2_percentages << achievement.achievement_remark.l2_percentage.to_f if achievement.achievement_remark.l2_percentage.present?
+                l3_remarks << achievement.achievement_remark.l3_remarks if achievement.achievement_remark.l3_remarks.present?
+                l3_percentages << achievement.achievement_remark.l3_percentage.to_f if achievement.achievement_remark.l3_percentage.present?
               end
             end
 
@@ -431,13 +419,10 @@ class EmployeeDetailsController < ApplicationController
 
             # Calculate correct status based on achievements in this quarter
             quarter_statuses = all_quarter_achievements.map { |ach| ach.status || "pending" }
+            has_l1_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l1_percentage.present? }
+            has_l2_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l2_percentage.present? }
+            has_l3_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l3_percentage.present? }
 
-            # Check for achievement remarks to determine if L1/L2/L3 has actually processed
-            has_l1_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l1_percentage.present? && ach.achievement_remark&.l1_remarks.present? }
-            has_l2_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l2_percentage.present? && ach.achievement_remark&.l2_remarks.present? }
-            has_l3_approval = all_quarter_achievements.any? { |ach| ach.achievement_remark&.l3_percentage.present? && ach.achievement_remark&.l3_remarks.present? }
-
-            # Determine the most accurate status for this quarter
             status_display = if quarter_statuses.any? { |s| s == "l3_returned" }
                               "L3 Returned"
             elsif quarter_statuses.all? { |s| s == "l3_approved" } || has_l3_approval
@@ -450,24 +435,37 @@ class EmployeeDetailsController < ApplicationController
                               "L1 Returned"
             elsif quarter_statuses.all? { |s| s == "l1_approved" } || has_l1_approval
                               "L1 Approved"
-            elsif quarter_statuses.any? { |s| s == "submitted" }
+            elsif quarter_statuses.any? { |s| [ "submitted", "pending" ].include?(s) }
                               "Submitted"
-            elsif quarter_statuses.any? { |s| s == "pending" }
-                              "Pending"
             else
-                              "No Status"
+                              "Pending"
             end
 
             sheet.add_row [
-              emp.employee_name || "N/A",
               emp.employee_code || "N/A",
-              emp.mobile_number || "N/A",
+              emp.employee_name || "N/A",
               entry[:department]&.department_type || emp.department || "N/A",
-              status_display
-            ]
+              quarter_name,
+              status_display,
+              emp.l1_employer_name || "N/A",
+              emp.l1_code || "N/A",
+              l1_remarks_text.presence || "No Remarks",
+              "#{l1_avg}%",
+              emp.l2_employer_name || "N/A",
+              emp.l2_code || "N/A",
+              l2_remarks_text.presence || "No Remarks",
+              "#{l2_avg}%",
+              emp.l3_employer_name || "N/A",
+              emp.l3_code || "N/A",
+              l3_remarks_text.presence || "No Remarks",
+              "#{l3_avg}%"
+            ], style: [ data_style, data_style, data_style, data_style, data_style, data_style, data_style, data_style, percentage_style, data_style, data_style, data_style, percentage_style, data_style, data_style, data_style, percentage_style ]
           end
         end
       end
+
+      # Auto-width for columns
+      sheet.column_widths nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
     end
 
     tempfile = Tempfile.new([ "quarterly_l1_l2_data", ".xlsx" ])
@@ -479,12 +477,36 @@ class EmployeeDetailsController < ApplicationController
     package = Axlsx::Package.new
     workbook = package.workbook
 
+    # Fetch all registered employees
+    employee_details = EmployeeDetail.includes(user_details: :department).all
+
     workbook.add_worksheet(name: "Employee Template") do |sheet|
+      # Header row
       sheet.add_row [
         "Name", "Email", "Employee Code", "Mobile Number",
         "L1 Code", "L1 Name", "L2 Code", "L2 Name",
-        "L3 Code", "L3 Name", "Post", "Department"
+        "L3 Code", "L3 Name", "Department"
       ]
+
+      # Data rows — registered employees ka data
+      employee_details.each do |emp|
+        # Department fetch karo (pehle user_details se, warna emp.department)
+        dept_name = emp.user_details.first&.department&.department_type || emp.department
+
+        sheet.add_row [
+          emp.employee_name,
+          emp.employee_email,
+          emp.employee_code,
+          emp.mobile_number,
+          emp.l1_code,
+          emp.l1_employer_name,
+          emp.l2_code,
+          emp.l2_employer_name,
+          emp.l3_code,
+          emp.l3_employer_name,
+          dept_name
+        ]
+      end
     end
 
     tempfile = Tempfile.new([ "employee_template", ".xlsx" ])

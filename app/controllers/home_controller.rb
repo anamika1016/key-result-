@@ -210,8 +210,6 @@ class HomeController < ApplicationController
     @total_departments = Department.count
     @total_activities = Activity.count
     @total_user_details = UserDetail.count
-
-    @dashboard_active = SystemSetting.dashboard_active?
   end
 
   def update_dashboard_status
@@ -510,8 +508,6 @@ class HomeController < ApplicationController
       # Fallback - show no data for unknown roles
       @user_details = UserDetail.none
     end
-
-    @dashboard_active = SystemSetting.dashboard_active?
   end
 
   def submitted_view_data_test
@@ -521,6 +517,13 @@ class HomeController < ApplicationController
 
   def quarterly_details
     quarter = params[:quarter]
+
+    # Security check: Check if dashboard is active
+    dashboard_active = SystemSetting.dashboard_active?
+    unless dashboard_active
+      render json: { success: false, error: "Quarterly Achievement Details viewing has been disabled by the Administrator/HOD." }, status: :forbidden
+      return
+    end
 
     # Get quarterly data for the current user - include achievement_remark
     case current_user.role

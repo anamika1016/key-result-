@@ -252,32 +252,38 @@ function uploadAvatar(input) {
         'X-Requested-With': 'XMLHttpRequest'
       }
     })
-    .then(response => {
+    .then(async response => {
+      const contentType = response.headers.get('content-type');
+      let data = {};
+      
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      }
+
       if (response.ok) {
-        return response.json().then(data => {
-          if (data.success) {
-            // Update the image with the new URL from server if provided
-            if (data.avatar_url) {
-              const profileImage = document.getElementById('profileImage');
-              profileImage.src = data.avatar_url;
-              
-              // Also update the sidebar avatar if it exists
-              const sidebarAvatar = document.querySelector('.sidebar-avatar');
-              if (sidebarAvatar) {
-                sidebarAvatar.src = data.avatar_url;
-              }
-            }
+        if (data.success) {
+          // Update the image with the new URL from server if provided
+          if (data.avatar_url) {
+            const profileImage = document.getElementById('profileImage');
+            profileImage.src = data.avatar_url;
             
-            // Show success message
-            showMessage(data.message || 'Profile picture updated successfully!', 'success');
-          } else {
-            throw new Error(data.errors ? data.errors.join(', ') : 'Upload failed');
+            // Also update the sidebar avatar if it exists
+            const sidebarAvatar = document.querySelector('.sidebar-avatar');
+            if (sidebarAvatar) {
+              sidebarAvatar.src = data.avatar_url;
+            }
           }
-        });
-      } else {
-        return response.json().then(data => {
+          
+          // Show success message
+          showMessage(data.message || 'Profile picture updated successfully!', 'success');
+        } else {
           throw new Error(data.errors ? data.errors.join(', ') : 'Upload failed');
-        });
+        }
+      } else {
+        if (response.status === 413) {
+          throw new Error('Image file is too large for the server. Please try a smaller image.');
+        }
+        throw new Error(data.errors ? data.errors.join(', ') : 'Upload failed (Server Error)');
       }
     })
     .catch(error => {

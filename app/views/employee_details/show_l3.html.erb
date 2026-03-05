@@ -618,182 +618,128 @@
 
 <!-- JavaScript with improved update logic and modal positioning -->
 <script>
-  let currentActionType = '';
-  let currentActionUrl = '';
-  
-  // Initialize: Clear form action on page load and prevent any submission
-  document.addEventListener('DOMContentLoaded', function() {
+  // Use window object to store state and prevent issues with Turbo re-execution
+  if (typeof window.l3DecisionData === 'undefined') {
+    window.l3DecisionData = {
+      currentActionType: '',
+      currentActionUrl: ''
+    };
+  }
+
+  // Unify initialization into a function that runs on load and Turbo visits
+  function initializeL3Decision() {
+    console.log('Initializing L3 Decision JS...');
     const form = document.getElementById('modalForm');
-    const submitButton = document.getElementById('submitButton');
+    const returnLevelSection = document.getElementById('returnLevelSection');
     
     if (form) {
       form.action = 'javascript:void(0);';
       form.method = 'post';
       form.setAttribute('novalidate', 'novalidate');
-      // Remove any data attributes that might cause auto-submission
       form.removeAttribute('data-remote');
       form.removeAttribute('data-turbo');
       
-      // Add additional event listener to prevent form submission
-      form.addEventListener('submit', function(e) {
+      // Ensure dropdown is hidden initially
+      if (returnLevelSection) {
+        returnLevelSection.classList.add('hidden');
+        returnLevelSection.style.display = 'none';
+      }
+      
+      // Clear any existing submit listeners to avoid duplicates
+      const newForm = form.cloneNode(true);
+      form.parentNode.replaceChild(newForm, form);
+      
+      newForm.addEventListener('submit', function(e) {
         e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
         return false;
       }, true);
-    }
-    
-    if (submitButton) {
-      // Remove any existing onclick to avoid conflicts
-      submitButton.removeAttribute('onclick');
       
-      // Add click event listener that calls submitDecision
-      submitButton.addEventListener('click', function(e) {
-        console.log('Submit button click event listener fired');
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        submitDecision(e);
-        return false;
-      }, false); // Use bubble phase, not capture
+      // Re-get elements from the new form
+      const newSubmitButton = document.getElementById('submitButton');
+      if (newSubmitButton) {
+        newSubmitButton.addEventListener('click', function(e) {
+          console.log('Submit button clicked');
+          submitDecision(e);
+        });
+      }
     }
-  });
+  }
+
+  // Bind to both events for maximum compatibility
+  document.addEventListener('DOMContentLoaded', initializeL3Decision);
+  document.addEventListener('turbo:load', initializeL3Decision);
 
   function openModal(actionType) {
     console.log('openModal called with actionType:', actionType);
     
     const modal = document.getElementById("decisionModal");
     const modalTitle = document.getElementById("modalTitle");
-    const quarterStatusSection = document.getElementById("quarterStatusSection");
+    const returnLevelSection = document.getElementById('returnLevelSection');
+    const returnLevelSelect = document.getElementById('return_level');
     
-    if (!modal) {
-      console.error('Modal element not found!');
-      alert('Error: Modal not found. Please refresh the page.');
-      return;
-    }
+    if (!modal) return;
     
-    if (!modalTitle) {
-      console.error('Modal title element not found!');
-      alert('Error: Modal title not found. Please refresh the page.');
-      return;
-    }
-    
-    currentActionType = actionType;
+    window.l3DecisionData.currentActionType = actionType;
     
     // Set the action type in the hidden input
     const actionTypeInput = document.getElementById('action_type');
-    if (actionTypeInput) {
-      actionTypeInput.value = actionType;
-    }
+    if (actionTypeInput) actionTypeInput.value = actionType;
     
-    // Modal is always centered - no dynamic positioning needed
     modal.classList.remove("hidden");
     modal.style.display = "flex";
     document.body.style.overflow = 'hidden';
 
-    // Show/hide return level dropdown based on action type
-    const returnLevelSection = document.getElementById('returnLevelSection');
-    const returnLevelSelect = document.getElementById('return_level');
-    
     if (actionType === "l3_approve") {
       <% if @employee_detail.present? %>
-        currentActionUrl = "<%= l3_approve_employee_detail_path(@employee_detail) %>";
-        console.log('L3 Approve URL set to:', currentActionUrl);
-        console.log('Full URL check - should NOT contain show_l3:', currentActionUrl);
-        
-        // Verify URL is correct
-        if (currentActionUrl.includes('show_l3')) {
-          console.error('CRITICAL ERROR: URL contains show_l3!', currentActionUrl);
-          alert('Error: Invalid URL generated. Please refresh the page.');
-          closeModal();
-          return;
-        }
-        
-        // Clear form action to prevent normal submission
-        const form = document.getElementById('modalForm');
-        if (form) {
-          form.action = 'javascript:void(0);';
-          form.method = 'post';
-          form.setAttribute('novalidate', 'novalidate');
-          form.removeAttribute('data-remote');
-          form.removeAttribute('data-turbo');
-        }
-      <% else %>
-        console.error('Employee Detail is nil - cannot generate L3 approve URL');
-        alert('Error: Employee detail not found. Please refresh the page.');
-        closeModal();
-        return;
+        window.l3DecisionData.currentActionUrl = "<%= l3_approve_employee_detail_path(@employee_detail) %>";
       <% end %>
       modalTitle.innerText = "L3 Approve Quarter";
-      // Hide dropdown for approve action
+      
       if (returnLevelSection) {
         returnLevelSection.classList.add('hidden');
+        returnLevelSection.style.display = 'none';
       }
-      if (returnLevelSelect) {
-        returnLevelSelect.required = false;
-      }
+      if (returnLevelSelect) returnLevelSelect.required = false;
+      
     } else if (actionType === "l3_reject") {
       <% if @employee_detail.present? %>
-        currentActionUrl = "<%= l3_return_employee_detail_path(@employee_detail) %>";
-        console.log('L3 Return URL set to:', currentActionUrl);
-        console.log('Full URL check - should NOT contain show_l3:', currentActionUrl);
-        
-        // Verify URL is correct
-        if (currentActionUrl.includes('show_l3')) {
-          console.error('CRITICAL ERROR: URL contains show_l3!', currentActionUrl);
-          alert('Error: Invalid URL generated. Please refresh the page.');
-          closeModal();
-          return;
-        }
-        
-        // Clear form action to prevent normal submission
-        const form = document.getElementById('modalForm');
-        if (form) {
-          form.action = 'javascript:void(0);';
-          form.method = 'post';
-          form.setAttribute('novalidate', 'novalidate');
-          form.removeAttribute('data-remote');
-          form.removeAttribute('data-turbo');
-        }
-      <% else %>
-        console.error('Employee Detail is nil - cannot generate L3 return URL');
-        alert('Error: Employee detail not found. Please refresh the page.');
-        closeModal();
-        return;
+        window.l3DecisionData.currentActionUrl = "<%= l3_return_employee_detail_path(@employee_detail) %>";
       <% end %>
       modalTitle.innerText = "L3 Return Quarter";
       
-      // Show dropdown for return action
       if (returnLevelSection) {
         returnLevelSection.classList.remove('hidden');
+        returnLevelSection.style.display = 'block';
       }
-      if (returnLevelSelect) {
-        returnLevelSelect.required = true;
-      }
+      if (returnLevelSelect) returnLevelSelect.required = true;
     }
 
-    // Clear form
+    // Clear form fields
     const remarksField = document.getElementById('l3_remarks');
     const percentageField = document.getElementById('l3_percentage');
-    
     if (remarksField) remarksField.value = '';
     if (percentageField) percentageField.value = '';
   }
 
   function closeModal() {
     const modal = document.getElementById("decisionModal");
+    if (!modal) return;
     modal.classList.add("hidden");
     modal.style.display = "none";
     document.body.style.overflow = 'auto';
-    currentActionType = '';
-    currentActionUrl = '';
+    window.l3DecisionData.currentActionType = '';
+    window.l3DecisionData.currentActionUrl = '';
   }
 
   function showStatusMessage(message, isSuccess) {
     const statusDiv = document.getElementById('statusMessage');
+    if (!statusDiv) return;
     statusDiv.className = `mb-4 p-4 rounded-lg ${isSuccess ? 'bg-green-100 text-green-800 border border-green-200' : 'bg-red-100 text-red-800 border border-red-200'}`;
     statusDiv.textContent = message;
     statusDiv.classList.remove('hidden');
+    
+    // Scroll to status message
+    statusDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
     
     setTimeout(() => {
       statusDiv.classList.add('hidden');
@@ -805,42 +751,15 @@
     if (!statusBadge) return;
 
     let statusConfig = {};
-    
     switch(newStatus) {
       case 'l3_approved':
-        statusConfig = {
-          color: 'bg-purple-100 text-purple-800 border-purple-300',
-          text: 'L3 Approved',
-          icon: 'fas fa-check-double'
-        };
+        statusConfig = { color: 'bg-purple-100 text-purple-800 border-purple-300', text: 'L3 Approved', icon: 'fas fa-check-double' };
         break;
       case 'l3_returned':
-        statusConfig = {
-          color: 'bg-pink-100 text-pink-800 border-pink-300',
-          text: 'L3 Returned',
-          icon: 'fas fa-exclamation-triangle'
-        };
-        break;
-      case 'l2_approved':
-        statusConfig = {
-          color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
-          text: 'L2 Approved',
-          icon: 'fas fa-check-double'
-        };
-        break;
-      case 'l1_approved':
-        statusConfig = {
-          color: 'bg-green-100 text-green-800 border-green-300',
-          text: 'L1 Approved',
-          icon: 'fas fa-check-circle'
-        };
+        statusConfig = { color: 'bg-pink-100 text-pink-800 border-pink-300', text: 'L3 Returned', icon: 'fas fa-exclamation-triangle' };
         break;
       default:
-        statusConfig = {
-          color: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-          text: 'Pending',
-          icon: 'fas fa-clock'
-        };
+        statusConfig = { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', text: 'Pending', icon: 'fas fa-clock' };
     }
 
     statusBadge.className = `inline-flex items-center px-4 py-2 rounded-full text-sm font-medium border ${statusConfig.color}`;
@@ -851,7 +770,6 @@
     const actionButtons = document.getElementById('actionButtons');
     if (actionButtons) {
       actionButtons.style.display = 'none';
-      
       const processedMessage = document.createElement('div');
       processedMessage.className = 'mt-8 pt-6 border-t border-gray-200 text-center text-gray-600 font-medium';
       processedMessage.textContent = 'This Quarter has been processed and cannot be modified.';
@@ -860,73 +778,32 @@
   }
 
   function submitDecision(event) {
-    console.log('=== submitDecision CALLED ===');
-    console.log('Event:', event);
-    console.log('currentActionUrl:', currentActionUrl);
-    console.log('currentActionType:', currentActionType);
+    if (event) event.preventDefault();
+    const actionUrl = window.l3DecisionData.currentActionUrl;
     
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-      event.stopImmediatePropagation();
-      console.log('Event prevented and stopped');
-    } else {
-      console.warn('No event object passed to submitDecision');
+    if (!actionUrl) {
+      showStatusMessage('❌ Error: Initialization failed. Please refresh.', false);
+      return;
     }
     
-    // Debug: Check if currentActionUrl is set
-    if (!currentActionUrl) {
-      console.error('currentActionUrl is not set!');
-      console.error('This usually means openModal was not called or failed. Please close and reopen the modal.');
-      showStatusMessage('❌ Error: Action URL not set. Please close the modal and try again.', false);
-      const modalLoading = document.getElementById('modalLoading');
-      if (modalLoading) modalLoading.classList.add('hidden');
-      return false;
-    }
-    
-    // Double-check: if currentActionUrl contains 'show_l3', something is wrong
-    if (currentActionUrl.includes('show_l3')) {
-      console.error('ERROR: currentActionUrl incorrectly set to show_l3:', currentActionUrl);
-      showStatusMessage('❌ Error: Invalid action URL. Please close the modal and try again.', false);
-      const modalLoading = document.getElementById('modalLoading');
-      if (modalLoading) modalLoading.classList.add('hidden');
-      return false;
-    }
-    
-    const modalLoading = document.getElementById('modalLoading');
     const form = document.getElementById('modalForm');
-    
-    // Final safety check: ensure form action is still safe
-    if (form && form.action !== 'javascript:void(0);' && !form.action.includes('l3_approve') && !form.action.includes('l3_return') && form.action !== '#') {
-      console.error('Form action was changed! Resetting to javascript:void(0)', form.action);
-      form.action = 'javascript:void(0);';
-    }
-    
+    const modalLoading = document.getElementById('modalLoading');
     const formData = new FormData(form);
     
-    formData.append('action_type', currentActionType);
+    // Validation
+    const remarks = document.getElementById('l3_remarks').value;
+    const percentage = document.getElementById('l3_percentage').value;
+    const returnLevel = document.getElementById('return_level');
     
-    // Get return level from dropdown if it's a return action
-    const returnLevelSelect = document.getElementById('return_level');
-    if (returnLevelSelect && returnLevelSelect.value) {
-      formData.append('return_level', returnLevelSelect.value);
+    if (!remarks.trim()) { alert('Please enter remarks'); return; }
+    if (!percentage) { alert('Please enter percentage'); return; }
+    if (window.l3DecisionData.currentActionType === 'l3_reject' && (!returnLevel || !returnLevel.value)) {
+      alert('Please select return level'); return;
     }
+
+    if (modalLoading) modalLoading.classList.remove('hidden');
     
-    // Final URL validation before fetch
-    console.log('About to fetch:', currentActionUrl);
-    if (!currentActionUrl || currentActionUrl === '#' || currentActionUrl === 'javascript:void(0);' || currentActionUrl.includes('show_l3')) {
-      console.error('Invalid URL for fetch:', currentActionUrl);
-      showStatusMessage('❌ Error: Invalid action URL. Please close the modal and try again.', false);
-      if (modalLoading) modalLoading.classList.add('hidden');
-      return false;
-    }
-    
-    modalLoading.classList.remove('hidden');
-    
-    console.log('Making fetch request to:', currentActionUrl);
-    console.log('Form data entries:', Array.from(formData.entries()));
-    
-    fetch(currentActionUrl, {
+    fetch(actionUrl, {
       method: 'PATCH',
       body: formData,
       headers: {
@@ -934,169 +811,37 @@
         'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
       }
     })
-    .then(async response => {
-      console.log('L3 Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url
-      });
-      
-      if (!response.ok) {
-        // Try to parse JSON error response for better error messages
-        try {
-          const errorData = await response.json();
-          console.log('Error response data:', errorData);
-          
-          if (response.status === 404) {
-            console.error('404 Error - Employee detail not found');
-            showStatusMessage('❌ Employee detail not found. The record may have been deleted. Please refresh the page.', false);
-            closeModal();
-            setTimeout(() => {
-              window.location.href = '<%= employee_details_path %>';
-            }, 3000);
-            return null;
-          } else if (response.status === 422) {
-            // Handle 422 - Validation errors
-            const errorMessage = errorData.message || errorData.error || 'Validation failed. Please check your input and try again.';
-            showStatusMessage(errorMessage, false);
-            modalLoading.classList.add('hidden');
-            return null;
-          } else if (response.status === 400) {
-            console.error('400 Error - Bad request');
-            const errorMessage = errorData.message || errorData.error || 'Invalid request. Please check your input and try again.';
-            showStatusMessage(errorMessage, false);
-            modalLoading.classList.add('hidden');
-            return null;
-          } else if (response.status === 500) {
-            console.error('500 Error - Server error');
-            showStatusMessage('❌ Server error occurred. Please try again or contact support.', false);
-            modalLoading.classList.add('hidden');
-            return null;
-          } else if (response.status === 403) {
-            showStatusMessage('❌ Access denied. You are not authorized to perform this action.', false);
-            modalLoading.classList.add('hidden');
-            return null;
-          }
-          
-          // For other errors, show the error message from server if available
-          const errorMessage = errorData.message || errorData.error || `HTTP error! status: ${response.status}`;
-          showStatusMessage(errorMessage, false);
-          modalLoading.classList.add('hidden');
-          return null;
-        } catch (parseError) {
-          // If JSON parsing fails, show generic error
-          console.error('Failed to parse error response:', parseError);
-          showStatusMessage(`❌ Server error (${response.status}). Please try again.`, false);
-          modalLoading.classList.add('hidden');
-          return null;
-        }
-      }
-      return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-      if (!data) return;
-      
-      modalLoading.classList.add('hidden');
-      
+      if (modalLoading) modalLoading.classList.add('hidden');
       if (data.success) {
         closeModal();
         showStatusMessage(data.message, true);
-        
-        // Update status badge
         if (data.updated_status) {
           updateStatusBadge(data.updated_status);
           hideActionButtons();
         }
-        
-        // Get values from form inputs
-        const percentage = document.getElementById('l3_percentage').value;
-        const remarks = document.getElementById('l3_remarks').value;
-        
-        // Update L3 summary immediately with form values
-        if (percentage || remarks) {
-          updateL3Summary(percentage, remarks);
-        }
-        
-        // Refresh the page to show updated L1 and L2 data
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-        
-        // Scroll to status message
-        document.getElementById('statusMessage').scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'center' 
-        });
-        
+        // Refresh faster for better UX
+        setTimeout(() => { window.location.reload(); }, 1000);
       } else {
-        showStatusMessage(data.message || 'An error occurred', false);
+        showStatusMessage(data.message || 'Error occurred', false);
       }
     })
     .catch(error => {
-      modalLoading.classList.add('hidden');
-      console.error('Error details:', error);
+      if (modalLoading) modalLoading.classList.add('hidden');
       showStatusMessage('Network error occurred. Please try again.', false);
     });
   }
 
-  // Function to update L3 summary section
-  function updateL3Summary(percentage, remarks) {
-    console.log('Updating L3 Summary with:', { percentage, remarks });
-    
-    // Update L3 percentage display
-    const l3PercentageElement = document.getElementById('l3-percentage-display');
-    if (l3PercentageElement && percentage !== undefined && percentage !== null && percentage !== '') {
-      l3PercentageElement.textContent = parseFloat(percentage).toFixed(1) + '%';
-    }
-    
-    // Update L3 remarks display
-    const l3RemarksContainer = document.getElementById('l3-remarks-container');
-    if (l3RemarksContainer) {
-      if (remarks && remarks.trim() !== '') {
-        l3RemarksContainer.innerHTML = `
-          <div class="text-gray-700 text-sm mb-3 pb-3">
-            <div class="flex items-start gap-2">
-              <span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
-                Remark 1
-              </span>
-              <span class="text-gray-700">${remarks}</span>
-            </div>
-          </div>
-        `;
-      } else {
-        // If no remarks provided, show approved message
-        l3RemarksContainer.innerHTML = `
-          <p class="text-gray-500 text-sm">
-            <i class="fas fa-check-circle text-purple-500 mr-1"></i>
-            Quarter approved - no additional remarks needed
-          </p>
-        `;
-      }
-    }
-  }
-
-  // Close modal when clicking outside
-  document.getElementById('decisionModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-      closeModal();
-    }
+  // Update logic and listeners
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  
+  // Close on outside click
+  window.addEventListener('click', (e) => {
+    const modal = document.getElementById('decisionModal');
+    if (e.target === modal) closeModal();
   });
 
-  // Close modal with Escape key
-  document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-      closeModal();
-    }
-  });
-
-  // Initialize dropdown section on page load
-  document.addEventListener('DOMContentLoaded', function() {
-    const returnLevelSection = document.getElementById('returnLevelSection');
-    if (returnLevelSection) {
-      // Ensure dropdown is hidden initially
-      returnLevelSection.classList.add('hidden');
-    }
-  });
 
 </script>
 

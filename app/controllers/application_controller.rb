@@ -1,6 +1,13 @@
 class ApplicationController < ActionController::Base
   before_action :authenticate_user!
+  before_action :set_dashboard_active
   before_action :configure_permitted_parameters, if: :devise_controller?
+
+  private
+
+  def set_dashboard_active
+    @dashboard_active = SystemSetting.dashboard_active?
+  end
 
   protected
 

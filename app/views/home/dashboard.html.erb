@@ -9,10 +9,13 @@
       <div class="flex items-center space-x-4">
         <!-- Active/Inactive Toggle Button -->
         <div class="flex items-center space-x-3 bg-white px-4 py-2 rounded-xl shadow-md">
-          <span class="text-base font-medium text-gray-700" id="toggle-label">Active</span>
-          <div class="relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none cursor-pointer" id="active-inactive-toggle" onclick="handleToggleClick(event)">
+          <span class="text-base font-medium <%= @dashboard_active ? 'text-gray-700' : 'text-gray-500' %>" id="toggle-label"><%= @dashboard_active ? 'Active' : 'Inactive' %></span>
+          <div class="relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none cursor-pointer <%= @dashboard_active ? 'bg-green-500' : 'bg-gray-400' %>" 
+               id="active-inactive-toggle" 
+               data-active="<%= @dashboard_active %>"
+               onclick="handleToggleClick(event)">
             <!-- Toggle slider -->
-            <span class="inline-block h-8 w-8 transform rounded-full bg-white transition-transform shadow-sm z-20 pointer-events-none" id="toggle-slider"></span>
+            <span class="inline-block h-8 w-8 transform rounded-full bg-white transition-transform shadow-sm z-20 pointer-events-none <%= @dashboard_active ? 'translate-x-11' : 'translate-x-1' %>" id="toggle-slider"></span>
           </div>
         </div>
         
@@ -559,9 +562,14 @@
   
   // Set initial state on page load
   function initializeToggle() {
-    updateToggleState(isActive, false);
+    const toggle = document.getElementById('active-inactive-toggle');
+    if (toggle) {
+      isActive = toggle.getAttribute('data-active') === 'true';
+      updateToggleState(isActive, false);
+    }
   }
   
-  // Initialize on page load
+  // Handle both standard load and Turbo load
   document.addEventListener('DOMContentLoaded', initializeToggle);
+  document.addEventListener('turbo:load', initializeToggle);
 </script>
