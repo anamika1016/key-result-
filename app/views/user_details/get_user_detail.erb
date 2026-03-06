@@ -1018,13 +1018,7 @@ function handleAchievementFormSubmission() {
   const form = document.getElementById('achievementForm');
   const submitBtn = document.getElementById('submitBtn');
   
-  console.log('Form found:', form ? 'Yes' : 'No');
-  console.log('Submit button found:', submitBtn ? 'Yes' : 'No');
-  
-  if (!form) {
-    console.error('Achievement form not found!');
-    return;
-  }
+  if (!form) return;
   
   // Form validation
   form.addEventListener('submit', function(e) {

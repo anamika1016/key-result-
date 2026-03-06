@@ -1286,7 +1286,7 @@ window.addEventListener('load', function() {
 
 <!-- Quarterly Achievement Details Modal -->
 <div id="quarterlyDetailsModal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
-  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+  <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4">
     <!-- Modal Header -->
     <div class="bg-gray-700 text-white px-6 py-4 rounded-t-lg flex justify-between items-center">
       <div>
@@ -1301,66 +1301,15 @@ window.addEventListener('load', function() {
     </div>
     
     <!-- Modal Body -->
-    <div class="p-6">
+    <div class="p-6 max-h-[70vh] overflow-y-auto">
       <div class="text-xs text-gray-500 text-center mb-4" id="lastUpdated">
         Auto-refreshing every 10 seconds
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <!-- L1 Summary -->
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h4 class="text-red-600 font-semibold text-lg mb-3">L1 Summary</h4>
-          <div class="space-y-2">
-            <div>
-              <span class="font-medium">Percentage: </span>
-              <span id="l1Percentage" class="font-bold text-lg text-red-600">--</span>
-            </div>
-            <div>
-              <span class="font-medium">Remarks: </span>
-              <span id="l1Remarks" class="font-bold text-red-600">--</span>
-            </div>
-            <div>
-              <span class="font-medium">Status: </span>
-              <span id="l1Status" class="font-bold text-green-600">--</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- L2 Summary -->
-        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-          <h4 class="text-purple-600 font-semibold text-lg mb-3">L2 Summary</h4>
-          <div class="space-y-2">
-            <div>
-              <span class="font-medium">Percentage: </span>
-              <span id="l2Percentage" class="font-bold text-lg text-purple-600">--</span>
-            </div>
-            <div>
-              <span class="font-medium">Remarks: </span>
-              <span id="l2Remarks" class="font-bold text-purple-600">--</span>
-            </div>
-            <div>
-              <span class="font-medium">Status: </span>
-              <span id="l2Status" class="font-bold text-green-600">--</span>
-            </div>
-          </div>
-        </div>
-        
-        <!-- L3 Summary -->
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 md:col-span-2">
-          <h4 class="text-blue-600 font-semibold text-lg mb-3">L3 Summary</h4>
-          <div class="space-y-2">
-            <div>
-              <span class="font-medium">Percentage: </span>
-              <span id="l3Percentage" class="font-bold text-lg text-blue-600">--</span>
-            </div>
-            <div>
-              <span class="font-medium">Remarks: </span>
-              <span id="l3Remarks" class="font-bold text-blue-600">--</span>
-            </div>
-            <div>
-              <span class="font-medium">Status: </span>
-              <span id="l3Status" class="font-bold text-green-600">--</span>
-            </div>
-          </div>
+      <div id="modalSummariesContainer" class="space-y-8">
+        <!-- Dynamic content will be inserted here by JavaScript -->
+        <div class="flex flex-col items-center justify-center py-12">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+            <p class="text-gray-500 font-medium">Fetching details...</p>
         </div>
       </div>
     </div>
@@ -1397,16 +1346,13 @@ function fetchQuarterlyDetails(quarter, showLoading = true) {
   document.getElementById('modalQuarterTitle').textContent = quarterMonths[quarter] || quarter;
   
   // Show loading state if requested
+  const container = document.getElementById('modalSummariesContainer');
   if (showLoading) {
-    document.getElementById('l1Percentage').textContent = 'Loading...';
-    document.getElementById('l1Remarks').textContent = 'Loading...';
-    document.getElementById('l1Status').textContent = 'Loading...';
-    document.getElementById('l2Percentage').textContent = 'Loading...';
-    document.getElementById('l2Remarks').textContent = 'Loading...';
-    document.getElementById('l2Status').textContent = 'Loading...';
-    document.getElementById('l3Percentage').textContent = 'Loading...';
-    document.getElementById('l3Remarks').textContent = 'Loading...';
-    document.getElementById('l3Status').textContent = 'Loading...';
+    container.innerHTML = `
+      <div class="flex flex-col items-center justify-center py-12">
+          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p class="text-gray-500 font-medium">Fetching details...</p>
+      </div>`;
   }
   
   // Fetch real data from server with cache busting
@@ -1425,7 +1371,7 @@ function fetchQuarterlyDetails(quarter, showLoading = true) {
     }
     return response.json();
   })
-    .then(data => {
+  .then(data => {
     console.log('Received data:', data);
     
     // Update last updated timestamp
@@ -1436,43 +1382,113 @@ function fetchQuarterlyDetails(quarter, showLoading = true) {
       lastUpdatedEl.textContent = `Last updated: ${timeString} (Auto-refreshing every 10 seconds)`;
     }
     
-    // Update the modal content with real data
-    document.getElementById('l1Percentage').textContent = data.l1.percentage || '0.0%';
-    document.getElementById('l1Remarks').textContent = data.l1.remarks || 'No remarks';
-    document.getElementById('l1Status').textContent = data.l1.status || 'Pending';
-    document.getElementById('l2Percentage').textContent = data.l2.percentage || '0.0%';
-    document.getElementById('l2Remarks').textContent = data.l2.remarks || 'No remarks';
-    document.getElementById('l2Status').textContent = data.l2.status || 'Pending';
-    document.getElementById('l3Percentage').textContent = data.l3.percentage || '0.0%';
-    document.getElementById('l3Remarks').textContent = data.l3.remarks || 'No remarks';
-    document.getElementById('l3Status').textContent = data.l3.status || 'Pending';
+    // Clear container
+    container.innerHTML = '';
     
-    // Add visual feedback for update (brief highlight)
-    ['l1Percentage', 'l1Remarks', 'l1Status', 'l2Percentage', 'l2Remarks', 'l2Status', 
-     'l3Percentage', 'l3Remarks', 'l3Status'].forEach(id => {
-      const element = document.getElementById(id);
-      if (element) {
-        element.style.transition = 'background-color 0.3s ease';
-        element.style.backgroundColor = '#dbeafe';
-        setTimeout(() => {
-          element.style.backgroundColor = '';
-        }, 300);
-      }
+    if (!data.summaries || data.summaries.length === 0) {
+      container.innerHTML = `
+        <div class="text-center py-12 text-gray-500">
+          <i class="fas fa-info-circle text-4xl mb-4"></i>
+          <p class="text-lg">No data available for ${quarter}</p>
+        </div>`;
+      return;
+    }
+    
+    // Helper to get status color classes
+    const getStatusColorClass = (status) => {
+      if (!status) return 'bg-gray-100 text-gray-800';
+      const s = status.toLowerCase();
+      if (s.includes('approved')) return 'bg-green-100 text-green-800';
+      if (s.includes('returned') || s.includes('rejected')) return 'bg-red-100 text-red-800';
+      if (s.includes('pending')) return 'bg-yellow-100 text-yellow-800';
+      return 'bg-blue-100 text-blue-800';
+    };
+    
+    // Group summaries by employee if needed, but for now just show them
+    data.summaries.forEach((summary) => {
+      const summaryHtml = `
+        <div class="department-summary-block border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-3">
+          <div class="bg-gray-50 px-3 py-1.5 border-b border-gray-200 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+              <span class="text-blue-600 font-bold text-xs uppercase tracking-tight">${summary.department_name}</span>
+              <span class="text-gray-300">|</span>
+              <span class="text-gray-700 font-medium text-xs">${summary.employee_name}</span>
+            </div>
+            <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">${summary.activity_count} Activities</span>
+          </div>
+          <div class="p-2.5">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <!-- L1 Compact -->
+              <div class="bg-orange-50/50 border border-orange-100 rounded p-2 flex flex-col justify-between h-full">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-[10px] font-bold text-orange-800 uppercase tracking-wider">L1 Summary</span>
+                  <span class="text-sm font-black text-orange-700">${summary.l1.percentage}</span>
+                </div>
+                <div class="bg-blue-50/50 p-1.5 rounded border border-blue-100 mb-1.5 min-h-[30px] flex items-center">
+                  <span class="text-blue-700 italic text-[12px] leading-tight font-medium" title="${summary.l1.remarks}">
+                    ${summary.l1.remarks && summary.l1.remarks !== 'No remarks' ? `"${summary.l1.remarks}"` : '<span class="text-gray-400">No remarks</span>'}
+                  </span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${getStatusColorClass(summary.l1.status)}">
+                    ${summary.l1.status}
+                  </span>
+                  <i class="fas fa-check-double text-orange-200 text-[10px]"></i>
+                </div>
+              </div>
+              
+              <!-- L2 Compact -->
+              <div class="bg-purple-50/50 border border-purple-100 rounded p-2 flex flex-col justify-between h-full">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-[10px] font-bold text-purple-800 uppercase tracking-wider">L2 Summary</span>
+                  <span class="text-sm font-black text-purple-700">${summary.l2.percentage}</span>
+                </div>
+                <div class="bg-blue-50/50 p-1.5 rounded border border-blue-100 mb-1.5 min-h-[30px] flex items-center">
+                  <span class="text-blue-700 italic text-[12px] leading-tight font-medium" title="${summary.l2.remarks}">
+                    ${summary.l2.remarks && summary.l2.remarks !== 'No remarks' ? `"${summary.l2.remarks}"` : '<span class="text-gray-400">No remarks</span>'}
+                  </span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${getStatusColorClass(summary.l2.status)}">
+                    ${summary.l2.status}
+                  </span>
+                  <i class="fas fa-certificate text-purple-200 text-[10px]"></i>
+                </div>
+              </div>
+              
+              <!-- L3 Compact -->
+              <div class="bg-blue-50/50 border border-blue-100 rounded p-2 flex flex-col justify-between h-full">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-[10px] font-bold text-blue-800 uppercase tracking-wider">L3 Summary</span>
+                  <span class="text-sm font-black text-blue-700">${summary.l3.percentage}</span>
+                </div>
+                <div class="bg-blue-50/50 p-1.5 rounded border border-blue-100 mb-1.5 min-h-[30px] flex items-center">
+                  <span class="text-blue-700 italic text-[12px] leading-tight font-medium" title="${summary.l3.remarks}">
+                    ${summary.l3.remarks && summary.l3.remarks !== 'No remarks' ? `"${summary.l3.remarks}"` : '<span class="text-gray-400">No remarks</span>'}
+                  </span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${getStatusColorClass(summary.l3.status)}">
+                    ${summary.l3.status}
+                  </span>
+                  <i class="fas fa-shield-alt text-blue-200 text-[10px]"></i>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+      container.insertAdjacentHTML('beforeend', summaryHtml);
     });
   })
   .catch(error => {
     console.error('Error fetching quarterly details:', error);
-    
-    // Show error state
-    document.getElementById('l1Percentage').textContent = 'Error';
-    document.getElementById('l1Remarks').textContent = 'Failed to load';
-    document.getElementById('l1Status').textContent = 'Error';
-    document.getElementById('l2Percentage').textContent = 'Error';
-    document.getElementById('l2Remarks').textContent = 'Failed to load';
-    document.getElementById('l2Status').textContent = 'Error';
-    document.getElementById('l3Percentage').textContent = 'Error';
-    document.getElementById('l3Remarks').textContent = 'Failed to load';
-    document.getElementById('l3Status').textContent = 'Error';
+    container.innerHTML = `
+      <div class="text-center py-12 text-red-500">
+        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
+        <p class="text-lg font-bold">Error loading data</p>
+        <p class="text-sm">${error.message}</p>
+      </div>`;
   });
 }
 

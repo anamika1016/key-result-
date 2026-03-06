@@ -6,7 +6,20 @@ class User < ApplicationRecord
   has_one :employee_detail
   has_one_attached :avatar
 
-  # Avatar validation will be handled in JavaScript for better UX
+  # Server-side avatar validation
+  validate :avatar_content_type, :avatar_file_size
+
+  def avatar_content_type
+    if avatar.attached? && !avatar.content_type.in?(%w[image/jpeg image/jpg image/png image/gif image/webp])
+      errors.add(:avatar, "must be a JPEG, PNG, GIF, or WEBP image")
+    end
+  end
+
+  def avatar_file_size
+    if avatar.attached? && avatar.blob.byte_size > 10.megabytes
+      errors.add(:avatar, "file size must be less than 10MB")
+    end
+  end
 
   ROLES = %w[employee hod l1_employer l2_employer]
 

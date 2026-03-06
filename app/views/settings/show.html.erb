@@ -21,7 +21,7 @@
       <div class="flex items-center gap-6">
         <!-- Profile Picture -->
         <div class="relative">
-          <div id="profileImageContainer" class="w-40 h-40 rounded-full overflow-hidden border-4 border-gray-200">
+          <div id="profileImageContainer" class="w-56 h-56 rounded-full overflow-hidden border-4 border-gray-200">
             <% if @user.avatar.attached? %>
               <%= image_tag @user.avatar, 
                             alt: "Profile Picture", 
@@ -36,8 +36,8 @@
           </div>
           
           <!-- Camera Icon - Clickable -->
-          <label for="avatarInput" class="absolute bottom-0 right-0 bg-green-500 hover:bg-green-600 hover:scale-110 rounded-full p-3 border-3 border-white cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl group" title="Click to upload profile picture">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <label for="avatarInput" class="absolute bottom-2 right-2 bg-green-500 hover:bg-green-600 hover:scale-110 rounded-full p-3.5 border-4 border-white cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl group" title="Click to upload profile picture">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
@@ -211,98 +211,102 @@ function togglePasswordForm() {
   }
 }
 
-function uploadAvatar(input) {
-  if (input.files && input.files[0]) {
-    const file = input.files[0];
-    
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Please select a valid image file.');
-      return;
-    }
-    
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB.');
-      return;
-    }
-    
-    // Show preview immediately
+async function uploadAvatar(input) {
+  if (!input.files || !input.files[0]) return;
+  
+  const file = input.files[0];
+  const cameraIcon = document.querySelector('label[for="avatarInput"]');
+  const originalContent = cameraIcon.innerHTML;
+  const profileImage = document.getElementById('profileImage');
+  const sidebarAvatar = document.querySelector('.sidebar-avatar');
+  const originalProfileSrc = profileImage ? profileImage.src : '';
+  const originalSidebarSrc = sidebarAvatar ? sidebarAvatar.src : '';
+
+  // 1. Client-side Validation
+  if (!file.type.startsWith('image/')) {
+    showMessage('Please select a valid image file.', 'error');
+    input.value = '';
+    return;
+  }
+  
+  // Max size check - hint at Nginx config if it fails later
+  if (file.size > 10 * 1024 * 1024) {
+    showMessage('Image size is too large (max 10MB).', 'error');
+    input.value = '';
+    return;
+  }
+
+  try {
+    // 2. Show Preview
     const reader = new FileReader();
-    reader.onload = function(e) {
-      const profileImage = document.getElementById('profileImage');
-      profileImage.src = e.target.result;
+    reader.onload = (e) => {
+      if (profileImage) profileImage.src = e.target.result;
     };
     reader.readAsDataURL(file);
-    
-    // Submit the form
+
+    // 3. Prepare Submission
     const form = document.getElementById('avatarForm');
     const formData = new FormData(form);
     
     // Show loading state
-    const cameraIcon = document.querySelector('label[for="avatarInput"]');
-    const originalContent = cameraIcon.innerHTML;
     cameraIcon.innerHTML = '<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>';
-    
-    fetch(form.action, {
+
+    // 4. Fetch Request
+    const response = await fetch(form.action, {
       method: 'PATCH',
       body: formData,
       headers: {
         'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
         'X-Requested-With': 'XMLHttpRequest'
       }
-    })
-    .then(async response => {
-      const contentType = response.headers.get('content-type');
-      let data = {};
-      
-      if (contentType && contentType.includes('application/json')) {
-        data = await response.json();
-      }
-
-      if (response.ok) {
-        if (data.success) {
-          // Update the image with the new URL from server if provided
-          if (data.avatar_url) {
-            const profileImage = document.getElementById('profileImage');
-            profileImage.src = data.avatar_url;
-            
-            // Also update the sidebar avatar if it exists
-            const sidebarAvatar = document.querySelector('.sidebar-avatar');
-            if (sidebarAvatar) {
-              sidebarAvatar.src = data.avatar_url;
-            }
-          }
-          
-          // Show success message
-          showMessage(data.message || 'Profile picture updated successfully!', 'success');
-        } else {
-          throw new Error(data.errors ? data.errors.join(', ') : 'Upload failed');
-        }
-      } else {
-        if (response.status === 413) {
-          throw new Error('Image file is too large for the server. Please try a smaller image.');
-        }
-        throw new Error(data.errors ? data.errors.join(', ') : 'Upload failed (Server Error)');
-      }
-    })
-    .catch(error => {
-      console.error('Error:', error);
-      showMessage('Failed to update profile picture. Please try again.', 'error');
-      // Revert image to default
-      const profileImage = document.getElementById('profileImage');
-      profileImage.src = '<%= asset_path("business_female_male_users.svg") %>';
-      
-      // Also revert sidebar avatar
-      const sidebarAvatar = document.querySelector('.sidebar-avatar');
-      if (sidebarAvatar) {
-        sidebarAvatar.src = '<%= asset_path("business_female_male_users.svg") %>';
-      }
-    })
-    .finally(() => {
-      // Restore camera icon
-      cameraIcon.innerHTML = originalContent;
     });
+
+    // 5. Handle Nginx Errors (413, 502, etc.)
+    if (response.status === 413) {
+      throw new Error('Image is too large for the server. (Nginx: client_max_body_size limit)');
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      // If server returned HTML (likely an error page), don't try to parse as JSON
+      if (errorText.trim().startsWith('<')) {
+        throw new Error(`Server Error (${response.status}): Please contact Administrator to increase upload limit.`);
+      }
+    }
+
+    // 6. Parse JSON Response
+    const data = await response.json().catch(() => {
+      throw new Error('Invalid server response. Please try again.');
+    });
+
+    if (data.success) {
+      if (data.avatar_url) {
+        if (profileImage) profileImage.src = data.avatar_url;
+        if (sidebarAvatar) sidebarAvatar.src = data.avatar_url;
+      }
+      showMessage(data.message || 'Profile picture updated successfully!', 'success');
+    } else {
+      throw new Error(data.errors ? data.errors.join(', ') : 'Upload failed.');
+    }
+
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    
+    // Provide a helpful message for the 413 case specifically
+    let userMessage = error.message;
+    if (userMessage.includes('413') || userMessage.includes('too large')) {
+      userMessage = "Image is too large for the server. Please compress it or ask Admin to increase 'client_max_body_size' in Nginx.";
+    }
+    
+    showMessage(userMessage || 'Failed to update profile picture.', 'error');
+    
+    // Revert previews on error
+    if (profileImage) profileImage.src = originalProfileSrc;
+    if (sidebarAvatar) sidebarAvatar.src = originalSidebarSrc;
+    input.value = '';
+  } finally {
+    // Restore camera icon
+    cameraIcon.innerHTML = originalContent;
   }
 }
 

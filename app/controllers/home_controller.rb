@@ -570,13 +570,13 @@ class HomeController < ApplicationController
         user_details = UserDetail.none
       end
     when "hod"
-      user_details = UserDetail.includes(achievements: :achievement_remark)
+      user_details = UserDetail.includes(:department, :employee_detail, achievements: :achievement_remark)
     when "l1_employer"
-      user_details = UserDetail.includes(achievements: :achievement_remark)
+      user_details = UserDetail.includes(:department, :employee_detail, achievements: :achievement_remark)
                               .joins(:employee_detail)
                               .where(employee_details: { l1_code: current_user.employee_code })
     when "l2_employer"
-      user_details = UserDetail.includes(achievements: :achievement_remark)
+      user_details = UserDetail.includes(:department, :employee_detail, achievements: :achievement_remark)
                               .joins(:employee_detail)
                               .where("employee_details.l2_code = ? OR employee_details.l2_employer_name = ?",
                                      current_user.employee_code, current_user.email)
@@ -584,16 +584,30 @@ class HomeController < ApplicationController
       user_details = UserDetail.none
     end
 
-    # Calculate L1, L2, L3 summaries for the quarter
-    l1_data = calculate_level_summary(user_details, quarter, "l1")
-    l2_data = calculate_level_summary(user_details, quarter, "l2")
-    l3_data = calculate_level_summary(user_details, quarter, "l3")
+    # Group by employee_code and department_id to prevent duplicates for the same person
+    grouped_details = user_details.group_by { |ud| [ ud.employee_detail&.employee_code, ud.department_id ] }
+
+    department_summaries = grouped_details.map do |(emp_code, dept_id), details|
+      first_detail = details.first
+      dept = first_detail.department
+      emp = first_detail.employee_detail
+
+      {
+        employee_name: emp&.employee_name || "N/A",
+        department_name: dept&.department_type || "N/A",
+        activity_count: details.size,
+        l1: calculate_level_summary(details, quarter, "l1"),
+        l2: calculate_level_summary(details, quarter, "l2"),
+        l3: calculate_level_summary(details, quarter, "l3")
+      }
+    end.sort_by { |s| [ s[:employee_name], s[:department_name] ] }
 
     render json: {
       quarter: quarter,
-      l1: l1_data,
-      l2: l2_data,
-      l3: l3_data
+      summaries: department_summaries,
+      l1: calculate_level_summary(user_details, quarter, "l1"), # Keep old keys for backward compatibility
+      l2: calculate_level_summary(user_details, quarter, "l2"),
+      l3: calculate_level_summary(user_details, quarter, "l3")
     }
   end
 
