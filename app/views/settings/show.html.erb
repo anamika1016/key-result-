@@ -20,7 +20,7 @@
     <div class="flex items-start justify-between mb-6">
       <div class="flex items-center gap-6">
         <!-- Profile Picture -->
-        <div class="relative">
+        <div class="relative w-fit">
           <div id="profileImageContainer" class="w-56 h-56 rounded-full overflow-hidden border-4 border-gray-200">
             <% if @user.avatar.attached? %>
               <%= image_tag @user.avatar, 
