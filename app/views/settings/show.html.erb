@@ -20,7 +20,7 @@
     <div class="flex items-start justify-between mb-6">
       <div class="flex items-center gap-6">
         <!-- Profile Picture -->
-        <div class="relative w-fit">
+        <div class="relative inline-block">
           <div id="profileImageContainer" class="w-56 h-56 rounded-full overflow-hidden border-4 border-gray-200">
             <% if @user.avatar.attached? %>
               <%= image_tag @user.avatar, 
@@ -36,7 +36,7 @@
           </div>
           
           <!-- Camera Icon - Clickable -->
-          <label for="avatarInput" class="absolute bottom-2 right-2 bg-green-500 hover:bg-green-600 hover:scale-110 rounded-full p-3.5 border-4 border-white cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl group" title="Click to upload profile picture">
+          <label for="avatarInput" class="absolute bottom-2 right-4 translate-x-1/2 bg-green-500 hover:bg-green-600 hover:scale-110 rounded-full p-3.5 border-4 border-white cursor-pointer transition-all duration-200 shadow-lg hover:shadow-xl group" style="left: auto !important; right: 1rem !important;" title="Click to upload profile picture">
             <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
               <path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
