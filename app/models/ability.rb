@@ -16,8 +16,8 @@ class Ability
         ud.employee_detail&.employee_email == user.email ||
         ud.employee_detail&.employee_code == user.employee_code
       end
-      
-      can [:edit, :update, :destroy], UserDetail do |ud|
+
+      can [ :edit, :update, :destroy ], UserDetail do |ud|
         # Users can edit/delete their own user details
         ud.employee_detail&.employee_email == user.email ||
         ud.employee_detail&.employee_code == user.employee_code

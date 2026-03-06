@@ -9,7 +9,7 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
     alignment: { horizontal: :center, vertical: :center },
     border: { style: :thin, color: "000000" }
   )
-  
+
   month_header_style = wb.styles.add_style(
     bg_color: "4682B4",
     fg_color: "FFFFFF",
@@ -17,12 +17,12 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
     alignment: { horizontal: :center, vertical: :center },
     border: { style: :thin, color: "000000" }
   )
-  
+
   data_style = wb.styles.add_style(
     alignment: { horizontal: :center, vertical: :center },
     border: { style: :thin, color: "CCCCCC" }
   )
-  
+
   text_style = wb.styles.add_style(
     alignment: { horizontal: :left, vertical: :center },
     border: { style: :thin, color: "CCCCCC" }
@@ -39,35 +39,35 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
     "Theme",
     "Unit",
     "Weightage"
-  ], style: [header_style, header_style, header_style, header_style, header_style, 
-             header_style, header_style, header_style, header_style]
+  ], style: [ header_style, header_style, header_style, header_style, header_style,
+             header_style, header_style, header_style, header_style ]
 
   # Add data rows
   begin
     # Force load the data directly in template
     user_details_direct = UserDetail.includes(:department, :activity, :employee_detail).all
-    
+
     # Use direct query for now to bypass any instance variable issues
     data_to_use = @user_details.present? ? @user_details : user_details_direct
-    
+
     if data_to_use.present?
       Rails.logger.info "Excel Template: Adding #{data_to_use.count} data rows"
       data_to_use.each_with_index do |detail, index|
         begin
           Rails.logger.info "Excel Template: Processing row #{index + 1} - #{detail.employee_detail&.employee_name}"
-          
+
           sheet.add_row [
-            detail.department&.department_type&.to_s || 'N/A',
-            detail.employee_detail&.employee_name&.to_s || 'N/A',
-            detail.employee_detail&.employee_email&.to_s || 'N/A',
-            detail.employee_detail&.employee_code&.to_s || 'N/A',
-            detail.employee_detail&.mobile_number&.to_s || 'N/A',
-            detail.activity&.activity_name&.to_s || 'N/A',
-            detail.activity&.theme_name&.to_s || 'No Theme',
-            detail.activity&.unit&.to_s || '',
-            detail.activity&.weight&.to_s || ''
-          ], style: [text_style, text_style, text_style, text_style, text_style,
-                     text_style, text_style, data_style, data_style]
+            detail.department&.department_type&.to_s || "N/A",
+            detail.employee_detail&.employee_name&.to_s || "N/A",
+            detail.employee_detail&.employee_email&.to_s || "N/A",
+            detail.employee_detail&.employee_code&.to_s || "N/A",
+            detail.employee_detail&.mobile_number&.to_s || "N/A",
+            detail.activity&.activity_name&.to_s || "N/A",
+            detail.activity&.theme_name&.to_s || "No Theme",
+            detail.activity&.unit&.to_s || "",
+            detail.activity&.weight&.to_s || ""
+          ], style: [ text_style, text_style, text_style, text_style, text_style,
+                     text_style, text_style, data_style, data_style ]
         rescue => e
           Rails.logger.error "Error adding row to Excel: #{e.message} - Detail ID: #{detail.id}"
           # Skip this row and continue with next
@@ -78,23 +78,23 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
       Rails.logger.warn "Excel Template: No data found, adding 'No data available' message"
       # Add a message row if no data found
       sheet.add_row [
-        'No data available',
-        '', '', '', '', '', '', '', ''
-      ], style: [text_style, text_style, text_style, text_style, text_style,
-                 data_style, data_style, data_style, data_style]
+        "No data available",
+        "", "", "", "", "", "", "", ""
+      ], style: [ text_style, text_style, text_style, text_style, text_style,
+                 data_style, data_style, data_style, data_style ]
     end
   rescue => e
     Rails.logger.error "Excel Template Error: #{e.message}"
     sheet.add_row [
-      'Error generating data',
-      '', '', '', '', '', '', '', ''
-    ], style: [text_style, text_style, text_style, text_style, text_style,
-               data_style, data_style, data_style, data_style]
+      "Error generating data",
+      "", "", "", "", "", "", "", ""
+    ], style: [ text_style, text_style, text_style, text_style, text_style,
+               data_style, data_style, data_style, data_style ]
   end
 
   # Set column widths
   sheet.column_widths 15, 20, 25, 15, 15, 25, 20, 10, 12
-  
+
   # Freeze header row
   sheet.sheet_view.pane do |pane|
     pane.top_left_cell = "A2"
@@ -102,4 +102,3 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
     pane.y_split = 1
   end
 end
-

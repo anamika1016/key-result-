@@ -9,10 +9,10 @@ module ExcelTemplateGenerator
       # Add header row
       sheet.add_row [
         "Name",
-        "Email", 
+        "Email",
         "Employee Code",
         "L1 Code",
-        "L2 Code", 
+        "L2 Code",
         "L3 Code",
         "L1 Name",
         "L2 Name",
@@ -28,7 +28,7 @@ module ExcelTemplateGenerator
         "EMP001",
         "L1001",
         "L2001",
-        "L3001", 
+        "L3001",
         "Manager Name",
         "Senior Manager Name",
         "Director Name",
@@ -39,13 +39,13 @@ module ExcelTemplateGenerator
       # Add another sample row
       sheet.add_row [
         "Jane Smith",
-        "jane.smith@example.com", 
+        "jane.smith@example.com",
         "EMP002",
         "L1001",
         "L2001",
         "L3001",
         "Manager Name",
-        "Senior Manager Name", 
+        "Senior Manager Name",
         "Director Name",
         "Business Analyst",
         "Business"

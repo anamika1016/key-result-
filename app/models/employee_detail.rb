@@ -156,7 +156,7 @@ scope :with_l2_approved_achievements, -> {
         password_confirmation: "123456",
         role: "employee"
       )
-      
+
       Rails.logger.info "Created user account for employee: #{employee_name} (#{employee_code})"
     rescue => e
       Rails.logger.error "Failed to create user account for employee #{employee_name}: #{e.message}"
