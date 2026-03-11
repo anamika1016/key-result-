@@ -63,6 +63,12 @@ Rails.application.configure do
     host: "kra.asaindia.org",
     protocol: "http"
   }
+
+  # Ensure URL generation stays on HTTP (no SSL on this deployment).
+  # ActiveStorage disk service uses generated URLs and can otherwise redirect to https
+  # when a proxy sets X-Forwarded-Proto incorrectly.
+  config.action_controller.default_url_options = { host: "kra.asaindia.org", protocol: "http" }
+  config.active_storage.default_url_options = { host: "kra.asaindia.org", protocol: "http" }
   config.action_mailer.smtp_settings = {
     address: "smtp.ploughmanagro.com",
     port: 587,
