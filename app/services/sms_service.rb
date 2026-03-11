@@ -15,20 +15,23 @@ class SmsService
 
     begin
       # Clean mobile number (remove any non-digit characters except +)
-      clean_mobile = mobile_number.gsub(/[^\d+]/, "")
+      clean_mobile = mobile_number.to_s.gsub(/[^\d+]/, "")
 
       # Remove leading + if present
       clean_mobile = clean_mobile.gsub(/^\+/, "")
 
-      # Use the mobile number as-is (like Chrome) - don't add country code
-      # The API seems to work better without the country code prefix
+      # Support both formats commonly used by gateways:
+      # - 10-digit Indian mobile (e.g. 7723879227)
+      # - 12-digit with country code 91 (e.g. 917723879227)
+      #
+      # NOTE: Earlier we stripped "91" to force 10 digits. Some gateways
+      # accept the request but fail delivery if the number format doesn't match
+      # the route/account configuration. So we keep the number as provided
+      # (10-digit or 91+10-digit).
       if clean_mobile.length == 10 && clean_mobile.match?(/^[6-9]\d{9}$/)
-        # Keep as 10-digit number (like Chrome)
         Rails.logger.info "Using 10-digit mobile number: #{clean_mobile}"
-      elsif clean_mobile.length == 12 && clean_mobile.start_with?("91")
-        # Remove country code to match Chrome format
-        clean_mobile = clean_mobile[2..-1]
-        Rails.logger.info "Removed country code, using: #{clean_mobile}"
+      elsif clean_mobile.length == 12 && clean_mobile.start_with?("91") && clean_mobile[2..].match?(/^[6-9]\d{9}$/)
+        Rails.logger.info "Using 12-digit mobile number with country code: #{clean_mobile}"
       else
         Rails.logger.error "Invalid mobile number format: #{mobile_number}"
         return { success: false, message: "Invalid mobile number format" }
@@ -51,14 +54,50 @@ class SmsService
       if response.success?
         response_body = response.body.strip
 
-        # Check if the response indicates success
-        # The API typically returns a message ID on success or an error message on failure
-        if response_body.match?(/^\d+$/) || response_body.downcase.include?("success")
+        parsed = nil
+        if response_body.start_with?("{") && response_body.end_with?("}")
+          begin
+            parsed = JSON.parse(response_body)
+          rescue JSON::ParserError
+            parsed = nil
+          end
+        end
+
+        if parsed.is_a?(Hash)
+          status = parsed["Status"].to_s
+          code = parsed["Code"].to_s
+          message_id = parsed["Message-Id"].to_s
+          description = parsed["Description"].to_s
+
+          if status.casecmp("Success").zero? && code.present? && code != "0"
+            Rails.logger.info "SMS sent successfully to #{clean_mobile} (Message-Id: #{message_id})"
+            {
+              success: true,
+              message: "SMS sent successfully",
+              message_id: message_id,
+              provider_status: status,
+              provider_code: code,
+              provider_description: description,
+              response: response_body
+            }
+          else
+            Rails.logger.error "SMS API returned error: #{parsed.inspect}"
+            {
+              success: false,
+              message: "SMS API error: #{description.presence || status.presence || response_body}",
+              message_id: message_id.presence,
+              provider_status: status.presence,
+              provider_code: code.presence,
+              provider_description: description.presence,
+              response: response_body
+            }
+          end
+        elsif response_body.match?(/^\d+$/) || response_body.downcase.include?("success")
           Rails.logger.info "SMS sent successfully to #{clean_mobile}"
           { success: true, message: "SMS sent successfully", response: response_body }
         else
           Rails.logger.error "SMS API returned error: #{response_body}"
-          { success: false, message: "SMS API error: #{response_body}" }
+          { success: false, message: "SMS API error: #{response_body}", response: response_body }
         end
       else
         Rails.logger.error "SMS API HTTP error: #{response.code} - #{response.message}"
@@ -109,9 +148,16 @@ class SmsService
     "#{employee_name}'s #{quarter} KRA MIS has been approved by L2 and is pending your review. Action For Social Advancement (ASA)"
   end
 
-  def self.l1_notification_message(employee_name, quarter, action)
+  # L1 notifications for manager actions.
+  # Keep these explicit so the message matches who acted (L2 vs L3).
+  def self.l1_notification_message_from_l2(employee_name, quarter, action)
     action_text = action == "approved" ? "approved" : "returned"
     "#{employee_name}'s #{quarter} KRA MIS has been #{action_text} by L2 Manager. Action For Social Advancement (ASA)"
+  end
+
+  def self.l1_notification_message_from_l3(employee_name, quarter, action)
+    action_text = action == "approved" ? "approved" : "returned"
+    "#{employee_name}'s #{quarter} KRA MIS has been #{action_text} by L3 Manager. Action For Social Advancement (ASA)"
   end
 
   def self.l2_notification_message_for_l3(employee_name, quarter, action)

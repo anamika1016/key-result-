@@ -43,4 +43,10 @@ class Users::SessionsController < Devise::SessionsController
     flash[:notice] = "✅ Welcome back, #{user.email}!"
     redirect_to after_sign_in_path_for(user)
   end
+
+  protected
+
+  def after_sign_in_path_for(resource)
+    settings_path
+  end
 end

@@ -102,8 +102,8 @@
                   if detail.achievements.present?
                     # FIXED: Get quarterly achievements directly (stored as q1, q2, q3, q4)
                     ['q1', 'q2', 'q3', 'q4'].each do |quarter|
-                      # Look for achievements with the quarter name directly
-                      quarterly_achievement = detail.achievements.find { |a| a.month == quarter }
+                      # Look for achievements with the quarter name directly (case-insensitive)
+                      quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == quarter.to_s.downcase }
                       
                       if quarterly_achievement && quarterly_achievement.achievement.present?
                         # Create a virtual achievement object with the actual achievement value
@@ -349,16 +349,17 @@
                         total_q1_count = 0
                         @user_details.each do |detail|
                           # Check for quarterly achievement first, then monthly achievements
-                          q1_quarterly_achievement = detail.achievements.find_by(month: 'q1')
+                          q1_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q1' }
                           if q1_quarterly_achievement&.achievement.present? && q1_quarterly_achievement.achievement.to_f > 0
                             total_achievement_sum += q1_quarterly_achievement.achievement.to_f
                             total_q1_count += 1
                           else
-                            # Check monthly achievements for Q1
-                            q1_monthly_achievements = detail.achievements.where(month: ['april', 'may', 'june'])
+                            # Check monthly achievements for Q1 (case-insensitive)
+                            q1_months = ['april', 'may', 'june']
+                            q1_monthly_achievements = detail.achievements.select { |a| q1_months.include?(a.month.to_s.downcase) }
                             if q1_monthly_achievements.any? { |a| a.achievement.present? && a.achievement.to_f > 0 }
                               # Convert string values to numeric first
-                              achievement_values = q1_monthly_achievements.where.not(achievement: [nil, '']).pluck(:achievement).map { |val| val.to_f rescue 0 }.compact
+                              achievement_values = q1_monthly_achievements.select { |a| a.achievement.present? }.map { |a| a.achievement.to_f rescue 0 }.compact
                               avg_monthly = achievement_values.any? ? (achievement_values.sum / achievement_values.size) : nil
                               if avg_monthly
                                 total_achievement_sum += avg_monthly
@@ -382,17 +383,18 @@
                         # Calculate total Q1 weightage score
                         total_q1_weightage = 0
                         @user_details.each do |detail|
-                          q1_quarterly_achievement = detail.achievements.find_by(month: 'q1')
+                          q1_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q1' }
                           achievement_value = nil
                           
                           if q1_quarterly_achievement&.achievement.present?
                             achievement_value = q1_quarterly_achievement.achievement.to_f
                           else
-                            # Check monthly achievements for Q1
-                            q1_monthly_achievements = detail.achievements.where(month: ['april', 'may', 'june'])
+                            # Check monthly achievements for Q1 (case-insensitive)
+                            q1_months = ['april', 'may', 'june']
+                            q1_monthly_achievements = detail.achievements.select { |a| q1_months.include?(a.month.to_s.downcase) }
                             if q1_monthly_achievements.any? { |a| a.achievement.present? }
                               # Convert string values to numeric first
-                              achievement_values = q1_monthly_achievements.where.not(achievement: [nil, '']).pluck(:achievement).map { |val| val.to_f rescue 0 }.compact
+                              achievement_values = q1_monthly_achievements.select { |a| a.achievement.present? }.map { |a| a.achievement.to_f rescue 0 }.compact
                               avg_monthly = achievement_values.any? ? (achievement_values.sum / achievement_values.size) : nil
                               achievement_value = avg_monthly if avg_monthly
                             end
@@ -416,15 +418,16 @@
                         total_q2_achievements = 0
                         total_q2_count = 0
                         @user_details.each do |detail|
-                          q2_quarterly_achievement = detail.achievements.find_by(month: 'q2')
+                          q2_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q2' }
                           if q2_quarterly_achievement&.achievement.present?
                             total_q2_achievements += q2_quarterly_achievement.achievement.to_f
                             total_q2_count += 1
                           else
-                            q2_monthly_achievements = detail.achievements.where(month: ['july', 'august', 'september'])
+                            q2_months = ['july', 'august', 'september']
+                            q2_monthly_achievements = detail.achievements.select { |a| q2_months.include?(a.month.to_s.downcase) }
                             if q2_monthly_achievements.any? { |a| a.achievement.present? }
                               # Convert string values to numeric first
-                              achievement_values = q2_monthly_achievements.where.not(achievement: [nil, '']).pluck(:achievement).map { |val| val.to_f rescue 0 }.compact
+                              achievement_values = q2_monthly_achievements.select { |a| a.achievement.present? }.map { |a| a.achievement.to_f rescue 0 }.compact
                               avg_monthly = achievement_values.any? ? (achievement_values.sum / achievement_values.size) : nil
                               if avg_monthly
                                 total_q2_achievements += avg_monthly
@@ -449,16 +452,17 @@
                       <% 
                         total_q2_weightage = 0
                         @user_details.each do |detail|
-                          q2_quarterly_achievement = detail.achievements.find_by(month: 'q2')
+                          q2_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q2' }
                           achievement_value = nil
                           
                           if q2_quarterly_achievement&.achievement.present?
                             achievement_value = q2_quarterly_achievement.achievement.to_f
                           else
-                            q2_monthly_achievements = detail.achievements.where(month: ['july', 'august', 'september'])
+                            q2_months = ['july', 'august', 'september']
+                            q2_monthly_achievements = detail.achievements.select { |a| q2_months.include?(a.month.to_s.downcase) }
                             if q2_monthly_achievements.any? { |a| a.achievement.present? }
                               # Convert string values to numeric first
-                              achievement_values = q2_monthly_achievements.where.not(achievement: [nil, '']).pluck(:achievement).map { |val| val.to_f rescue 0 }.compact
+                              achievement_values = q2_monthly_achievements.select { |a| a.achievement.present? }.map { |a| a.achievement.to_f rescue 0 }.compact
                               avg_monthly = achievement_values.any? ? (achievement_values.sum / achievement_values.size) : nil
                               achievement_value = avg_monthly if avg_monthly
                             end
@@ -482,15 +486,16 @@
                         total_q3_achievements = 0
                         total_q3_count = 0
                         @user_details.each do |detail|
-                          q3_quarterly_achievement = detail.achievements.find_by(month: 'q3')
+                          q3_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q3' }
                           if q3_quarterly_achievement&.achievement.present?
                             total_q3_achievements += q3_quarterly_achievement.achievement.to_f
                             total_q3_count += 1
                           else
-                            q3_monthly_achievements = detail.achievements.where(month: ['october', 'november', 'december'])
+                            q3_months = ['october', 'november', 'december']
+                            q3_monthly_achievements = detail.achievements.select { |a| q3_months.include?(a.month.to_s.downcase) }
                             if q3_monthly_achievements.any? { |a| a.achievement.present? }
                               # Convert string values to numeric first
-                              achievement_values = q3_monthly_achievements.where.not(achievement: [nil, '']).pluck(:achievement).map { |val| val.to_f rescue 0 }.compact
+                              achievement_values = q3_monthly_achievements.select { |a| a.achievement.present? }.map { |a| a.achievement.to_f rescue 0 }.compact
                               avg_monthly = achievement_values.any? ? (achievement_values.sum / achievement_values.size) : nil
                               if avg_monthly
                                 total_q3_achievements += avg_monthly
@@ -515,16 +520,17 @@
                       <% 
                         total_q3_weightage = 0
                         @user_details.each do |detail|
-                          q3_quarterly_achievement = detail.achievements.find_by(month: 'q3')
+                          q3_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q3' }
                           achievement_value = nil
                           
                           if q3_quarterly_achievement&.achievement.present?
                             achievement_value = q3_quarterly_achievement.achievement.to_f
                           else
-                            q3_monthly_achievements = detail.achievements.where(month: ['october', 'november', 'december'])
+                            q3_months = ['october', 'november', 'december']
+                            q3_monthly_achievements = detail.achievements.select { |a| q3_months.include?(a.month.to_s.downcase) }
                             if q3_monthly_achievements.any? { |a| a.achievement.present? }
                               # Convert string values to numeric first
-                              achievement_values = q3_monthly_achievements.where.not(achievement: [nil, '']).pluck(:achievement).map { |val| val.to_f rescue 0 }.compact
+                              achievement_values = q3_monthly_achievements.select { |a| a.achievement.present? }.map { |a| a.achievement.to_f rescue 0 }.compact
                               avg_monthly = achievement_values.any? ? (achievement_values.sum / achievement_values.size) : nil
                               achievement_value = avg_monthly if avg_monthly
                             end
@@ -548,15 +554,16 @@
                         total_q4_achievements = 0
                         total_q4_count = 0
                         @user_details.each do |detail|
-                          q4_quarterly_achievement = detail.achievements.find_by(month: 'q4')
+                          q4_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q4' }
                           if q4_quarterly_achievement&.achievement.present?
                             total_q4_achievements += q4_quarterly_achievement.achievement.to_f
                             total_q4_count += 1
                           else
-                            q4_monthly_achievements = detail.achievements.where(month: ['january', 'february', 'march'])
+                            q4_months = ['january', 'february', 'march']
+                            q4_monthly_achievements = detail.achievements.select { |a| q4_months.include?(a.month.to_s.downcase) }
                             if q4_monthly_achievements.any? { |a| a.achievement.present? }
                               # Convert string values to numeric first
-                              achievement_values = q4_monthly_achievements.where.not(achievement: [nil, '']).pluck(:achievement).map { |val| val.to_f rescue 0 }.compact
+                              achievement_values = q4_monthly_achievements.select { |a| a.achievement.present? }.map { |a| a.achievement.to_f rescue 0 }.compact
                               avg_monthly = achievement_values.any? ? (achievement_values.sum / achievement_values.size) : nil
                               if avg_monthly
                                 total_q4_achievements += avg_monthly
@@ -581,16 +588,17 @@
                       <% 
                         total_q4_weightage = 0
                         @user_details.each do |detail|
-                          q4_quarterly_achievement = detail.achievements.find_by(month: 'q4')
+                          q4_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q4' }
                           achievement_value = nil
                           
                           if q4_quarterly_achievement&.achievement.present?
                             achievement_value = q4_quarterly_achievement.achievement.to_f
                           else
-                            q4_monthly_achievements = detail.achievements.where(month: ['january', 'february', 'march'])
+                            q4_months = ['january', 'february', 'march']
+                            q4_monthly_achievements = detail.achievements.select { |a| q4_months.include?(a.month.to_s.downcase) }
                             if q4_monthly_achievements.any? { |a| a.achievement.present? }
                               # Convert string values to numeric first
-                              achievement_values = q4_monthly_achievements.where.not(achievement: [nil, '']).pluck(:achievement).map { |val| val.to_f rescue 0 }.compact
+                              achievement_values = q4_monthly_achievements.select { |a| a.achievement.present? }.map { |a| a.achievement.to_f rescue 0 }.compact
                               avg_monthly = achievement_values.any? ? (achievement_values.sum / achievement_values.size) : nil
                               achievement_value = avg_monthly if avg_monthly
                             end

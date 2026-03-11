@@ -114,8 +114,8 @@
                   detail = details.first
                 %>
                 <% 
-                  # FIXED: Calculate quarterly data for this activity
-                  quarter_achievements = detail.achievements.select { |a| display_months.map(&:first).map(&:to_s).include?(a.month) }
+                  # FIXED: Calculate quarterly data for this activity (case-insensitive)
+                  quarter_achievements = detail.achievements.select { |a| display_months.map { |m| m[0].to_s.downcase }.include?(a.month.to_s.downcase) }
                   
                   
                   # Get weightage from the activity (using 'weight' attribute)
@@ -356,23 +356,57 @@
     
     Rails.logger.info "Show View: Final overall_quarter_status: #{overall_quarter_status}"
 
+    return_to_val = nil
+    if ["returned_to_employee", "l1_returned", "l2_returned", "l3_returned"].include?(overall_quarter_status)
+      all_quarter_achievements = []
+      @user_details.each do |detail|
+        quarter_achievements = detail.achievements.select { |a| display_months.map { |m| m[0].to_s.downcase }.include?(a.month.to_s.downcase) }
+        all_quarter_achievements.concat(quarter_achievements)
+      end
+      matching_ach = all_quarter_achievements.find { |a| a.status == overall_quarter_status }
+      return_to_val = matching_ach&.return_to
+    end
+
     status_config = case overall_quarter_status
     when "pending"
       { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
     when "l1_approved"
-      { color: "bg-green-100 text-green-800 border-green-300", text: "L1 Approved", icon: "fas fa-check-circle" }
+      { color: "bg-indigo-600 text-white border-indigo-700", text: "L1 Approved (Pending L2)", icon: "fas fa-check-circle" }
     when "returned_to_employee"
-      { color: "bg-orange-100 text-orange-800 border-orange-300", text: "Returned to Employee", icon: "fas fa-undo" }
+      # Determine if L3 or L2 returned it to employee based on remarks
+      # Find all unique achievements for this quarter to check remarks
+      all_quarter_achievements = []
+      filtered_user_details.each do |detail|
+        quarter_achievements = detail.achievements.select { |a| quarter_months.include?(a.month.to_s.downcase) }
+        all_quarter_achievements.concat(quarter_achievements)
+      end
+      sample_matching_ach = all_quarter_achievements.find { |a| a.status == "returned_to_employee" }
+      remark = sample_matching_ach&.achievement_remark
+      
+      text_val = if remark&.l3_remarks.present?
+                   "L3_Return_Employee"
+                 elsif remark&.l2_remarks.present?
+                   "L2_Return_Employee"
+                 else
+                   "L1_Return_Employee"
+                 end
+      { color: "bg-orange-100 text-orange-800 border-orange-300", text: text_val, icon: "fas fa-undo" }
     when "l1_returned"
-      { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+      { color: "bg-red-100 text-red-800 border-red-300", text: "L1_Return_Employee", icon: "fas fa-exclamation-triangle" }
     when "l2_approved"
-      { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
+      { color: "bg-sky-600 text-white border-sky-700", text: "Pending", icon: "fas fa-clock" }
     when "l2_returned"
-      { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+      text_val = (return_to_val == 'employee') ? "L2_Return_Employee" : "L2_Return_L1"
+      { color: "bg-orange-100 text-orange-800 border-orange-300", text: text_val, icon: "fas fa-exclamation-triangle" }
     when "l3_approved"
-      { color: "bg-green-100 text-green-800 border-green-300", text: "L3 Approved", icon: "fas fa-crown" }
+      { color: "bg-green-600 text-white border-green-700", text: "L3 Approved", icon: "fas fa-crown" }
     when "l3_returned"
-      { color: "bg-red-100 text-red-800 border-red-300", text: "L3 Returned", icon: "fas fa-exclamation-triangle" }
+      text_val = case return_to_val
+                 when 'employee' then "L3_Return_Employee"
+                 when 'l1' then "L3_Return_L1"
+                 else "L3_Return_L2"
+                 end
+      { color: "bg-pink-100 text-pink-800 border-pink-300", text: text_val, icon: "fas fa-exclamation-triangle" }
     when "submitted"
       { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
     else
@@ -409,7 +443,7 @@
       # Calculate SINGLE average for entire quarter (not per month)
       all_quarter_achievements = []
       @user_details.each do |detail|
-        quarter_achievements = detail.achievements.select { |a| quarter_months.include?(a.month) }
+        quarter_achievements = detail.achievements.select { |a| quarter_months.include?(a.month.to_s.downcase) && a.achievement_remark.present? }
         all_quarter_achievements.concat(quarter_achievements)
       end
 
@@ -421,12 +455,17 @@
       l2_percentages = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l2_percentage&.to_f }
       final_l2_average = l2_percentages.any? ? (l2_percentages.sum / l2_percentages.size).round(1) : 0.0
 
+      # SINGLE L3 calculation for quarter - include achievements with or without remarks
+      l3_percentages = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l3_percentage&.to_f }
+      final_l3_average = l3_percentages.any? ? (l3_percentages.sum / l3_percentages.size).round(1) : 0.0
+
       # UNIQUE remarks collection (no duplicates) - include achievements with or without remarks
-      unique_l1_remarks = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l1_remarks }.uniq.compact
-      unique_l2_remarks = all_quarter_achievements.filter_map { |a| a.achievement_remark&.l2_remarks }.uniq.compact
+      unique_l1_remarks = [all_quarter_achievements.filter_map { |a| a.achievement_remark&.l1_remarks }.compact.first].compact
+      unique_l2_remarks = [all_quarter_achievements.filter_map { |a| a.achievement_remark&.l2_remarks }.compact.first].compact
+      unique_l3_remarks = [all_quarter_achievements.filter_map { |a| a.achievement_remark&.l3_remarks }.compact.first].compact
     %>
 
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
 
       <!-- L1 Quarterly Summary - SINGLE DISPLAY -->
       <div class="bg-gradient-to-r from-blue-50 via-blue-50 to-blue-100 border border-blue-200 rounded-xl p-6 shadow-md">
@@ -436,8 +475,8 @@
             L1 Quarter Summary
           </h3>
           
-          <!-- Edit Button - Show when L2 returned to L1, L3 returned to L1, or L1 returned -->
-          <% if (overall_quarter_status == 'l2_returned' || overall_quarter_status == 'l3_returned' || overall_quarter_status == 'l1_returned') && @can_approve_or_return %>
+          <!-- Edit Button - Show when L1 returned or L2 returned to employee (NOT for L2/L3 returns to L1 anymore) -->
+          <% if (overall_quarter_status == 'l1_returned' || (overall_quarter_status == 'l2_returned' && return_to_val == 'employee')) && @can_approve_or_return %>
             <button onclick="toggleL1EditMode()" id="l1-edit-button" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
               <i class="fas fa-edit mr-2"></i>Edit
             </button>
@@ -447,7 +486,7 @@
         <!-- SINGLE Quarter Average Percentage -->
         <div class="mb-6 text-center">
           <div class="bg-blue-200 p-4 rounded-lg inline-block">
-            <p class="text-gray-700 font-semibold text-sm mb-1">Quarter Average Percentage</p>
+            <p class="font-semibold text-sm mb-1" style="color: #2d374b;">Quarter Average Percentage</p>
             <p class="text-3xl font-bold text-blue-800" id="l1-percentage-display"><%= final_l1_average %>%</p>
           </div>
         </div>
@@ -481,14 +520,14 @@
 
         <!-- UNIQUE L1 Remarks - NO DUPLICATES -->
         <div class="space-y-3">
-          <h4 class="style="color: #2d374b;" font-semibold text-sm">Quarter Remarks:</h4>
+          <h4 class="font-semibold text-sm" style="color: #2d374b;">Quarter Remarks:</h4>
           <% if unique_l1_remarks.any? %>
             <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto" id="l1-remarks-container">
               <% unique_l1_remarks.each_with_index do |remark, index| %>
                 <div class="text-gray-700 text-sm mb-3 pb-3 <%= 'border-b border-gray-100' unless index == unique_l1_remarks.length - 1 %>">
                   <div class="flex items-start gap-2">
-                    <span class="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
-                      Remark <%= index + 1 %>
+                    <span class="bg-blue-100 text-xs px-2 py-1 rounded font-medium flex-shrink-0" style="color: #2d374b;">
+                      Quarter Remark
                     </span>
                     <span class="text-gray-700"><%= remark %></span>
                   </div>
@@ -542,6 +581,52 @@
         </div>
       </div>
 
+      <!-- L3 Quarterly Summary -->
+      <div class="bg-gradient-to-r from-purple-50 via-purple-50 to-purple-100 border border-purple-200 rounded-xl p-6 shadow-md">
+        <h3 class="text-xl font-bold text-purple-700 mb-6 flex items-center gap-2">
+          <i class="fas fa-user-crown text-purple-500"></i>
+          L3 Quarter Summary
+        </h3>
+
+        <!-- Quarter Average Percentage -->
+        <div class="mb-6 text-center">
+          <div class="bg-purple-200 p-4 rounded-lg inline-block">
+            <p class="text-purple-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
+            <p class="text-3xl font-bold text-purple-800" id="l3-percentage-display"><%= final_l3_average %>%</p>
+          </div>
+        </div>
+
+        <!-- L3 Remarks Display -->
+        <div class="space-y-3">
+          <h4 class="text-purple-600 font-semibold text-sm">Quarter Remarks:</h4>
+          <% if unique_l3_remarks.any? %>
+            <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto" id="l3-remarks-container">
+              <% unique_l3_remarks.each_with_index do |remark, index| %>
+                <div class="text-gray-700 text-sm mb-3 pb-3 <%= 'border-b border-gray-100' unless index == unique_l3_remarks.length - 1 %>">
+                  <div class="flex items-start gap-2">
+                    <span class="bg-purple-100 text-purple-600 text-xs px-2 py-1 rounded font-medium flex-shrink-0">
+                      Quarter Remark
+                    </span>
+                    <span class="text-gray-700"><%= remark %></span>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="bg-white p-4 rounded border" id="l3-remarks-container">
+              <p class="text-gray-500 text-sm">
+                <% if overall_quarter_status == 'l3_approved' %>
+                  <i class="fas fa-check-circle text-purple-500 mr-1"></i>
+                  Quarter approved - no additional remarks needed
+                <% else %>
+                  No remarks for this quarter
+                <% end %>
+              </p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
     </div>
   <% end %>
 <% end %>
@@ -556,9 +641,10 @@
     Rails.logger.info "Show View: Quarterly statuses: #{quarterly_statuses.uniq}"
     Rails.logger.info "Show View: L1 total: #{quarter_l1_total}, L1 remarks: #{quarter_remarks_l1.to_a}"
     
-    # FIXED: Only show buttons if status is pending
-    # Hide buttons if status is l1_approved, l1_returned, returned_to_employee, l2_approved, l2_returned, l3_approved, l3_returned, or submitted
-    if overall_quarter_status == 'pending'
+    # FIXED: Show buttons if status is pending OR if it was returned by L2/L3 to L1
+    if overall_quarter_status == 'pending' || 
+       (overall_quarter_status == 'l2_returned' && return_to_val != 'employee') ||
+       (overall_quarter_status == 'l3_returned' && return_to_val == 'l1')
       can_take_action = true
     end
     
@@ -626,7 +712,7 @@
         <label for="return_level" class="block font-semibold mb-1 text-red-700">Return to:</label>
         <select id="return_level" name="return_level" class="w-full border border-gray-300 rounded-md p-2">
           <option value="">Select return level...</option>
-          <option value="employee">Return to Employee</option>
+          <option value="employee">L1_Return_Employee</option>
         </select>
       </div>
       
@@ -773,14 +859,14 @@
       case 'returned_to_employee':
         statusConfig = {
           color: 'bg-orange-100 text-orange-800 border-orange-300',
-          text: 'Returned to Employee',
+          text: 'L1_Return_Employee',
           icon: 'fas fa-undo'
         };
         break;
       case 'l1_returned':
         statusConfig = {
           color: 'bg-red-100 text-red-800 border-red-300',
-          text: 'L1 Returned',
+          text: 'L1_Return_Employee',
           icon: 'fas fa-exclamation-triangle'
         };
         break;
