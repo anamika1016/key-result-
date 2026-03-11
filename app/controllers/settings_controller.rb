@@ -13,7 +13,7 @@ class SettingsController < ApplicationController
         render json: {
           success: true,
           message: "Profile updated successfully.",
-          avatar_url: @user.avatar.attached? ? url_for(@user.avatar) : nil
+          avatar_url: @user.avatar.attached? ? rails_blob_path(@user.avatar, only_path: true) : nil
         }
       else
         redirect_to settings_path, notice: "Profile updated successfully."
