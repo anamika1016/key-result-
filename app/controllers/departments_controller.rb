@@ -33,7 +33,13 @@ class DepartmentsController < ApplicationController
     @department.activities.build
 
     # Set variables needed for the form dropdowns
-    @employee_departments = Department.distinct.pluck(:department_type).compact.reject(&:blank?)
+    @employee_departments =
+      (Department.distinct.pluck(:department_type) + EmployeeDetail.distinct.pluck(:department))
+        .compact
+        .map { |d| d.to_s.strip }
+        .reject(&:blank?)
+        .uniq
+        .sort
 
     # Get unique employees based on base employee code (remove department suffixes)
     all_employees = EmployeeDetail.where.not(employee_name: [ nil, "" ])
@@ -60,7 +66,13 @@ class DepartmentsController < ApplicationController
 
   def new
     @department = Department.new
-    @employee_departments = Department.distinct.pluck(:department_type).compact.reject(&:blank?)
+    @employee_departments =
+      (Department.distinct.pluck(:department_type) + EmployeeDetail.distinct.pluck(:department))
+        .compact
+        .map { |d| d.to_s.strip }
+        .reject(&:blank?)
+        .uniq
+        .sort
     # Get all unique employees from both employee_details.department and user_details relationships
     # First get all unique employee codes
     employee_codes_from_department = EmployeeDetail.where.not(employee_name: [ nil, "" ])
@@ -154,7 +166,13 @@ class DepartmentsController < ApplicationController
           @department = Department.new
           @department.activities.build
           @departments = Department.includes(:activities).all
-          @employee_departments = Department.distinct.pluck(:department_type).compact.reject(&:blank?)
+          @employee_departments =
+            (Department.distinct.pluck(:department_type) + EmployeeDetail.distinct.pluck(:department))
+              .compact
+              .map { |d| d.to_s.strip }
+              .reject(&:blank?)
+              .uniq
+              .sort
           @employees = EmployeeDetail.where("employee_name IS NOT NULL AND employee_name != ''")
                                    .distinct
                                    .order(:employee_name)
@@ -170,7 +188,13 @@ class DepartmentsController < ApplicationController
 
   def edit
     @department = Department.find(params[:id])
-    @employee_departments = Department.distinct.pluck(:department_type).compact
+    @employee_departments =
+      (Department.distinct.pluck(:department_type) + EmployeeDetail.distinct.pluck(:department))
+        .compact
+        .map { |d| d.to_s.strip }
+        .reject(&:blank?)
+        .uniq
+        .sort
     # Get all unique employees from both employee_details.department and user_details relationships
     # First get all unique employee codes
     employee_codes_from_department = EmployeeDetail.where.not(employee_name: [ nil, "" ])
@@ -437,7 +461,13 @@ class DepartmentsController < ApplicationController
     else
       respond_to do |format|
         format.html {
-          @employee_departments = Department.distinct.pluck(:department_type).compact
+          @employee_departments =
+            (Department.distinct.pluck(:department_type) + EmployeeDetail.distinct.pluck(:department))
+              .compact
+              .map { |d| d.to_s.strip }
+              .reject(&:blank?)
+              .uniq
+              .sort
           @employees = EmployeeDetail.where("employee_name IS NOT NULL AND employee_name != ''")
                                    .select(:employee_name, :employee_code, :department)
                                    .distinct
@@ -454,7 +484,13 @@ class DepartmentsController < ApplicationController
 
       respond_to do |format|
         format.html {
-          @employee_departments = Department.distinct.pluck(:department_type).compact
+          @employee_departments =
+            (Department.distinct.pluck(:department_type) + EmployeeDetail.distinct.pluck(:department))
+              .compact
+              .map { |d| d.to_s.strip }
+              .reject(&:blank?)
+              .uniq
+              .sort
           @employees = EmployeeDetail.where("employee_name IS NOT NULL AND employee_name != ''")
                                    .select(:employee_name, :employee_code, :department)
                                    .distinct
