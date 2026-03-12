@@ -101,7 +101,7 @@
                 <div class="flex items-center justify-between mb-4">
                    <h3 class="text-lg font-semibold text-gray-800">KPI</h3>
                                     <div class="flex gap-2">
-                    <button type="button" id="add-activity" class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: #2d374b;" onmouseover="this.style.backgroundColor='#1a202c'" onmouseout="this.style.backgroundColor='#2d374b'">
+                    <button type="button" id="add-activity" onclick="if(window.departmentManagerInstance && window.departmentManagerInstance.isReady && typeof window.departmentManagerInstance.addActivity === 'function') { window.departmentManagerInstance.addActivity(); } else { console.log('DepartmentManager not ready yet, retrying...'); setTimeout(() => { if(window.departmentManagerInstance && window.departmentManagerInstance.isReady && typeof window.departmentManagerInstance.addActivity === 'function') { window.departmentManagerInstance.addActivity(); } else { console.error('DepartmentManager still not available or not ready'); } }, 100); }" class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: #2d374b;" onmouseover="this.style.backgroundColor='#1a202c'" onmouseout="this.style.backgroundColor='#2d374b'">
                       <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                       </svg>
@@ -1521,27 +1521,11 @@ function initializeDepartmentManager() {
     }
 }
 
-// Initialize once per page load (Turbo-aware)
-function safeInitializeDepartmentManager() {
-  if (window.__departmentManagerInitialized) return;
-  window.__departmentManagerInitialized = true;
+// Use only one event listener to prevent duplicates
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('DOM Content Loaded event fired');
   initializeDepartmentManager();
-}
-
-if (window.Turbo) {
-  document.addEventListener('turbo:load', () => {
-    console.log('Turbo load event fired');
-    // New DOM on Turbo navigation; allow init again
-    window.__departmentManagerInitialized = false;
-    departmentManagerInstance = null;
-    safeInitializeDepartmentManager();
-  });
-} else {
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM Content Loaded event fired');
-    safeInitializeDepartmentManager();
-  });
-}
+});
 
 
 
@@ -1552,6 +1536,16 @@ function clearEmployeeFilter() {
   currentUrl.searchParams.delete('employee_code');
   window.location.href = currentUrl.toString();
 }
+
+
+
+// For Turbo compatibility, ensures re-initialization on every visit because DOM elements are new
+document.addEventListener('turbo:load', () => {
+  console.log('Turbo load event fired');
+  // Clear the instance to allow fresh initialization for the new DOM
+  departmentManagerInstance = null;
+  initializeDepartmentManager();
+});
 
 
 
