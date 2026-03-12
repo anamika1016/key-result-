@@ -101,7 +101,7 @@
                 <div class="flex items-center justify-between mb-4">
                    <h3 class="text-lg font-semibold text-gray-800">KPI</h3>
                                     <div class="flex gap-2">
-                    <button type="button" id="add-activity" onclick="if(window.departmentManagerInstance && window.departmentManagerInstance.isReady && typeof window.departmentManagerInstance.addActivity === 'function') { window.departmentManagerInstance.addActivity(); } else { console.log('DepartmentManager not ready yet, retrying...'); setTimeout(() => { if(window.departmentManagerInstance && window.departmentManagerInstance.isReady && typeof window.departmentManagerInstance.addActivity === 'function') { window.departmentManagerInstance.addActivity(); } else { console.error('DepartmentManager still not available or not ready'); } }, 100); }" class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: #2d374b;" onmouseover="this.style.backgroundColor='#1a202c'" onmouseout="this.style.backgroundColor='#2d374b'">
+                    <button type="button" id="add-activity" class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: #2d374b;" onmouseover="this.style.backgroundColor='#1a202c'" onmouseout="this.style.backgroundColor='#2d374b'">
                       <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                       </svg>
@@ -336,6 +336,20 @@ class DepartmentManager {
     // Set the initial activity index since we now have a default activity in HTML
     const container = document.getElementById('activities-container');
     if (container) {
+      // Dedupe: sometimes the page renders/initializes twice on refresh and we get duplicate empty KPI blocks.
+      // Keep the first activity block and remove extra ones only if they are empty/new.
+      const activityBlocks = Array.from(container.querySelectorAll('.activity-fields'));
+      if (activityBlocks.length > 1) {
+        activityBlocks.slice(1).forEach(block => {
+          const nonHiddenInputs = Array.from(block.querySelectorAll('input:not([type="hidden"])'));
+          const hasAnyValue = nonHiddenInputs.some(i => (i.value || '').toString().trim() !== '');
+          const idValue = (block.querySelector('input[name*="[id]"]')?.value || '').toString().trim();
+          if (!hasAnyValue && !idValue) {
+            block.remove();
+          }
+        });
+      }
+
       this.activityIndex = container.children.length;
       
       // Convert the default activity from "default" to proper index
@@ -410,29 +424,32 @@ class DepartmentManager {
     // Add event listeners with proper error handling
     const addActivityBtn = document.getElementById('add-activity');
     if (addActivityBtn) {
-      console.log('Add activity button found, adding click listener');
-      addActivityBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        // Check if DepartmentManager is ready
-        if (!this.isReady) {
-          console.log('DepartmentManager not ready yet, waiting...');
-          setTimeout(() => {
-            if (this.isReady) {
-              this.addActivity();
-            } else {
-              console.error('DepartmentManager still not ready');
-            }
-          }, 100);
-          return;
-        }
-        
-        this.addActivity();
-      });
-      
-
-      
+      // Ensure we only attach one listener, even if bindEvents is called multiple times
+      if (!addActivityBtn.dataset.listenerAttached) {
+        console.log('Add activity button found, adding click listener');
+        addActivityBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          
+          // Check if DepartmentManager is ready
+          if (!this.isReady) {
+            console.log('DepartmentManager not ready yet, waiting...');
+            setTimeout(() => {
+              if (this.isReady) {
+                this.addActivity();
+              } else {
+                console.error('DepartmentManager still not ready');
+              }
+            }, 100);
+            return;
+          }
+          
+          this.addActivity();
+        });
+        addActivityBtn.dataset.listenerAttached = 'true';
+      } else {
+        console.log('Add activity button listener already attached, skipping');
+      }
     } else {
       console.error('Add activity button not found!');
     }
@@ -655,8 +672,10 @@ class DepartmentManager {
       return themeName || activityName || unit || weight;
     });
     
-    if (visibleActivities.length === 0 || (!hasContentActivities && visibleActivities.length === 1)) {
-      console.log('No meaningful activities found, adding default activity...');
+    // If there are no visible activities at all, add one.
+    // If there is already 1 empty/default activity, DO NOT add another (prevents duplicate default KPI rows on page load).
+    if (visibleActivities.length === 0) {
+      console.log('No activities found, adding default activity...');
       this.addActivity();
     } else {
       console.log('Activities already present with content - container has', visibleActivities.length, 'visible activities');
