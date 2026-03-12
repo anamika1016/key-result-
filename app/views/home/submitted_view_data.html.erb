@@ -1441,12 +1441,7 @@ function fetchQuarterlyDetails(quarter, showLoading = true) {
                     ${summary.l1.remarks && summary.l1.remarks !== 'No remarks' ? `"${summary.l1.remarks}"` : '<span class="text-gray-400">No remarks</span>'}
                   </span>
                 </div>
-                <div class="flex justify-between items-center">
-                  <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${getStatusColorClass(summary.l1.status)}">
-                    ${summary.l1.status}
-                  </span>
-                  <i class="fas fa-check-double text-orange-200 text-[10px]"></i>
-                </div>
+                <!-- Status badge intentionally hidden in popup -->
               </div>
               
               <!-- L2 Compact -->
@@ -1460,12 +1455,7 @@ function fetchQuarterlyDetails(quarter, showLoading = true) {
                     ${summary.l2.remarks && summary.l2.remarks !== 'No remarks' ? `"${summary.l2.remarks}"` : '<span class="text-gray-400">No remarks</span>'}
                   </span>
                 </div>
-                <div class="flex justify-between items-center">
-                  <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${getStatusColorClass(summary.l2.status)}">
-                    ${summary.l2.status}
-                  </span>
-                  <i class="fas fa-certificate text-purple-200 text-[10px]"></i>
-                </div>
+                <!-- Status badge intentionally hidden in popup -->
               </div>
               
               <!-- L3 Compact -->
@@ -1479,12 +1469,7 @@ function fetchQuarterlyDetails(quarter, showLoading = true) {
                     ${summary.l3.remarks && summary.l3.remarks !== 'No remarks' ? `"${summary.l3.remarks}"` : '<span class="text-gray-400">No remarks</span>'}
                   </span>
                 </div>
-                <div class="flex justify-between items-center">
-                  <span class="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase ${getStatusColorClass(summary.l3.status)}">
-                    ${summary.l3.status}
-                  </span>
-                  <i class="fas fa-shield-alt text-blue-200 text-[10px]"></i>
-                </div>
+                <!-- Status badge intentionally hidden in popup -->
               </div>
             </div>
           </div>
