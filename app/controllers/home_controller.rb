@@ -102,24 +102,24 @@ class HomeController < ApplicationController
           if quarter_statuses.any? { |s| s == "l3_approved" }
             @l3_approved_count += 1
           end
-          if quarter_statuses.any? { |s| s == "l3_returned" }
+          if quarter_statuses.any? { |s| s == "l3_returned" || (s == "returned_to_employee" && all_quarter_achievements.any? { |a| a.achievement_remark&.l3_remarks.present? }) }
             @l3_returned_count += 1
           end
           if quarter_statuses.any? { |s| s == "l2_approved" }
             @l2_approved_count += 1
           end
-          if quarter_statuses.any? { |s| s == "l2_returned" }
+          if quarter_statuses.any? { |s| s == "l2_returned" || (s == "returned_to_employee" && all_quarter_achievements.any? { |a| a.achievement_remark&.l2_remarks.present? && a.achievement_remark&.l3_remarks.blank? }) }
             @l2_returned_count += 1
           end
           if quarter_statuses.any? { |s| s == "l1_approved" }
             @l1_approved_count += 1
           end
-          if quarter_statuses.any? { |s| s == "l1_returned" }
+          if quarter_statuses.any? { |s| s == "l1_returned" || (s == "returned_to_employee" && all_quarter_achievements.any? { |a| a.achievement_remark&.l2_remarks.blank? && a.achievement_remark&.l3_remarks.blank? }) }
             @l1_returned_count += 1
           end
 
           # Only count as pending if no approvals have been made at any level
-          if quarter_statuses.none? { |s| [ "l1_approved", "l2_approved", "l3_approved", "l1_returned", "l2_returned", "l3_returned" ].include?(s) }
+          if quarter_statuses.none? { |s| [ "l1_approved", "l2_approved", "l3_approved", "l1_returned", "l2_returned", "l3_returned", "returned_to_employee" ].include?(s) }
             @l1_pending_count += 1
           end
         end
@@ -163,13 +163,13 @@ class HomeController < ApplicationController
 
           # L2 pending: L1 approved but not yet L2 approved/returned
           if quarter_statuses.any? { |s| s == "l1_approved" } &&
-             quarter_statuses.none? { |s| [ "l2_approved", "l2_returned", "l3_approved", "l3_returned" ].include?(s) }
+             quarter_statuses.none? { |s| [ "l2_approved", "l2_returned", "l3_approved", "l3_returned", "returned_to_employee" ].include?(s) }
             @l2_pending_count += 1
           end
 
           # L3 pending: L2 approved but not yet L3 approved/returned
           if quarter_statuses.any? { |s| s == "l2_approved" } &&
-             quarter_statuses.none? { |s| [ "l3_approved", "l3_returned" ].include?(s) }
+             quarter_statuses.none? { |s| [ "l3_approved", "l3_returned", "returned_to_employee" ].include?(s) }
             @l3_pending_count += 1
           end
         end

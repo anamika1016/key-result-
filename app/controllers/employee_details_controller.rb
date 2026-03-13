@@ -1164,10 +1164,13 @@ def l2
         has_l2_returned = quarter_achievements.any? { |ach| ach.status == "l2_returned" }
         has_l3_approved = quarter_achievements.any? { |ach| ach.status == "l3_approved" }
         has_l3_returned = quarter_achievements.any? { |ach| ach.status == "l3_returned" }
+        
+        # FIXED: Also show in L2 view if it was returned to employee by L2 or L3
+        has_returned_to_employee = quarter_achievements.any? { |ach| ach.status == "returned_to_employee" }
+        returned_by_l2_or_l3 = quarter_achievements.any? { |a| a.achievement_remark&.l2_remarks.present? || a.achievement_remark&.l3_remarks.present? }
 
         # Only show if L1 has actually approved (provided remarks/percentage) OR if it's already been processed by L2/L3
-        has_ready_for_l2 = (has_l1_remarks || has_l1_percentage) && (has_l1_approved || has_l2_approved || has_l2_returned || has_l3_approved || has_l3_returned)
-
+        has_ready_for_l2 = (has_l1_remarks || has_l1_percentage) && (has_l1_approved || has_l2_approved || has_l2_returned || has_l3_approved || has_l3_returned || (has_returned_to_employee && returned_by_l2_or_l3))
 
         # Show this quarter if achievements are ready for L2
         has_ready_for_l2
@@ -1379,13 +1382,13 @@ end
     end
 
     # Filter to include employees who have L2 approved, L3 approved, or L3 returned achievements
-    # L3 view should show L2 approved (ready for L3 review), L3 approved, or L3 returned
+    # L3 view should show L2 approved (ready for L3 review), L3 approved, L3 returned, or returned to employee by L3
     filtered_employees = all_employees.select do |emp|
       has_qualifying_achievements = emp.user_details.any? do |ud|
-        # Show employees with L2 approved, L3 approved, or L3 returned achievements
+        # Show employees with L2 approved, L3 approved, L3 returned, or returned to employee by L3
         qualifying_achievements = ud.achievements.select do |achievement|
-          # Must be L2 approved, L3 approved, or L3 returned AND have quarterly data
-          (achievement.status == "l2_approved" || achievement.status == "l3_approved" || achievement.status == "l3_returned") &&
+          # Must be L2 approved, L3 approved, L3 returned, or returned_to_employee by L3 AND have quarterly data
+          (achievement.status == "l2_approved" || achievement.status == "l3_approved" || achievement.status == "l3_returned" || (achievement.status == "returned_to_employee" && achievement.achievement_remark&.l3_remarks.present?)) &&
           ([ "april", "may", "june", "july", "august", "september", "october", "november", "december", "january", "february", "march" ].include?(achievement.month) ||
            [ "q1", "q2", "q3", "q4" ].include?(achievement.month))
         end
@@ -2522,10 +2525,10 @@ def process_quarterly_l2_approval
         # Update ALL achievements in the quarter to the same status
         quarter_achievements.each do |achievement|
           # For L2 return, we should be able to return L1 approved achievements
-          # For L2 approve, we need L1 approved or L2 returned achievements
+          # For L2 approve, we need L1 approved, L2 returned, or L3 returned (when L3 returned to L2) achievements
           if is_approval
-            # For approval, check eligibility
-            eligible_statuses = [ "l1_approved", "l2_returned" ]
+            # For approval, check eligibility - include l3_returned for L3_Return_L2 case
+            eligible_statuses = [ "l1_approved", "l2_returned", "l3_returned" ]
             if eligible_statuses.include?(achievement.status)
               old_status = achievement.status
               achievement.update!(status: new_status)
@@ -2535,6 +2538,10 @@ def process_quarterly_l2_approval
               remark = achievement.achievement_remark || achievement.build_achievement_remark
               remark.l2_remarks = params[:l2_remarks] || params[:remarks] if params[:l2_remarks].present? || params[:remarks].present?
               remark.l2_percentage = (params[:l2_percentage] || params[:percentage]).to_f if params[:l2_percentage].present? || params[:percentage].present?
+              # IMPORTANT: Clear L3 data so L3 gets a fresh slate for the next review cycle
+              # This happens when L2 acts after L3 returned the record back to L2
+              remark.l3_remarks = nil
+              remark.l3_percentage = nil
               remark.save!
 
               approved_count += 1
@@ -2544,13 +2551,18 @@ def process_quarterly_l2_approval
           else
             # For return, process ALL achievements regardless of current status
             old_status = achievement.status
-            achievement.update!(status: new_status)
-            Rails.logger.info "Updated #{achievement.month} from #{old_status} to #{new_status} (return)"
+            # FIXED: Save return_to value to know whether it was returned to L1 or Employee
+            achievement.update!(status: new_status, return_to: params[:return_to])
+            Rails.logger.info "Updated #{achievement.month} from #{old_status} to #{new_status} (return to: #{params[:return_to]})"
 
             # Create or update achievement remark with COMMON remarks for quarter
             remark = achievement.achievement_remark || achievement.build_achievement_remark
             remark.l2_remarks = params[:l2_remarks] || params[:remarks] if params[:l2_remarks].present? || params[:remarks].present?
             remark.l2_percentage = (params[:l2_percentage] || params[:percentage]).to_f if params[:l2_percentage].present? || params[:percentage].present?
+            # IMPORTANT: Clear L3 data so L3 gets a fresh slate for the next review cycle
+            # This happens when L2 returns the record and L3 needs to review again
+            remark.l3_remarks = nil
+            remark.l3_percentage = nil
             remark.save!
 
             approved_count += 1
@@ -2589,7 +2601,11 @@ def process_quarterly_l2_approval
         existing_achievements.each do |achievement|
           if eligible_statuses.include?(achievement.status)
             # Update achievement status
-            achievement.update!(status: new_status)
+            if is_approval
+              achievement.update!(status: new_status)
+            else
+              achievement.update!(status: new_status, return_to: params[:return_to])
+            end
 
             remark = achievement.achievement_remark || achievement.build_achievement_remark
             remark.l2_remarks = params[:l2_remarks] || params[:remarks] if params[:l2_remarks].present? || params[:remarks].present?
@@ -2773,8 +2789,9 @@ def process_quarterly_l3_approval
           else
             # For return, process ALL achievements regardless of current status
             old_status = achievement.status
-            achievement.update!(status: new_status)
-            Rails.logger.info "Updated #{achievement.month} from #{old_status} to #{new_status} (return)"
+            # Save return_level as return_to on achievement (critical for L2 routing to detect L3_Return_L2)
+            achievement.update!(status: new_status, return_to: params[:return_level])
+            Rails.logger.info "Updated #{achievement.month} from #{old_status} to #{new_status} (return to: #{params[:return_level]})"
 
             # Create or update achievement remark with COMMON remarks for quarter
             # FIXED: Preserve existing L1 and L2 data when L3 returns
@@ -2786,7 +2803,7 @@ def process_quarterly_l3_approval
             existing_l2_percentage = remark.l2_percentage
             existing_l2_remarks = remark.l2_remarks
 
-            # Set L3 data
+            # Set L3 data (saved so L2 can see why it was returned)
             remark.l3_remarks = params[:l3_remarks] || params[:remarks] if params[:l3_remarks].present? || params[:remarks].present?
             remark.l3_percentage = (params[:l3_percentage] || params[:percentage]).to_f if params[:l3_percentage].present? || params[:percentage].present?
 

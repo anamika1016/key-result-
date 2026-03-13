@@ -266,6 +266,12 @@
                       end
                     end
 
+                    return_to_val = nil
+                    if ["returned_to_employee", "l2_returned", "l3_returned"].include?(current_status)
+                      matching_ach = department_quarter_achievements.find { |a| a.status == current_status }
+                      return_to_val = matching_ach&.return_to
+                    end
+
                     status_config = case current_status
                     when "pending"
                       { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
@@ -274,15 +280,30 @@
                     when "l1_returned"
                       { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
                     when "returned_to_employee"
-                      { color: "bg-orange-100 text-orange-800 border-orange-300", text: "Returned to Employee", icon: "fas fa-undo" }
+                      sample_matching_ach = department_quarter_achievements.find { |a| a.status == "returned_to_employee" }
+                      remark = sample_matching_ach&.achievement_remark
+                      text_val = if remark&.l3_remarks.present?
+                                   "L3_Return_Employee"
+                                 elsif remark&.l2_remarks.present?
+                                   "L2_Return_Employee"
+                                 else
+                                   "L1_Return_Employee"
+                                 end
+                      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-undo" }
                     when "l2_approved"
                       { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
                     when "l2_returned"
-                      { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+                      text_val = (return_to_val == 'employee') ? "L2_Return_Employee" : "L2_Return_L1"
+                      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-exclamation-triangle" }
                     when "l3_approved"
                       { color: "bg-green-100 text-green-800 border-green-300", text: "L3 Approved", icon: "fas fa-crown" }
                     when "l3_returned"
-                      { color: "bg-red-100 text-red-800 border-red-300", text: "L3 Returned", icon: "fas fa-exclamation-triangle" }
+                      text_val = case return_to_val
+                                 when 'employee' then "L3_Return_Employee"
+                                 when 'l1' then "L3_Return_L1"
+                                 else "L3_Return_L2"
+                                 end
+                      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-exclamation-triangle" }
                     when "submitted"
                       { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
                     else

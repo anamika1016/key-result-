@@ -236,8 +236,8 @@ class UserDetailsController < ApplicationController
 
 
   def update_quarterly_achievements
-    # Get the correct parameters
-    selected_quarter = params[:selected_quarter]
+    # Get the correct parameters - normalize quarter for Q1, Q2, Q3, Q4
+    selected_quarter = (params[:selected_quarter] || params[:quarter] || "Q1").to_s.upcase
     selected_department = params[:selected_department] # NEW: Get selected department
     achievement_data = params[:achievements] || {}
     success_count = 0
@@ -299,8 +299,10 @@ class UserDetailsController < ApplicationController
 
         monthly_data.each do |quarter, values|
           Rails.logger.info "Processing quarter: #{quarter}, values: #{values.inspect}"
-          # IMPORTANT: Only process quarters that belong to the selected quarter
-          next unless quarter_months.include?(quarter)
+          # IMPORTANT: Only process quarters that belong to the selected quarter (Q1-Q4)
+          # Handle both "q1"/"Q1" format from form params
+          quarter_key = quarter.to_s.downcase
+          next unless quarter_months.include?(quarter_key)
 
           achievement_value = values[:achievement]
           employee_remarks = values[:employee_remarks]
@@ -309,8 +311,8 @@ class UserDetailsController < ApplicationController
           next if achievement_value.blank? && employee_remarks.blank?
 
           # FIXED: Store quarterly data directly (q1, q2, q3, q4) instead of monthly data
-          # This matches what the ERB template expects
-          actual_quarter = quarter  # Use the quarter name directly (q1, q2, q3, q4)
+          # This matches what the ERB template expects - use normalized key for all quarters
+          actual_quarter = quarter_key
 
           # Clear any existing monthly achievements for this quarter to avoid conflicts
           # (april, may, june for q1, etc.)
@@ -419,33 +421,57 @@ class UserDetailsController < ApplicationController
           quarter_months + [ "q1", "q2", "q3", "q4", "Q1", "Q2", "Q3", "Q4" ]
         end
 
-        # FIXED: Only reset achievements for the specific department AND employees that were edited
-        # Get all achievements for this department in the selected quarter for modified employees
+        # FIXED: Get ALL duplicate employee_detail records for the edited employees
+        # This ensures all identical records across the department are reset, avoiding ghost "returned" statuses
+        edited_employee_names = EmployeeDetail.where(id: employee_details_with_changes.to_a).pluck(:employee_name).uniq
+        
+        # In case we can't find by name, fallback to just the IDs we have
+        if edited_employee_names.empty?
+          all_related_employee_detail_ids = employee_details_with_changes.to_a
+        else
+          # Get all employee details with the same names
+          all_related_employee_detail_ids = EmployeeDetail.where(employee_name: edited_employee_names).pluck(:id)
+          
+          # If current_user is employee, make sure we get all their records by email/code too
+          if ["employee", "l1_employer", "l2_employer"].include?(current_user.role)
+            user_emp_ids = EmployeeDetail.where(employee_email: current_user.email).pluck(:id)
+            if user_emp_ids.empty? && current_user.employee_code.present?
+              user_emp_ids = EmployeeDetail.where(employee_code: current_user.employee_code).pluck(:id)
+            end
+            
+            # Combine them just to be safe
+            all_related_employee_detail_ids = (all_related_employee_detail_ids + user_emp_ids).uniq
+          end
+        end
+
         department_achievements = Achievement.joins(:user_detail)
                                            .where(user_details: {
                                              department_id: department_id,
-                                             employee_detail_id: employee_details_with_changes.to_a
+                                             employee_detail_id: all_related_employee_detail_ids
                                            })
                                            .where(month: quarter_months_for_reset)
 
         # Set status to pending for this department's achievements only
+        # Works for ALL quarters: Q1, Q2, Q3, Q4 - edited department becomes pending in L1 view
         updated_count = department_achievements.update_all(status: "pending")
-        Rails.logger.info "Updated #{updated_count} achievements to pending status for edited employees in department #{department.department_type} ONLY"
+        Rails.logger.info "Updated #{updated_count} achievements to pending status for #{selected_quarter} - edited employees in department #{department.department_type} ONLY"
 
         # FIXED: Don't update EmployeeDetail status - let each department manage its own status
         # The L1 view now calculates status based on department-specific achievements
         Rails.logger.info "Department #{department.department_type} achievements reset to pending - EmployeeDetail status unchanged for department-wise management"
 
-        # Also reset approval remarks for this department's achievements
-        department_achievements.joins(:achievement_remark).each do |achievement|
-          achievement.achievement_remark.update(
-            l1_remarks: nil,
-            l1_percentage: nil,
-            l2_remarks: nil,
-            l2_percentage: nil,
-            l3_remarks: nil,
-            l3_percentage: nil
-          )
+        # Also reset approval remarks for this department's achievements (restart approval process)
+        Achievement.where(id: department_achievements.pluck(:id)).find_each do |achievement|
+          if achievement.achievement_remark.present?
+            achievement.achievement_remark.update(
+              l1_remarks: nil,
+              l1_percentage: nil,
+              l2_remarks: nil,
+              l2_percentage: nil,
+              l3_remarks: nil,
+              l3_percentage: nil
+            )
+          end
         end
 
         Rails.logger.info "Reset approval remarks for department #{department.department_type} in quarter #{selected_quarter}"

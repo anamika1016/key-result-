@@ -145,8 +145,9 @@
       return_to_val = matching_ach&.return_to
     end
 
-    # SPECIAL CASE: If L3 returned to L2, L2 status should be pending so they can act
-    if overall_quarter_status == "l3_returned" && return_to_val == "l2"
+    # SPECIAL CASE: If L3 returned to L2 (return_to_val == 'l2' OR blank/nil since blank defaults to L3_Return_L2),
+    # L2 status should be pending so they can act
+    if overall_quarter_status == "l3_returned" && (return_to_val == "l2" || return_to_val.blank?)
       l2_status = "pending"
     end
 
@@ -161,7 +162,7 @@
       { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
     when "l2_returned"
       text_val = (return_to_val == 'employee') ? "L2_Return_Employee" : "L2_Return_L1"
-      { color: "bg-orange-100 text-orange-800 border-orange-300", text: text_val, icon: "fas fa-exclamation-triangle" }
+      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-exclamation-triangle" }
     when "l3_approved"
       { color: "bg-green-100 text-green-800 border-green-300", text: "L3 Approved", icon: "fas fa-crown" }
     when "l3_returned"
@@ -170,7 +171,7 @@
                  when 'l1' then "L3_Return_L1"
                  else "L3_Return_L2"
                  end
-      { color: "bg-pink-100 text-pink-800 border-pink-300", text: text_val, icon: "fas fa-exclamation-triangle" }
+      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-exclamation-triangle" }
     when "returned_to_employee"
       # Determine if L3 or L2 returned it to employee based on remarks
       sample_matching_ach = all_quarter_achievements.find { |a| a.status == "returned_to_employee" }
@@ -183,7 +184,7 @@
                  else
                    "L1_Return_Employee"
                  end
-      { color: "bg-purple-100 text-purple-800 border-purple-300", text: text_val, icon: "fas fa-user-undo" }
+      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-user-undo" }
     when "submitted"
       { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
     else
@@ -469,13 +470,7 @@
             <i class="fas fa-user-shield text-green-500"></i>
             L2 Quarter Summary
           </h3>
-          
-          <!-- Edit Button - Show when L2 returned or L3 returned to employee (NOT for L3 returns to L2 anymore) -->
-          <% if (overall_quarter_status == 'l2_returned' || (overall_quarter_status == 'l3_returned' && return_to_val == 'employee')) && @can_l2_approve_or_return %>
-            <button onclick="toggleL2EditMode()" id="l2-edit-button" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-              <i class="fas fa-edit mr-2"></i>Edit
-            </button>
-          <% end %>
+          <!-- Edit button removed as per requirements -->
         </div>
 
         <!-- Quarter Average Percentage -->
@@ -483,7 +478,7 @@
           <div class="bg-green-200 p-4 rounded-lg inline-block">
             <p class="text-green-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
             <p class="text-3xl font-bold text-green-800" id="l2-percentage-display">
-              <% if overall_quarter_status == 'l1_approved' || (overall_quarter_status == 'l3_returned' && return_to_val == 'l2') %>
+              <% if overall_quarter_status == 'l1_approved' || (overall_quarter_status == 'l3_returned' && (return_to_val == 'l2' || return_to_val.blank?)) %>
                 --
               <% else %>
                 <%= final_l2_average %>%
@@ -523,7 +518,7 @@
         <div class="space-y-3">
           <h4 class="text-green-600 font-semibold text-sm">Quarter Remarks:</h4>
           <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto" id="l2-remarks-container">
-            <% if overall_quarter_status == 'l1_approved' || (overall_quarter_status == 'l3_returned' && return_to_val == 'l2') %>
+            <% if overall_quarter_status == 'l1_approved' || (overall_quarter_status == 'l3_returned' && (return_to_val == 'l2' || return_to_val.blank?)) %>
               <p class="text-gray-500 text-sm italic">Pending L2 Review. Previous remarks are hidden.</p>
             <% elsif unique_l2_remarks.any? %>
               <% unique_l2_remarks.each_with_index do |remark, index| %>
@@ -562,7 +557,7 @@
           <div class="bg-purple-200 p-4 rounded-lg inline-block">
             <p class="text-purple-600 font-semibold text-sm mb-1">Quarter Average Percentage</p>
             <p class="text-3xl font-bold text-purple-800" id="l3-percentage-display">
-              <% if overall_quarter_status == 'l1_approved' || (overall_quarter_status == 'l3_returned' && return_to_val == 'l2') %>
+              <% if overall_quarter_status == 'l1_approved' || (overall_quarter_status == 'l3_returned' && (return_to_val == 'l2' || return_to_val.blank?)) %>
                 --
               <% else %>
                 <%= final_l3_average %>%
@@ -575,7 +570,7 @@
         <div class="space-y-3">
           <h4 class="text-purple-600 font-semibold text-sm">Quarter Remarks:</h4>
           <div class="bg-white p-4 rounded border max-h-40 overflow-y-auto" id="l3-remarks-container">
-            <% if overall_quarter_status == 'l1_approved' || (overall_quarter_status == 'l3_returned' && return_to_val == 'l2') %>
+            <% if overall_quarter_status == 'l1_approved' || (overall_quarter_status == 'l3_returned' && (return_to_val == 'l2' || return_to_val.blank?)) %>
               <p class="text-gray-500 text-sm italic">L3 data hidden during L2 review.</p>
             <% elsif unique_l3_remarks.any? %>
               <% unique_l3_remarks.each_with_index do |remark, index| %>
@@ -606,12 +601,16 @@
   <% end %>
 <% end %>
 
-<!-- FIXED: L2 approve/return buttons - Show only when L2 is truly pending -->
+<!-- FIXED: L2 approve/return buttons - Show when L2 is truly pending OR when L3 returned to L2 -->
 <% if @can_l2_approve_or_return && @user_details.any? && params[:quarter].present? %>
   <%
-    # CORRECTED: Show buttons when L2 status is pending (regardless of existing L2 data)
-    # This allows L2 to add new data even if old L2 data exists from previous reviews
-    can_take_action = l2_status == "pending"
+    # Show buttons when:
+    # 1. L2 status is pending (normal L1 approved flow)
+    # 2. L3 has returned back to L2 (L3_Return_L2 case)
+    #    - return_to_val == 'l2' for new records
+    #    - return_to_val.blank? for existing records where return_to was nil or empty string
+    is_l3_return_to_l2 = overall_quarter_status == "l3_returned" && (return_to_val == "l2" || return_to_val.blank?)
+    can_take_action = (l2_status == "pending") || is_l3_return_to_l2
   %>
   
   <% if can_take_action %>

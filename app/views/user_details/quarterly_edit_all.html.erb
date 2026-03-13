@@ -37,7 +37,7 @@
     <!-- Quarterly Edit Form -->
     <% if @user_details.any? %>
       <%= form_with url: update_quarterly_achievements_user_details_path, method: :patch, local: true, class: "quarterly-form w-full", multipart: true, data: { disable_with: "Updating..." }, id: "quarterly-form-#{Time.current.to_i}" do |form| %>
-        <%= hidden_field_tag :selected_quarter, params[:quarter] || "Q1", id: "selected_quarter_field" %>
+        <%= hidden_field_tag :selected_quarter, @selected_quarter.presence || params[:quarter] || "Q1", id: "selected_quarter_field" %>
         <%= hidden_field_tag :selected_department, @selected_department, id: "selected_department_field" %>
         
 

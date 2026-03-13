@@ -60,9 +60,9 @@
                     next if all_quarter_achievements.empty?
                     
                     # FIXED: Only show this quarter if ANY achievements are L2+ approved
-                    # Show L2 approved, L3 approved, or L3 returned records
+                    # Show L2 approved, L3 approved, L3 returned, or returned to employee by L3
                     any_l2_plus_approved = all_quarter_achievements.any? { |ach| 
-                      ['l2_approved', 'l3_approved', 'l3_returned'].include?(ach.status)
+                      ['l2_approved', 'l3_approved', 'l3_returned'].include?(ach.status) || (ach.status == 'returned_to_employee' && ach.achievement_remark&.l3_remarks.present?)
                     }
                     next unless any_l2_plus_approved
                     
@@ -87,9 +87,11 @@
                     has_l2_approved = all_quarter_achievements.any? { |ach| ach.status == 'l2_approved' }
                     has_l3_approved = all_quarter_achievements.any? { |ach| ach.status == 'l3_approved' }
                     has_l3_returned = all_quarter_achievements.any? { |ach| ach.status == 'l3_returned' }
+                    has_returned_to_employee = all_quarter_achievements.any? { |ach| ach.status == 'returned_to_employee' }
+                    returned_by_l3 = all_quarter_achievements.any? { |a| a.achievement_remark&.l3_remarks.present? }
                     
                     # Only show if L1 has actually approved (provided remarks/percentage) OR if it's already been processed by L2/L3
-                    should_show = (has_l1_remarks || has_l1_percentage) && (has_l1_approved || has_l2_approved || has_l3_approved || has_l3_returned)
+                    should_show = (has_l1_remarks || has_l1_percentage) && (has_l1_approved || has_l2_approved || has_l3_approved || has_l3_returned || (has_returned_to_employee && returned_by_l3))
                     
                     next unless should_show
                     
@@ -151,6 +153,9 @@
                                   elsif all_statuses.any? { |s| s == "l3_returned" }
                                     # If any achievement is L3 returned, show as L3 returned
                                     "l3_returned"
+                                  elsif all_statuses.any? { |s| s == "returned_to_employee" }
+                                    # If any achievement is returned to employee, check if L2 or L3 returned it
+                                    "returned_to_employee"
                                   elsif all_statuses.all? { |s| s == "l2_approved" }
                                     # If all achievements are L2 approved, ready for L3 review
                                     "l2_approved"
@@ -179,11 +184,18 @@
                   quarter_months = quarters[quarter_name]
                 %>
                 
-                <% status_config = case current_status
+                <% return_to_val = nil
+                   quarter_achievements = quarter_data[:achievements]
+                   if ["returned_to_employee", "l2_returned", "l3_returned"].include?(current_status)
+                     matching_ach = quarter_achievements.find { |a| a.status == current_status }
+                     return_to_val = matching_ach&.return_to
+                   end
+                   status_config = case current_status
                 when "l2_approved"
                   { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "L2 Approved - Ready for L3 Review", icon: "fas fa-clock" }
                 when "l2_returned"
-                  { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending for L3 Review", icon: "fas fa-clock" }
+                  text_val = (return_to_val == 'employee') ? "L2_Return_Employee" : "L2_Return_L1"
+                  { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-clock" }
                 when "l1_approved"
                   { color: "bg-blue-100 text-blue-800 border-blue-300", text: "L1 Approved", icon: "fas fa-check-circle" }
                 when "l1_returned"
@@ -191,7 +203,23 @@
                 when "l3_approved"
                   { color: "bg-purple-100 text-purple-800 border-purple-300", text: "L3 Approved", icon: "fas fa-crown" }
                 when "l3_returned"
-                  { color: "bg-red-100 text-red-800 border-red-300", text: "L3 Returned", icon: "fas fa-exclamation-triangle" }
+                  text_val = case return_to_val
+                             when 'employee' then "L3_Return_Employee"
+                             when 'l1' then "L3_Return_L1"
+                             else "L3_Return_L2"
+                             end
+                  { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-exclamation-triangle" }
+                when "returned_to_employee"
+                  sample_matching_ach = quarter_achievements.find { |a| a.status == "returned_to_employee" }
+                  remark = sample_matching_ach&.achievement_remark
+                  text_val = if remark&.l3_remarks.present?
+                               "L3_Return_Employee"
+                             elsif remark&.l2_remarks.present?
+                               "L2_Return_Employee"
+                             else
+                               "L1_Return_Employee"
+                             end
+                  { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-user-undo" }
                 when "submitted"
                   { color: "bg-green-100 text-green-800 border-green-300", text: "Submitted", icon: "fas fa-paper-plane" }
                 when "pending"
@@ -281,7 +309,7 @@
             
             # Get L2+ approved achievements (same logic as table display)
             l2_plus_achievements = emp.user_details.flat_map(&:achievements).select { |ach| 
-              quarter_months.include?(ach.month) && ['l2_approved', 'l3_approved', 'l3_returned'].include?(ach.status)
+              quarter_months.include?(ach.month) && (['l2_approved', 'l3_approved', 'l3_returned'].include?(ach.status) || (ach.status == 'returned_to_employee' && ach.achievement_remark&.l3_remarks.present?))
             }
             
             # FIXED: Check if L1 has actually approved this data (has remarks/percentage)
@@ -305,8 +333,10 @@
             has_l2_approved = l2_plus_achievements.any? { |ach| ach.status == 'l2_approved' }
             has_l3_approved = l2_plus_achievements.any? { |ach| ach.status == 'l3_approved' }
             has_l3_returned = l2_plus_achievements.any? { |ach| ach.status == 'l3_returned' }
+            has_returned_to_employee = l2_plus_achievements.any? { |ach| ach.status == 'returned_to_employee' }
+            returned_by_l3 = l2_plus_achievements.any? { |a| a.achievement_remark&.l3_remarks.present? }
             
-            should_show = (has_l1_remarks || has_l1_percentage) && (has_l1_approved || has_l2_approved || has_l3_approved || has_l3_returned)
+            should_show = (has_l1_remarks || has_l1_percentage) && (has_l1_approved || has_l2_approved || has_l3_approved || has_l3_returned || (has_returned_to_employee && returned_by_l3))
             
             # Only process quarters that have L2+ approved achievements AND L1 has actually approved
             if l2_plus_achievements.any? && should_show
@@ -321,11 +351,11 @@
               # Determine what L3 manager needs to see and act on
               
               # Check if L3 has already taken action on this record
-              l3_has_acted = all_statuses.any? { |s| ["l3_approved", "l3_returned"].include?(s) }
+              l3_has_acted = all_statuses.any? { |s| ["l3_approved", "l3_returned"].include?(s) || (s == "returned_to_employee" && returned_by_l3) }
               
               if l3_has_acted
                 # L3 has already acted - count based on L3's specific action
-                if all_statuses.any? { |s| s == "l3_returned" }
+                if all_statuses.any? { |s| s == "l3_returned" } || (all_statuses.any? { |s| s == "returned_to_employee" } && returned_by_l3)
                   l3_returned_count += 1
                 elsif all_statuses.any? { |s| s == "l3_approved" }
                   l3_approved_count += 1

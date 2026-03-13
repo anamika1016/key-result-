@@ -162,7 +162,7 @@
       { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending", icon: "fas fa-clock" }
     when "l2_returned"
       text_val = (return_to_val == 'employee') ? "L2_Return_Employee" : "L2_Return_L1"
-      { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: text_val, icon: "fas fa-clock" }
+      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-clock" }
     when "l3_approved"
       { color: "bg-green-100 text-green-800 border-green-300", text: "L3 Approved", icon: "fas fa-crown" }
     when "l3_returned"
@@ -171,7 +171,7 @@
                  when 'l1' then "L3_Return_L1"
                  else "L3_Return_L2"
                  end
-      { color: "bg-pink-100 text-pink-800 border-pink-300", text: text_val, icon: "fas fa-exclamation-triangle" }
+      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-exclamation-triangle" }
     when "returned_to_employee"
       # Determine if L3 or L2 returned it to employee based on remarks
       sample_matching_ach = all_quarter_achievements.find { |a| a.status == "returned_to_employee" }

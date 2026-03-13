@@ -390,14 +390,14 @@
                  else
                    "L1_Return_Employee"
                  end
-      { color: "bg-orange-100 text-orange-800 border-orange-300", text: text_val, icon: "fas fa-undo" }
+      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-undo" }
     when "l1_returned"
       { color: "bg-red-100 text-red-800 border-red-300", text: "L1_Return_Employee", icon: "fas fa-exclamation-triangle" }
     when "l2_approved"
       { color: "bg-sky-600 text-white border-sky-700", text: "Pending", icon: "fas fa-clock" }
     when "l2_returned"
       text_val = (return_to_val == 'employee') ? "L2_Return_Employee" : "L2_Return_L1"
-      { color: "bg-orange-100 text-orange-800 border-orange-300", text: text_val, icon: "fas fa-exclamation-triangle" }
+      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-exclamation-triangle" }
     when "l3_approved"
       { color: "bg-green-600 text-white border-green-700", text: "L3 Approved", icon: "fas fa-crown" }
     when "l3_returned"
@@ -406,7 +406,7 @@
                  when 'l1' then "L3_Return_L1"
                  else "L3_Return_L2"
                  end
-      { color: "bg-pink-100 text-pink-800 border-pink-300", text: text_val, icon: "fas fa-exclamation-triangle" }
+      { color: "bg-red-100 text-red-800 border-red-300", text: text_val, icon: "fas fa-exclamation-triangle" }
     when "submitted"
       { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
     else
@@ -474,13 +474,7 @@
             <i class="fas fa-user-check text-blue-500"></i>
             L1 Quarter Summary
           </h3>
-          
-          <!-- Edit Button - Show when L1 returned or L2 returned to employee (NOT for L2/L3 returns to L1 anymore) -->
-          <% if (overall_quarter_status == 'l1_returned' || (overall_quarter_status == 'l2_returned' && return_to_val == 'employee')) && @can_approve_or_return %>
-            <button onclick="toggleL1EditMode()" id="l1-edit-button" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg shadow-md transition duration-200">
-              <i class="fas fa-edit mr-2"></i>Edit
-            </button>
-          <% end %>
+          <!-- Edit button removed as per requirements -->
         </div>
 
         <!-- SINGLE Quarter Average Percentage -->
