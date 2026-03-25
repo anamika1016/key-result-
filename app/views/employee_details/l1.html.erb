@@ -35,6 +35,7 @@
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Quarter</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L1 Manager</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L2 Manager</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L3 Manager</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Status</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider">Action</th>
             </tr>
@@ -327,6 +328,7 @@
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.l1_employer_name %></td>
                     <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.l2_employer_name %></td>
+                    <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.l3_employer_name %></td>
                     <td class="px-6 py-4 text-sm border-r border-gray-200">
                       <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border <%= status_config[:color] %>">
                         <i class="<%= status_config[:icon] %> mr-1"></i>
