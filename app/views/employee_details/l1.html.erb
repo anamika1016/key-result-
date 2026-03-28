@@ -311,7 +311,7 @@
                       { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status", icon: "fas fa-question" }
                     end
                 %>
-                  <tr class="<%= row_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-indigo-50 transition-colors duration-200">
+                  <tr class="manager-record-row <%= row_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-indigo-50 transition-colors duration-200">
                     <td class="px-6 py-4 text-sm font-medium text-gray-900 border-r border-gray-200"><%= emp.employee_name %></td>
                     <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.employee_code %></td>
                     <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200">
@@ -325,12 +325,15 @@
                         %>
                         <%= quarter_display %>
                       </span>
+                      <div class="text-xs text-gray-500 mt-1">
+                        Year: <%= display_financial_year(@selected_year) %>
+                      </div>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.l1_employer_name %></td>
                     <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.l2_employer_name %></td>
                     <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.l3_employer_name %></td>
-                    <td class="px-6 py-4 text-sm border-r border-gray-200">
-                      <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border <%= status_config[:color] %>">
+                    <td class="manager-status-cell px-6 py-4 text-sm border-r border-gray-200">
+                      <span class="manager-status-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border <%= status_config[:color] %>">
                         <i class="<%= status_config[:icon] %> mr-1"></i>
                         <%= status_config[:text] %>
                       </span>
@@ -569,7 +572,7 @@
             <i class="fas fa-users mr-3" style="color: #2d374b;"></i>
             <div>
               <p class="text-sm font-medium text-blue-800">Total L1 Records</p>
-              <p class="text-2xl font-bold text-blue-900"><%= total_l1_records %></p>
+              <p id="l1-total-records" class="text-2xl font-bold text-blue-900"><%= total_l1_records %></p>
             </div>
           </div>
         </div>
@@ -580,7 +583,7 @@
             <i class="fas fa-clock text-yellow-600 mr-3"></i>
             <div>
               <p class="text-sm font-medium text-yellow-800">Pending L1 Review</p>
-              <p class="text-2xl font-bold text-yellow-900"><%= pending_l1_review_count %></p>
+              <p id="l1-pending-records" class="text-2xl font-bold text-yellow-900"><%= pending_l1_review_count %></p>
             </div>
           </div>
         </div>
@@ -591,7 +594,7 @@
             <i class="fas fa-check-circle text-sky-600 mr-3"></i>
             <div>
               <p class="text-sm font-medium text-sky-800">L1 Approved</p>
-              <p class="text-2xl font-bold text-sky-900"><%= l1_approved_count %></p>
+              <p id="l1-approved-records" class="text-2xl font-bold text-sky-900"><%= l1_approved_count %></p>
             </div>
           </div>
         </div>
@@ -602,7 +605,7 @@
             <i class="fas fa-exclamation-triangle text-red-600 mr-3"></i>
             <div>
               <p class="text-sm font-medium text-red-800">L1 Returned</p>
-              <p class="text-2xl font-bold text-red-900"><%= l1_returned_count %></p>
+              <p id="l1-returned-records" class="text-2xl font-bold text-red-900"><%= l1_returned_count %></p>
             </div>
           </div>
         </div>
@@ -722,76 +725,58 @@
 </style>
 
 <script>
-  // Department filter functionality
-  document.addEventListener('DOMContentLoaded', function() {
+  function updateL1SummaryCounters() {
+    const visibleRows = Array.from(document.querySelectorAll('.manager-record-row')).filter((row) => row.style.display !== 'none');
+    let approved = 0;
+    let returned = 0;
+    let pending = 0;
+
+    visibleRows.forEach((row) => {
+      const statusText = row.querySelector('.manager-status-badge')?.textContent?.trim() || '';
+
+      if (statusText.includes('Return')) {
+        returned += 1;
+      } else if (statusText.includes('L1 Approved') || statusText.includes('L2 Approved') || statusText.includes('L3 Approved')) {
+        approved += 1;
+      } else {
+        pending += 1;
+      }
+    });
+
+    const totalElement = document.getElementById('l1-total-records');
+    const approvedElement = document.getElementById('l1-approved-records');
+    const returnedElement = document.getElementById('l1-returned-records');
+    const pendingElement = document.getElementById('l1-pending-records');
+
+    if (totalElement) totalElement.textContent = visibleRows.length;
+    if (approvedElement) approvedElement.textContent = approved;
+    if (returnedElement) returnedElement.textContent = returned;
+    if (pendingElement) pendingElement.textContent = pending;
+  }
+
+  function initializeL1View() {
     const departmentFilter = document.getElementById('department_filter');
-    const tableRows = document.querySelectorAll('tbody tr');
-    
+    const tableRows = document.querySelectorAll('.manager-record-row');
+
     if (departmentFilter) {
       departmentFilter.addEventListener('change', function() {
         const selectedDepartment = this.value;
-        
-        tableRows.forEach(row => {
-          const departmentCell = row.querySelector('td:nth-child(3)'); // Vertical column
-          if (departmentCell) {
-            const departmentText = departmentCell.textContent.trim();
-            
-            if (selectedDepartment === '' || departmentText === selectedDepartment) {
-              row.style.display = '';
-            } else {
-              row.style.display = 'none';
-            }
-          }
+
+        tableRows.forEach((row) => {
+          const departmentCell = row.querySelector('td:nth-child(3)');
+          if (!departmentCell) return;
+
+          const departmentText = departmentCell.textContent.trim();
+          row.style.display = (selectedDepartment === '' || departmentText === selectedDepartment) ? '' : 'none';
         });
-        
-        // Update counters based on visible rows
-        updateCounters();
+
+        updateL1SummaryCounters();
       });
     }
-    
-    // Static status display - no dynamic updates
-    
-    // Static counter updates - no animations
-    function updateCounters() {
-      const visibleRows = document.querySelectorAll('tbody tr[style=""], tbody tr:not([style*="display: none"])');
-      const totalRecords = visibleRows.length;
-      
-      let l1Approved = 0;
-      let l1Returned = 0;
-      let pendingReview = 0;
-      
-      visibleRows.forEach(row => {
-        const statusCell = row.querySelector('td:nth-child(7)'); // Status column
-        if (statusCell) {
-          const statusText = statusCell.textContent.trim();
-          if (statusText.includes('L1 Approved')) {
-            l1Approved++;
-          } else if (statusText.includes('L1 Returned')) {
-            l1Returned++;
-          } else if (statusText.includes('Pending')) {
-            pendingReview++;
-          }
-        }
-      });
-      
-      // Update counter displays statically
-      const totalElement = document.querySelector('.text-2xl.font-bold.text-blue-900');
-      const approvedElement = document.querySelector('.text-2xl.font-bold.text-sky-900');
-      const returnedElement = document.querySelector('.text-2xl.font-bold.text-red-900');
-      const pendingElement = document.querySelector('.text-2xl.font-bold.text-yellow-900');
-      
-      if (totalElement) {
-        totalElement.textContent = totalRecords;
-      }
-      if (approvedElement) {
-        approvedElement.textContent = l1Approved;
-      }
-      if (returnedElement) {
-        returnedElement.textContent = l1Returned;
-      }
-      if (pendingElement) {
-        pendingElement.textContent = pendingReview;
-      }
-    }
-  });
+
+    updateL1SummaryCounters();
+  }
+
+  document.addEventListener('DOMContentLoaded', initializeL1View);
+  document.addEventListener('turbo:load', initializeL1View);
 </script>

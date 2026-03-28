@@ -1,0 +1,166 @@
+wb = xlsx_package.workbook
+
+wb.styles do |s|
+  header_style    = s.add_style(b: true, bg_color: "16A34A", fg_color: "FFFFFF", alignment: { horizontal: :center, vertical: :center }, border: { style: :thin, color: "000000" })
+  cell_style      = s.add_style(alignment: { horizontal: :left, vertical: :center }, border: { style: :thin, color: "D1D5DB" })
+  completed_style = s.add_style(b: true, fg_color: "166534", bg_color: "DCFCE7", alignment: { horizontal: :center, vertical: :center }, border: { style: :thin, color: "D1D5DB" })
+  in_progress_style = s.add_style(b: true, fg_color: "92400E", bg_color: "FEF3C7", alignment: { horizontal: :center, vertical: :center }, border: { style: :thin, color: "D1D5DB" })
+  pending_style   = s.add_style(b: true, fg_color: "991B1B", bg_color: "FEE2E2", alignment: { horizontal: :center, vertical: :center }, border: { style: :thin, color: "D1D5DB" })
+  neutral_status_style = s.add_style(b: true, fg_color: "1D4ED8", bg_color: "DBEAFE", alignment: { horizontal: :center, vertical: :center }, border: { style: :thin, color: "D1D5DB" })
+
+  wb.add_worksheet(name: "Employee Trainings") do |sheet|
+    # Headers
+    sheet.add_row [
+      "Employee Code",
+      "Employee Name",
+      "Email Address",
+      "Training Topic",
+      "Training Month",
+      "Training Year",
+      "Required Duration",
+      "Status",
+      "Time Spent",
+      "Completed On",
+      "Financial Year",
+      "Total Questions",
+      "Correct Answers",
+      "Wrong Answers",
+      "Corrected Status",
+      "Exported At"
+    ], style: header_style, height: 30
+
+    @employees.each do |emp|
+      if emp.user_training_assignments.any?
+        emp.user_training_assignments.each do |assignment|
+          t = assignment.training
+          next unless t
+
+          progress_map = {}
+          effective_user = @users_by_id[assignment.user_id] ||
+                           emp.user ||
+                           @users_by_email[emp.employee_email.to_s.strip.downcase] ||
+                           @users_by_employee_code[emp.employee_code.to_s.strip]
+
+          if effective_user
+            ordered_progresses = effective_user.user_training_progresses.sort_by do |p|
+              [
+                (p.status == "completed" ? 0 : 1),
+                -(p.ended_at || Time.at(0)).to_i,
+                -p.updated_at.to_i,
+                -p.id.to_i
+              ]
+            end
+
+            ordered_progresses.each do |p|
+              progress_map[p.training_id] ||= p
+            end
+          end
+
+          prog = progress_map[t.id]
+          total_questions = t.training_questions.size
+          correct_answers = [ prog&.score.to_i, total_questions ].min
+          wrong_answers = [ total_questions - correct_answers, 0 ].max
+          is_completed = prog&.status == "completed"
+
+          status_label =
+            if is_completed
+              "Completed"
+            elsif prog&.status == "started"
+              "In Progress"
+            else
+              "Pending"
+            end
+
+          corrected_status =
+            if !t.has_assessment || total_questions.zero?
+              "No Assessment"
+            elsif prog&.status == "completed"
+              if correct_answers == total_questions
+                "All Correct"
+              elsif correct_answers.positive?
+                "Partially Correct"
+              else
+                "All Wrong"
+              end
+            else
+              "Assessment Pending"
+            end
+
+          # Convert time to exact minutes or seconds string, e.g. 1.5 mins or 30s
+          time_spent_str = if prog
+            if prog.time_spent.to_i >= 60
+              "#{(prog.time_spent.to_f / 60.0).round(2)} mins"
+            else
+              "#{prog.time_spent.to_i} secs"
+            end
+          else
+            "0"
+          end
+
+          duration_str = if t.duration >= 60
+            "#{t.duration / 60} mins"
+          else
+            "#{t.duration} secs"
+          end
+
+          row = [
+            emp.employee_code,
+            emp.employee_name,
+            emp.employee_email,
+            t.title,
+            t.month_name, # uses the method defined on Training model
+            t.year,
+            duration_str,
+            status_label,
+            time_spent_str != "0" ? time_spent_str : "-",
+            prog&.ended_at&.strftime("%d %b %Y %H:%M") || "-",
+            prog&.financial_year.presence || "-",
+            total_questions,
+            correct_answers,
+            wrong_answers,
+            corrected_status,
+            @exported_at.in_time_zone.strftime("%d %b %Y %H:%M:%S")
+          ]
+
+          status_style = case status_label
+          when "Completed"
+            completed_style
+          when "In Progress"
+            in_progress_style
+          else
+            pending_style
+          end
+
+          corrected_status_style = case corrected_status
+          when "All Correct"
+            completed_style
+          when "Partially Correct", "No Assessment"
+            neutral_status_style
+          else
+            pending_style
+          end
+
+          row_styles = [
+            cell_style, cell_style, cell_style, cell_style, cell_style, cell_style, cell_style,
+            status_style,
+            cell_style, cell_style, cell_style, cell_style, cell_style, cell_style,
+            corrected_status_style,
+            cell_style
+          ]
+
+          sheet.add_row row, style: row_styles
+        end
+      else
+        sheet.add_row [
+          emp.employee_code,
+          emp.employee_name,
+          emp.employee_email,
+          "No Assigned Trainings",
+          "-", "-", "-", "Pending", "-", "-", "-", "-", "-", "-", "No Assignment", @exported_at.in_time_zone.strftime("%d %b %Y %H:%M:%S")
+        ], style: cell_style
+      end
+    end
+
+    sheet.column_widths 15, 25, 30, 35, 15, 15, 18, 24, 18, 20, 15, 16, 16, 16, 22, 22
+  end
+end

@@ -2,6 +2,7 @@ class UserDetailsController < ApplicationController
   require "ostruct"
   require "set"
   before_action :set_user_detail, only: [ :show, :edit, :update, :destroy ]
+  before_action :set_year_context, only: [ :index, :new, :create, :bulk_create, :import, :export, :export_excel, :export_department_activity, :get_user_detail, :quarterly_edit_all ]
   load_and_authorize_resource except: [ :index, :new, :create, :get_user_detail, :get_activities, :bulk_create, :submit_achievements, :export, :import, :quarterly_edit_all, :update_quarterly_achievements, :test_sms, :view_sms_logs, :export_excel ]
   skip_load_and_authorize_resource only: [ :update_quarterly_achievements ]
 
@@ -24,8 +25,8 @@ class UserDetailsController < ApplicationController
         # FIXED: Deduplicate by activity and department to avoid showing duplicate entries
         # when user has multiple employee_detail records for the same activities
         # Use a subquery to get the minimum ID for each activity-department combination
-        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
-                           .group(:activity_id, :department_id)
+        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year_db)
+                           .group(:activity_id, :department_id, :year)
                            .minimum(:id)
 
         UserDetail.includes(:department, :activity, :employee_detail)
@@ -38,12 +39,13 @@ class UserDetailsController < ApplicationController
 
     elsif current_user.role == "hod"
       @user_details = UserDetail.includes(:department, :activity, :employee_detail)
+                                .where(year: @selected_year_db)
                                 .order("departments.department_type, employee_details.employee_name, activities.activity_name")
                                 .page(params[:page]).per(50)
     end
   end
 
-    def new
+  def new
     @user_detail = UserDetail.new
 
     # Load unique departments - use group by to ensure no duplicates
@@ -53,18 +55,12 @@ class UserDetailsController < ApplicationController
     if params[:department_id].present?
       begin
         dept_type = Department.find(params[:department_id]).department_type
-        # Find employees who have user_details in this department
-        employee_ids = UserDetail.joins(:department)
-                                 .where(departments: { department_type: dept_type })
-                                 .pluck(:employee_detail_id)
-                                 .uniq
-
-        all_employees = EmployeeDetail.where(id: employee_ids)
+        all_employees = EmployeeDetail.where(department: dept_type)
 
         # Group by base employee code and get the first record for each
         unique_employees = {}
         all_employees.each do |emp|
-          base_code = emp.employee_code.split("_").first
+          base_code = emp.employee_code.to_s.split("_").first.presence || emp.id.to_s
           unless unique_employees[base_code]
             unique_employees[base_code] = emp
           end
@@ -106,6 +102,7 @@ class UserDetailsController < ApplicationController
         @employee_activities = UserDetail.includes(:activity)
                                        .where(employee_detail_id: params[:employee_detail_id])
                                        .where(department_id: params[:department_id])
+                                       .where(year: @selected_year_db)
                                        .where.not(activity_id: nil)
                                        .where("april IS NOT NULL AND april != '' OR
                                               may IS NOT NULL AND may != '' OR
@@ -153,10 +150,10 @@ class UserDetailsController < ApplicationController
   end
 
   def create
-    @user_detail = UserDetail.new(user_detail_params)
+    @user_detail = UserDetail.new(user_detail_params.merge(year: @selected_year_db))
 
     if @user_detail.save
-      redirect_to new_user_detail_path, notice: "User detail was successfully created."
+      redirect_to new_user_detail_path(year: @user_detail.year), notice: "User detail was successfully created."
     else
       load_form_data
       render :new
@@ -204,10 +201,10 @@ class UserDetailsController < ApplicationController
 
           # Redirect based on user role
           if current_user.hod?
-            redirect_to new_user_detail_path,
+            redirect_to new_user_detail_path(year: @user_detail.year),
                         notice: "Target was successfully updated."
           else
-            redirect_to user_details_path,
+            redirect_to user_details_path(year: @user_detail.year),
                         notice: "Target was successfully updated."
           end
         else
@@ -225,10 +222,10 @@ class UserDetailsController < ApplicationController
 
       # Redirect based on user role for errors too
       if current_user.hod?
-        redirect_to new_user_detail_path,
+        redirect_to new_user_detail_path(year: @user_detail.year),
                     alert: "An error occurred while updating the target."
       else
-        redirect_to user_details_path,
+        redirect_to user_details_path(year: @user_detail.year),
                     alert: "An error occurred while updating the target."
       end
     end
@@ -239,6 +236,7 @@ class UserDetailsController < ApplicationController
     # Get the correct parameters - normalize quarter for Q1, Q2, Q3, Q4
     selected_quarter = (params[:selected_quarter] || params[:quarter] || "Q1").to_s.upcase
     selected_department = params[:selected_department] # NEW: Get selected department
+    selected_year = selected_year_param
     achievement_data = params[:achievements] || {}
     success_count = 0
     errors = []
@@ -254,7 +252,7 @@ class UserDetailsController < ApplicationController
 
     if achievement_data.empty?
       flash[:alert] = "No achievement data received. Please try again."
-      redirect_to quarterly_edit_all_user_details_path(quarter: selected_quarter)
+      redirect_to quarterly_edit_all_user_details_path(quarter: selected_quarter, year: selected_year)
       return
     end
 
@@ -519,12 +517,12 @@ class UserDetailsController < ApplicationController
       flash[:alert] += " and #{errors.count - 2} more errors..." if errors.count > 2
     end
 
-    redirect_to quarterly_edit_all_user_details_path(quarter: selected_quarter)
+    redirect_to quarterly_edit_all_user_details_path(quarter: selected_quarter, year: selected_year)
 
     rescue => e
       Rails.logger.error "Quarterly update error: #{e.message}\n#{e.backtrace.join("\n")}"
       flash[:alert] = "❌ An error occurred while updating achievements: #{e.message}"
-      redirect_to quarterly_edit_all_user_details_path(quarter: selected_quarter)
+      redirect_to quarterly_edit_all_user_details_path(quarter: selected_quarter, year: selected_year)
   end
 
   # FIXED: Quarterly edit all method - now department-specific
@@ -552,8 +550,8 @@ class UserDetailsController < ApplicationController
         # FIXED: Deduplicate by activity and department to avoid showing duplicate entries
         # when user has multiple employee_detail records for the same activities
         # Use a subquery to get the minimum ID for each activity-department combination
-        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
-                           .group(:activity_id, :department_id)
+        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year)
+                           .group(:activity_id, :department_id, :year)
                            .minimum(:id)
 
         # FIXED: Filter by department if specified and reload fresh data
@@ -604,6 +602,7 @@ class UserDetailsController < ApplicationController
       end
     elsif current_user.role == "hod"
       @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
+                              .where(year: @selected_year)
                               .order("departments.department_type, employee_details.employee_name, activities.activity_name")
     else
       @user_details = UserDetail.none
@@ -634,10 +633,10 @@ class UserDetailsController < ApplicationController
 
         # Redirect based on user role
         if current_user.hod?
-          redirect_to new_user_detail_path,
+          redirect_to new_user_detail_path(year: @user_detail.year),
                       notice: "Target was successfully deleted."
         else
-          redirect_to user_details_path,
+          redirect_to user_details_path(year: @user_detail.year),
                       notice: "Target was successfully deleted."
         end
       else
@@ -646,10 +645,10 @@ class UserDetailsController < ApplicationController
 
         # Redirect based on user role for errors
         if current_user.hod?
-          redirect_to new_user_detail_path,
+          redirect_to new_user_detail_path(year: @user_detail.year),
                       alert: "Failed to delete target."
         else
-          redirect_to user_details_path,
+          redirect_to user_details_path(year: @user_detail.year),
                       alert: "Failed to delete target."
         end
       end
@@ -659,10 +658,10 @@ class UserDetailsController < ApplicationController
 
       # Redirect based on user role for errors
       if current_user.hod?
-        redirect_to new_user_detail_path,
+        redirect_to new_user_detail_path(year: @selected_year),
                     alert: "Target not found."
       else
-        redirect_to user_details_path,
+        redirect_to user_details_path(year: @selected_year),
                     alert: "Target not found."
       end
     rescue => e
@@ -673,10 +672,10 @@ class UserDetailsController < ApplicationController
 
       # Redirect based on user role for errors
       if current_user.hod?
-        redirect_to new_user_detail_path,
+        redirect_to new_user_detail_path(year: @selected_year),
                     alert: "An error occurred while deleting the target."
       else
-        redirect_to user_details_path,
+        redirect_to user_details_path(year: @selected_year),
                     alert: "An error occurred while deleting the target."
       end
     end
@@ -795,8 +794,8 @@ class UserDetailsController < ApplicationController
         # FIXED: Deduplicate by activity and department to avoid showing duplicate entries
         # when user has multiple employee_detail records for the same activities
         # Use a subquery to get the minimum ID for each activity-department combination
-        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
-                           .group(:activity_id, :department_id)
+        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year)
+                           .group(:activity_id, :department_id, :year)
                            .minimum(:id)
 
         UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
@@ -816,6 +815,7 @@ class UserDetailsController < ApplicationController
 
     elsif current_user.role == "hod"
       @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
+                                .where(year: @selected_year)
                                 .order("departments.department_type, employee_details.employee_name, activities.activity_name")
                                 .limit(100)
       @employee_detail = nil
@@ -1077,11 +1077,14 @@ class UserDetailsController < ApplicationController
 
     # Bulk operations for better performance
     activity_ids = user_details_params.keys
+    selected_year = selected_year_param
+
     existing_records = UserDetail.where(
       department_id: department_id,
       activity_id: activity_ids,
-      employee_detail_id: employee_detail_id
-    ).index_by { |record| "#{record.department_id}_#{record.activity_id}_#{record.employee_detail_id}" }
+      employee_detail_id: employee_detail_id,
+      year: selected_year
+    ).index_by { |record| "#{record.department_id}_#{record.activity_id}_#{record.employee_detail_id}_#{record.year}" }
 
     ActiveRecord::Base.transaction do
       user_details_params.each do |activity_id, details|
@@ -1111,7 +1114,7 @@ class UserDetailsController < ApplicationController
             weight: weight_value.present? ? weight_value.to_f : nil
           }
 
-          existing_record = existing_records["#{department_id}_#{activity_id}_#{employee_detail_id}"]
+          existing_record = existing_records["#{department_id}_#{activity_id}_#{employee_detail_id}_#{selected_year}"]
 
           # Update Activity metadata (always update to handle clearing values)
           activity = Activity.find(activity_id)
@@ -1140,7 +1143,8 @@ class UserDetailsController < ApplicationController
             existing_check = UserDetail.find_by(
               department_id: department_id,
               activity_id: activity_id,
-              employee_detail_id: employee_detail_id
+              employee_detail_id: employee_detail_id,
+              year: selected_year
             )
 
             if existing_check
@@ -1155,6 +1159,7 @@ class UserDetailsController < ApplicationController
                 department_id: department_id,
                 activity_id: activity_id,
                 employee_detail_id: employee_detail_id,
+                year: selected_year,
                 **quarterly_data
               )
 
@@ -1204,6 +1209,7 @@ class UserDetailsController < ApplicationController
 
   def export
     @user_details = UserDetail.includes(:employee_detail, :department, :activity)
+                              .where(year: @selected_year)
                               .limit(5000)
 
     respond_to do |format|
@@ -1217,11 +1223,12 @@ class UserDetailsController < ApplicationController
     file = params[:file]
 
     unless file && [ ".xlsx", ".xls" ].include?(File.extname(file.original_filename))
-      redirect_to new_user_detail_path, alert: "Please upload a valid .xlsx or .xls file."
+      redirect_to new_user_detail_path(year: @selected_year), alert: "Please upload a valid .xlsx or .xls file."
       return
     end
 
     begin
+      selected_year = selected_year_param
       spreadsheet = Roo::Excelx.new(file.tempfile.path)
       header = spreadsheet.row(1)
 
@@ -1382,11 +1389,14 @@ class UserDetailsController < ApplicationController
             activity.update!(update_activity_fields) if update_activity_fields.any?
 
             begin
-              UserDetail.create!(
+              user_detail = UserDetail.find_or_initialize_by(
                 employee_detail_id: employee.id,
                 department_id: department.id,
-                activity_id: activity.id
+                activity_id: activity.id,
+                year: selected_year
               )
+
+              user_detail.save!
               success_count += 1
             rescue ActiveRecord::RecordInvalid => e
               errors << "Row #{i}: #{e.message}"
@@ -1406,17 +1416,17 @@ class UserDetailsController < ApplicationController
 
       if errors.any?
         if success_count > 0
-          redirect_to new_user_detail_path, alert: "Partially imported: #{success_count} records saved, but #{errors.count} errors:\n#{errors.first(10).join("\n")}#{user_account_message}"
+          redirect_to new_user_detail_path(year: selected_year), alert: "Partially imported for #{selected_year}: #{success_count} records saved, but #{errors.count} errors:\n#{errors.first(10).join("\n")}#{user_account_message}"
         else
-          redirect_to new_user_detail_path, alert: "Import failed. Errors:\n#{errors.first(10).join("\n")}"
+          redirect_to new_user_detail_path(year: selected_year), alert: "Import failed. Errors:\n#{errors.first(10).join("\n")}"
         end
       else
-        redirect_to new_user_detail_path, notice: "Excel file imported successfully! #{success_count} records processed.#{user_account_message}"
+        redirect_to new_user_detail_path(year: selected_year), notice: "Excel file imported successfully for #{selected_year}! #{success_count} records processed.#{user_account_message}"
       end
 
     rescue => e
       Rails.logger.error "Import error: #{e.message}\n#{e.backtrace.join("\n")}"
-      redirect_to new_user_detail_path, alert: "Error reading Excel file: #{e.message}"
+      redirect_to new_user_detail_path(year: @selected_year), alert: "Error reading Excel file: #{e.message}"
     end
   end
 
@@ -1433,7 +1443,7 @@ class UserDetailsController < ApplicationController
                                         :july, :august, :september, :october, :november,
                                         :december, :january, :february, :march,
                                         :employee_detail_id, :employee_detail_email,
-                                        :activity_theme_name, :activity_unit, :activity_weight)
+                                        :activity_theme_name, :activity_unit, :activity_weight, :year)
   end
 
   def bulk_create_params
@@ -1488,7 +1498,7 @@ class UserDetailsController < ApplicationController
     @activities = @user_detail.department_id.present? ?
                   Activity.select(:id, :activity_name, :unit, :theme_name)
                          .where(department_id: @user_detail.department_id) : []
-    @user_details = UserDetail.includes(:department, :activity).limit(100)
+    @user_details = UserDetail.includes(:department, :activity).where(year: @selected_year_db).limit(100)
   end
 
   def filter_conditions
@@ -1502,7 +1512,20 @@ class UserDetailsController < ApplicationController
       conditions[:employee_detail_id] = params[:employee_detail_id]
     end
 
+    conditions[:year] = @selected_year_db
+
     conditions
+  end
+
+  def set_year_context
+    @selected_year = selected_year_param
+    @selected_year_db = database_financial_year_value(UserDetail, @selected_year)
+    existing_years = UserDetail.distinct.order(year: :desc).pluck(:year).compact
+    @available_years = financial_year_options(existing_years + [ @selected_year ])
+  end
+
+  def selected_year_param
+    normalize_financial_year(params[:year].presence || params.dig(:user_detail, :year).presence)
   end
 
   # New SMS functionality using SMS service
@@ -1675,8 +1698,8 @@ class UserDetailsController < ApplicationController
           employee_detail_ids = employee_details.pluck(:id)
 
           # Deduplicate by activity and department
-          min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
-                             .group(:activity_id, :department_id)
+          min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year_db)
+                             .group(:activity_id, :department_id, :year)
                              .minimum(:id)
 
           # EXACT same query as get_user_detail - just removed .limit(100)
@@ -1697,8 +1720,8 @@ class UserDetailsController < ApplicationController
 
         @user_details = if employee_details.any?
           employee_detail_ids = employee_details.pluck(:id)
-          min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
-                             .group(:activity_id, :department_id)
+          min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year_db)
+                             .group(:activity_id, :department_id, :year)
                              .minimum(:id)
 
           UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
@@ -1723,7 +1746,7 @@ class UserDetailsController < ApplicationController
       end
     rescue => e
       Rails.logger.error "Export Excel Error: #{e.message}\n#{e.backtrace.join("\n")}"
-      redirect_to user_details_path, alert: "❌ Error generating Excel file: #{e.message}"
+      redirect_to user_details_path(year: @selected_year), alert: "❌ Error generating Excel file: #{e.message}"
     end
   end
 
@@ -1738,16 +1761,16 @@ class UserDetailsController < ApplicationController
       if department_id.present? && employee_detail_id.present?
         # Export specific department and employee data
         @user_details = UserDetail.includes(:department, :activity, :employee_detail)
-                                 .where(department_id: department_id, employee_detail_id: employee_detail_id)
+                                 .where(department_id: department_id, employee_detail_id: employee_detail_id, year: @selected_year_db)
 
         # Get employee and department names for filename
         employee = EmployeeDetail.find_by(id: employee_detail_id)
         department = Department.find_by(id: department_id)
-        filename = "Department_Activity_#{department&.department_type}_#{employee&.employee_name}_#{Time.current.strftime('%Y%m%d_%H%M%S')}.xlsx"
+        filename = "Department_Activity_#{department&.department_type}_#{employee&.employee_name}_#{@selected_year}_#{Time.current.strftime('%Y%m%d_%H%M%S')}.xlsx"
       else
         # Export all data if no filters
-        @user_details = UserDetail.includes(:department, :activity, :employee_detail).limit(1000)
-        filename = "Department_Activity_All_Data_#{Time.current.strftime('%Y%m%d_%H%M%S')}.xlsx"
+        @user_details = UserDetail.includes(:department, :activity, :employee_detail).where(year: @selected_year_db).limit(1000)
+        filename = "Department_Activity_All_Data_#{@selected_year}_#{Time.current.strftime('%Y%m%d_%H%M%S')}.xlsx"
       end
 
       # Load departments and activities for the export
@@ -1759,12 +1782,12 @@ class UserDetailsController < ApplicationController
           response.headers["Content-Disposition"] = "attachment; filename=\"#{filename}\""
         }
         format.html {
-          redirect_to new_user_detail_path, alert: "Please use the Excel export format."
+          redirect_to new_user_detail_path(year: @selected_year), alert: "Please use the Excel export format."
         }
       end
     rescue => e
       Rails.logger.error "Export Department Activity Error: #{e.message}"
-      redirect_to new_user_detail_path, alert: "❌ Error generating Excel file. Please try again."
+      redirect_to new_user_detail_path(year: @selected_year), alert: "❌ Error generating Excel file. Please try again."
     end
   end
 

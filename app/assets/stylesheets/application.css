@@ -127,3 +127,17 @@ body {
     padding: 0.5rem 0.75rem;
   }
 }
+
+/* Keep content beside the fixed sidebar on desktop, without hiding it */
+.sidebar-aware-content {
+  width: 100% !important;
+  margin-left: 0 !important;
+  box-sizing: border-box;
+}
+
+@media (min-width: 1024px) {
+  .sidebar-aware-content {
+    width: calc(100% - 16rem) !important;
+    margin-left: 16rem !important;
+  }
+}

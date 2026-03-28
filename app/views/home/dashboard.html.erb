@@ -1,495 +1,833 @@
-<!-- app/views/home/dashboard.html.erb -->
-<div class="dashboard-container">
-  <div class="mb-8">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold text-gray-900">KRA Analytics Dashboard</h1>
-        <p class="text-sm text-gray-500 mt-1"><%= Time.current.in_time_zone("Asia/Kolkata").strftime("%B %d, %Y at %I:%M %p IST") %></p>
-      </div>
-      <div class="flex items-center space-x-4">
-        <!-- Active/Inactive Toggle Button -->
-        <div class="flex items-center space-x-3 bg-white px-4 py-2 rounded-xl shadow-md">
-          <span class="text-base font-medium <%= @dashboard_active ? 'text-gray-700' : 'text-gray-500' %>" id="toggle-label"><%= @dashboard_active ? 'Active' : 'Inactive' %></span>
-          <div class="relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none cursor-pointer <%= @dashboard_active ? 'bg-green-500' : 'bg-gray-400' %>" 
-               id="active-inactive-toggle" 
-               data-active="<%= @dashboard_active %>"
-               onclick="handleToggleClick(event)">
-            <!-- Toggle slider -->
-            <span class="inline-block h-8 w-8 transform rounded-full bg-white transition-transform shadow-sm z-20 pointer-events-none <%= @dashboard_active ? 'translate-x-11' : 'translate-x-1' %>" id="toggle-slider"></span>
-          </div>
-        </div>
-        
-        <%= link_to export_quarterly_xlsx_employee_details_path, 
-                    class: "inline-flex items-center px-8 py-4 text-gray-700 font-bold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1",
-                    style: "background: linear-gradient(135deg, #d1fae5, #a7f3d0);",
-                    target: "_blank" do %>
-          <svg class="w-6 h-6 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
-          </svg>
-          <span class="text-lg">Download</span>
-        <% end %>
-      </div>
-    </div>
-  </div>
+<%
+  dashboard_time = Time.current.in_time_zone("Asia/Kolkata")
+  dashboard_time_label = dashboard_time.strftime("%B %d, %Y at %I:%M:%S %p IST")
+  financial_year_label = display_financial_year(@selected_year)
+  l1_total = @l1_approved_count + @l1_pending_count + @l1_returned_count
+  l2_total = @l2_approved_count + @l2_pending_count + @l2_returned_count
+  l3_total = @l3_approved_count + @l3_pending_count + @l3_returned_count
+%>
 
-    <!-- Key Metrics Cards Section -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-      <!-- Total Users -->
-      <div class="bg-white rounded-xl p-6 shadow-lg border-l-4 min-w-[140px]" style="border-left-color: #bfdbfe;">
-        <div class="flex flex-col items-center text-center">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center mb-3" style="background: linear-gradient(135deg, #bfdbfe, #93c5fd);">
-            <svg class="w-6 h-6 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
-            </svg>
-          </div>
-          <p class="text-sm font-semibold text-gray-600 mb-1">Total Users</p>
-          <p class="text-3xl font-bold text-gray-900"><%= @total_users %></p>
-        </div>
-      </div>
-
-      <!-- Employees -->
-      <div class="bg-white rounded-xl p-6 shadow-lg border-l-4 min-w-[140px]" style="border-left-color: #d1fae5;">
-        <div class="flex flex-col items-center text-center">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center mb-3" style="background: linear-gradient(135deg, #d1fae5, #a7f3d0);">
-            <svg class="w-6 h-6 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-            </svg>
-          </div>
-          <p class="text-sm font-semibold text-gray-600 mb-1">Employee Role</p>
-          <p class="text-3xl font-bold text-gray-900"><%= @employee_count %></p>
-        </div>
-      </div>
-
-      <!-- HOD Role -->
-      <div class="bg-white rounded-xl p-6 shadow-lg border-l-4 min-w-[140px]" style="border-left-color: #e9d5ff;">
-        <div class="flex flex-col items-center text-center">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center mb-3" style="background: linear-gradient(135deg, #e9d5ff, #ddd6fe);">
-            <svg class="w-6 h-6 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-            </svg>
-          </div>
-          <p class="text-sm font-semibold text-gray-600 mb-1">Super Admin</p>
-          <p class="text-3xl font-bold text-gray-900"><%= @hod_count %></p>
-        </div>
-      </div>
-
-      <!-- Verticals -->
-      <div class="bg-white rounded-xl p-6 shadow-lg border-l-4 min-w-[140px]" style="border-left-color: #fecaca;">
-        <div class="flex flex-col items-center text-center">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center mb-3" style="background: linear-gradient(135deg, #fecaca, #fca5a5);">
-            <svg class="w-6 h-6 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-            </svg>
-          </div>
-          <p class="text-sm font-semibold text-gray-600 mb-1">Verticals</p>
-          <p class="text-3xl font-bold text-gray-900"><%= @total_departments %></p>
-        </div>
-      </div>
-
+<div class="dashboard-shell">
+  <section class="dashboard-hero">
+    <div class="dashboard-hero__copy">
+      <span class="dashboard-eyebrow">Performance Command Center</span>
+      <h1>KRA Analytics Dashboard</h1>
+      <p>
+        Live operational summary for users, verticals, KPI data, and approval movement across
+        L1, L2, and L3.
+      </p>
     </div>
 
-    <!-- Charts Section - Full Width L1, L2, L3 -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
-
-      <!-- L1 Level Status -->
-      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-base font-semibold text-gray-900">L1 Level Status</h3>
-          <div class="text-right">
-            <p class="text-lg font-bold text-gray-900"><%= @l1_approved_count + @l1_pending_count + @l1_returned_count %></p>
-            <p class="text-xs text-gray-500">Total L1</p>
-          </div>
+    <div class="dashboard-hero__actions">
+      <div class="dashboard-toggle-card">
+        <div>
+          <div class="dashboard-toggle-card__label">Dashboard Access</div>
+          <div class="dashboard-toggle-card__value" id="toggle-label"><%= @dashboard_active ? "Active" : "Inactive" %></div>
         </div>
-        
-        <!-- L1 Donut Chart -->
-        <div class="flex items-center justify-center mb-4">
-          <div class="relative w-48 h-48 chart-container">
-            <svg class="w-48 h-48 transform -rotate-90 drop-shadow-lg" viewBox="0 0 36 36">
-              <defs>
-                <linearGradient id="l1BgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
-                  <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
-                </linearGradient>
-              </defs>
-              
-              <!-- Background circle -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="url(#l1BgGradient)" stroke-width="3"/>
-              
-              <% l1_total = @l1_approved_count + @l1_pending_count + @l1_returned_count %>
-              <% l1_approved_percentage = l1_total > 0 ? (@l1_approved_count.to_f / l1_total * 100) : 0 %>
-              <% l1_pending_percentage = l1_total > 0 ? (@l1_pending_count.to_f / l1_total * 100) : 0 %>
-              <% l1_returned_percentage = l1_total > 0 ? (@l1_returned_count.to_f / l1_total * 100) : 0 %>
-              
-              <!-- L1 Approved segment -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="#a7f3d0" stroke-width="4" 
-                    stroke-dasharray="<%= l1_approved_percentage %>, 100" 
-                    stroke-dashoffset="0"
-                    class="chart-segment"/>
-              
-              <!-- L1 Pending segment -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="#fdba74" stroke-width="4" 
-                    stroke-dasharray="<%= l1_pending_percentage %>, 100" 
-                    stroke-dashoffset="<%= -l1_approved_percentage %>"
-                    class="chart-segment"/>
-              
-              <!-- L1 Returned segment -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="#fca5a5" stroke-width="4" 
-                    stroke-dasharray="<%= l1_returned_percentage %>, 100" 
-                    stroke-dashoffset="<%= -(l1_approved_percentage + l1_pending_percentage) %>"
-                    class="chart-segment"/>
-            </svg>
-          </div>
-        </div>
-        
-        <!-- L1 Legend -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full mr-2" style="background-color: #a7f3d0;"></div>
-              <span class="text-sm font-medium text-gray-700">L1 Approved</span>
-            </div>
-            <span class="text-lg font-bold text-gray-900"><%= @l1_approved_count %></span>
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full mr-2" style="background-color: #fdba74;"></div>
-              <span class="text-sm font-medium text-gray-700">L1 Pending</span>
-            </div>
-            <span class="text-lg font-bold text-gray-900"><%= @l1_pending_count %></span>
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full mr-2" style="background-color: #fca5a5;"></div>
-              <span class="text-sm font-medium text-gray-700">L1 Return</span>
-            </div>
-            <span class="text-lg font-bold text-gray-900"><%= @l1_returned_count %></span>
-          </div>
+        <div class="relative inline-flex h-10 w-20 items-center rounded-full transition-colors focus:outline-none cursor-pointer <%= @dashboard_active ? 'bg-green-500' : 'bg-gray-400' %>"
+             id="active-inactive-toggle"
+             data-active="<%= @dashboard_active %>"
+             onclick="handleToggleClick(event)">
+          <span class="inline-block h-8 w-8 transform rounded-full bg-white transition-transform shadow-sm z-20 pointer-events-none <%= @dashboard_active ? 'translate-x-11' : 'translate-x-1' %>"
+                id="toggle-slider"></span>
         </div>
       </div>
 
-      <!-- L2 Level Status -->
-      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-base font-semibold text-gray-900">L2 Level Status</h3>
-          <div class="text-right">
-            <p class="text-lg font-bold text-gray-900"><%= @l2_approved_count + @l2_pending_count + @l2_returned_count %></p>
-            <p class="text-xs text-gray-500">Total L2</p>
-          </div>
-        </div>
-        
-        <!-- L2 Donut Chart -->
-        <div class="flex items-center justify-center mb-4">
-          <div class="relative w-48 h-48 chart-container">
-            <svg class="w-48 h-48 transform -rotate-90 drop-shadow-lg" viewBox="0 0 36 36">
-              <defs>
-                <linearGradient id="l2BgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
-                  <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
-                </linearGradient>
-              </defs>
-              
-              <!-- Background circle -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="url(#l2BgGradient)" stroke-width="3"/>
-              
-              <% l2_total = @l2_approved_count + @l2_pending_count + @l2_returned_count %>
-              <% l2_approved_percentage = l2_total > 0 ? (@l2_approved_count.to_f / l2_total * 100) : 0 %>
-              <% l2_pending_percentage = l2_total > 0 ? (@l2_pending_count.to_f / l2_total * 100) : 0 %>
-              <% l2_returned_percentage = l2_total > 0 ? (@l2_returned_count.to_f / l2_total * 100) : 0 %>
-              
-              <!-- L2 Approved segment -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="#93c5fd" stroke-width="4" 
-                    stroke-dasharray="<%= l2_approved_percentage %>, 100" 
-                    stroke-dashoffset="0"
-                    class="chart-segment"/>
-              
-              <!-- L2 Pending segment -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="#fdba74" stroke-width="4" 
-                    stroke-dasharray="<%= l2_pending_percentage %>, 100" 
-                    stroke-dashoffset="<%= -l2_approved_percentage %>"
-                    class="chart-segment"/>
-              
-              <!-- L2 Returned segment -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="#fca5a5" stroke-width="4" 
-                    stroke-dasharray="<%= l2_returned_percentage %>, 100" 
-                    stroke-dashoffset="<%= -(l2_approved_percentage + l2_pending_percentage) %>"
-                    class="chart-segment"/>
-            </svg>
-          </div>
-        </div>
-        
-        <!-- L2 Legend -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full mr-2" style="background-color: #93c5fd;"></div>
-              <span class="text-sm font-medium text-gray-700">L2 Approved</span>
-            </div>
-            <span class="text-lg font-bold text-gray-900"><%= @l2_approved_count %></span>
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full mr-2" style="background-color: #fdba74;"></div>
-              <span class="text-sm font-medium text-gray-700">L2 Pending</span>
-            </div>
-            <span class="text-lg font-bold text-gray-900"><%= @l2_pending_count %></span>
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full mr-2" style="background-color: #fca5a5;"></div>
-              <span class="text-sm font-medium text-gray-700">L2 Return</span>
-            </div>
-            <span class="text-lg font-bold text-gray-900"><%= @l2_returned_count %></span>
-          </div>
-        </div>
-      </div>
-
-      <!-- L3 Level Status -->
-      <div class="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-        <div class="flex items-center justify-between mb-3">
-          <h3 class="text-base font-semibold text-gray-900">L3 Level Status</h3>
-          <div class="text-right">
-            <p class="text-lg font-bold text-gray-900"><%= @l3_approved_count + @l3_pending_count + @l3_returned_count %></p>
-            <p class="text-xs text-gray-500">Total L3</p>
-          </div>
-        </div>
-        
-        <!-- L3 Donut Chart -->
-        <div class="flex items-center justify-center mb-4">
-          <div class="relative w-48 h-48 chart-container">
-            <svg class="w-48 h-48 transform -rotate-90 drop-shadow-lg" viewBox="0 0 36 36">
-              <defs>
-                <linearGradient id="l3BgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" style="stop-color:#f8fafc;stop-opacity:1" />
-                  <stop offset="100%" style="stop-color:#e2e8f0;stop-opacity:1" />
-                </linearGradient>
-              </defs>
-              
-              <!-- Background circle -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="url(#l3BgGradient)" stroke-width="3"/>
-              
-              <% l3_total = @l3_approved_count + @l3_pending_count + @l3_returned_count %>
-              <% l3_approved_percentage = l3_total > 0 ? (@l3_approved_count.to_f / l3_total * 100) : 0 %>
-              <% l3_pending_percentage = l3_total > 0 ? (@l3_pending_count.to_f / l3_total * 100) : 0 %>
-              <% l3_returned_percentage = l3_total > 0 ? (@l3_returned_count.to_f / l3_total * 100) : 0 %>
-              
-              <!-- L3 Approved segment -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="#ddd6fe" stroke-width="4" 
-                    stroke-dasharray="<%= l3_approved_percentage %>, 100" 
-                    stroke-dashoffset="0"
-                    class="chart-segment"/>
-              
-              <!-- L3 Pending segment -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="#fdba74" stroke-width="4" 
-                    stroke-dasharray="<%= l3_pending_percentage %>, 100" 
-                    stroke-dashoffset="<%= -l3_approved_percentage %>"
-                    class="chart-segment"/>
-              
-              <!-- L3 Returned segment -->
-              <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" 
-                    fill="none" stroke="#fca5a5" stroke-width="4" 
-                    stroke-dasharray="<%= l3_returned_percentage %>, 100" 
-                    stroke-dashoffset="<%= -(l3_approved_percentage + l3_pending_percentage) %>"
-                    class="chart-segment"/>
-            </svg>
-          </div>
-        </div>
-        
-        <!-- L3 Legend -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full mr-2" style="background-color: #ddd6fe;"></div>
-              <span class="text-sm font-medium text-gray-700">L3 Approved</span>
-            </div>
-            <span class="text-lg font-bold text-gray-900"><%= @l3_approved_count %></span>
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full mr-2" style="background-color: #fdba74;"></div>
-              <span class="text-sm font-medium text-gray-700">L3 Pending</span>
-            </div>
-            <span class="text-lg font-bold text-gray-900"><%= @l3_pending_count %></span>
-          </div>
-          <div class="flex items-center justify-between">
-            <div class="flex items-center">
-              <div class="w-4 h-4 rounded-full mr-2" style="background-color: #fca5a5;"></div>
-              <span class="text-sm font-medium text-gray-700">L3 Return</span>
-            </div>
-            <span class="text-lg font-bold text-gray-900"><%= @l3_returned_count %></span>
-          </div>
-        </div>
-      </div>
+      <%= link_to export_quarterly_xlsx_employee_details_path(year: @selected_year),
+                  class: "dashboard-download",
+                  target: "_blank" do %>
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 12l-4-4m4 4l4-4M4 20h16"></path>
+        </svg>
+        <span>Download Report</span>
+      <% end %>
     </div>
+  </section>
 
-    <!-- Bottom Metrics Cards Section -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-      <!-- KPI Count -->
-      <div class="bg-white rounded-xl p-6 shadow-lg border-l-4 min-w-[140px]" style="border-left-color: #fbbf24;">
-        <div class="flex flex-col items-center text-center">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center mb-3" style="background: linear-gradient(135deg, #fef3c7, #fde68a);">
-            <svg class="w-6 h-6 text-amber-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-            </svg>
-          </div>
-          <p class="text-sm font-semibold text-gray-600 mb-1">KPI Count</p>
-          <p class="text-3xl font-bold text-gray-900"><%= @total_activities %></p>
+  <section class="dashboard-spotlights">
+    <article class="spotlight-card spotlight-card--time">
+      <div class="spotlight-card__label">Live Time</div>
+      <div class="spotlight-card__value" id="dashboard-live-clock"><%= dashboard_time.strftime("%I:%M:%S %p") %></div>
+      <div class="spotlight-card__meta" id="dashboard-live-date"><%= dashboard_time.strftime("%A, %d %B %Y") %></div>
+    </article>
+
+    <article class="spotlight-card spotlight-card--year">
+      <div class="spotlight-card__label">Working Financial Year</div>
+      <div class="spotlight-card__value"><%= financial_year_label %></div>
+      <div class="spotlight-card__meta">Current dashboard data is grouped year-wise.</div>
+    </article>
+
+    <article class="spotlight-card spotlight-card--snapshot">
+      <div class="spotlight-card__label">Data Snapshot</div>
+      <div class="spotlight-card__value"><%= @total_user_details %></div>
+      <div class="spotlight-card__meta">Year-wise target records currently available.</div>
+    </article>
+  </section>
+
+  <section class="metric-grid">
+    <article class="metric-card metric-card--blue">
+      <div class="metric-card__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M23 21v-2a4 4 0 00-3-3.87"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16 3.13a4 4 0 010 7.75"></path>
+        </svg>
+      </div>
+      <div class="metric-card__title">Total Users</div>
+      <div class="metric-card__count"><%= @total_users %></div>
+      <div class="metric-card__hint">All registered users in the system</div>
+    </article>
+
+    <article class="metric-card metric-card--green">
+      <div class="metric-card__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M20 21V19a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+      </div>
+      <div class="metric-card__title">Employee Role</div>
+      <div class="metric-card__count"><%= @employee_count %></div>
+      <div class="metric-card__hint">Active employee users mapped in KRA</div>
+    </article>
+
+    <article class="metric-card metric-card--violet">
+      <div class="metric-card__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 3l7 4v5c0 5-3.5 8-7 9-3.5-1-7-4-7-9V7l7-4z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"></path>
+        </svg>
+      </div>
+      <div class="metric-card__title">Super Admin</div>
+      <div class="metric-card__count"><%= @hod_count %></div>
+      <div class="metric-card__hint">HOD and top-level administrative access</div>
+    </article>
+
+    <article class="metric-card metric-card--rose">
+      <div class="metric-card__icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 21V7l8-4 6 4v14"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 11h1m4 0h1m-6 4h1m4 0h1"></path>
+        </svg>
+      </div>
+      <div class="metric-card__title">Verticals</div>
+      <div class="metric-card__count"><%= @total_departments %></div>
+      <div class="metric-card__hint">Configured business verticals and departments</div>
+    </article>
+  </section>
+
+  <section class="approval-grid">
+    <article class="approval-panel approval-panel--l1">
+      <div class="approval-panel__head">
+        <div>
+          <div class="approval-panel__label">L1 Level Status</div>
+          <h3>L1 Review Flow</h3>
+        </div>
+        <div class="approval-panel__total">
+          <span>Total</span>
+          <strong><%= l1_total %></strong>
         </div>
       </div>
 
-      <!-- Indicator Count -->
-      <div class="bg-white rounded-xl p-6 shadow-lg border-l-4 min-w-[140px]" style="border-left-color: #10b981;">
-        <div class="flex flex-col items-center text-center">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center mb-3" style="background: linear-gradient(135deg, #d1fae5, #a7f3d0);">
-            <svg class="w-6 h-6 text-emerald-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-            </svg>
-          </div>
-          <p class="text-sm font-semibold text-gray-600 mb-1">Indicator Count</p>
-          <p class="text-3xl font-bold text-gray-900"><%= @total_activities %></p>
+      <div class="approval-panel__ring">
+        <svg class="status-ring" viewBox="0 0 36 36">
+          <% l1_approved_percentage = l1_total.positive? ? (@l1_approved_count.to_f / l1_total * 100) : 0 %>
+          <% l1_pending_percentage = l1_total.positive? ? (@l1_pending_count.to_f / l1_total * 100) : 0 %>
+          <% l1_returned_percentage = l1_total.positive? ? (@l1_returned_count.to_f / l1_total * 100) : 0 %>
+          <path class="status-ring__bg" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" />
+          <path class="status-ring__segment status-ring__segment--approved" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="<%= l1_approved_percentage %>, 100" stroke-dashoffset="0" />
+          <path class="status-ring__segment status-ring__segment--pending" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="<%= l1_pending_percentage %>, 100" stroke-dashoffset="<%= -l1_approved_percentage %>" />
+          <path class="status-ring__segment status-ring__segment--returned" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="<%= l1_returned_percentage %>, 100" stroke-dashoffset="<%= -(l1_approved_percentage + l1_pending_percentage) %>" />
+        </svg>
+        <div class="status-ring__center">
+          <strong><%= l1_total %></strong>
+          <span>records</span>
         </div>
       </div>
 
-      <!-- Weightage Count -->
-      <div class="bg-white rounded-xl p-6 shadow-lg border-l-4 min-w-[140px]" style="border-left-color: #8b5cf6;">
-        <div class="flex flex-col items-center text-center">
-          <div class="w-10 h-10 rounded-full flex items-center justify-center mb-3" style="background: linear-gradient(135deg, #ede9fe, #ddd6fe);">
-            <svg class="w-6 h-6 text-violet-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-            </svg>
-          </div>
-          <p class="text-sm font-semibold text-gray-600 mb-1">Weightage Count</p>
-          <p class="text-3xl font-bold text-gray-900"><%= Activity.where('weight > 0').count %></p>
+      <div class="approval-breakdown">
+        <div class="approval-breakdown__item">
+          <span class="approval-dot approval-dot--approved"></span>
+          <span>L1 Approved</span>
+          <strong><%= @l1_approved_count %></strong>
+        </div>
+        <div class="approval-breakdown__item">
+          <span class="approval-dot approval-dot--pending"></span>
+          <span>L1 Pending</span>
+          <strong><%= @l1_pending_count %></strong>
+        </div>
+        <div class="approval-breakdown__item">
+          <span class="approval-dot approval-dot--returned"></span>
+          <span>L1 Returned</span>
+          <strong><%= @l1_returned_count %></strong>
         </div>
       </div>
-    </div>
+    </article>
 
-  </div>
+    <article class="approval-panel approval-panel--l2">
+      <div class="approval-panel__head">
+        <div>
+          <div class="approval-panel__label">L2 Level Status</div>
+          <h3>L2 Approval Flow</h3>
+        </div>
+        <div class="approval-panel__total">
+          <span>Total</span>
+          <strong><%= l2_total %></strong>
+        </div>
+      </div>
+
+      <div class="approval-panel__ring">
+        <svg class="status-ring" viewBox="0 0 36 36">
+          <% l2_approved_percentage = l2_total.positive? ? (@l2_approved_count.to_f / l2_total * 100) : 0 %>
+          <% l2_pending_percentage = l2_total.positive? ? (@l2_pending_count.to_f / l2_total * 100) : 0 %>
+          <% l2_returned_percentage = l2_total.positive? ? (@l2_returned_count.to_f / l2_total * 100) : 0 %>
+          <path class="status-ring__bg" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" />
+          <path class="status-ring__segment status-ring__segment--approved-l2" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="<%= l2_approved_percentage %>, 100" stroke-dashoffset="0" />
+          <path class="status-ring__segment status-ring__segment--pending" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="<%= l2_pending_percentage %>, 100" stroke-dashoffset="<%= -l2_approved_percentage %>" />
+          <path class="status-ring__segment status-ring__segment--returned" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="<%= l2_returned_percentage %>, 100" stroke-dashoffset="<%= -(l2_approved_percentage + l2_pending_percentage) %>" />
+        </svg>
+        <div class="status-ring__center">
+          <strong><%= l2_total %></strong>
+          <span>records</span>
+        </div>
+      </div>
+
+      <div class="approval-breakdown">
+        <div class="approval-breakdown__item">
+          <span class="approval-dot approval-dot--approved-l2"></span>
+          <span>L2 Approved</span>
+          <strong><%= @l2_approved_count %></strong>
+        </div>
+        <div class="approval-breakdown__item">
+          <span class="approval-dot approval-dot--pending"></span>
+          <span>L2 Pending</span>
+          <strong><%= @l2_pending_count %></strong>
+        </div>
+        <div class="approval-breakdown__item">
+          <span class="approval-dot approval-dot--returned"></span>
+          <span>L2 Returned</span>
+          <strong><%= @l2_returned_count %></strong>
+        </div>
+      </div>
+    </article>
+
+    <article class="approval-panel approval-panel--l3">
+      <div class="approval-panel__head">
+        <div>
+          <div class="approval-panel__label">L3 Level Status</div>
+          <h3>L3 Final Review Flow</h3>
+        </div>
+        <div class="approval-panel__total">
+          <span>Total</span>
+          <strong><%= l3_total %></strong>
+        </div>
+      </div>
+
+      <div class="approval-panel__ring">
+        <svg class="status-ring" viewBox="0 0 36 36">
+          <% l3_approved_percentage = l3_total.positive? ? (@l3_approved_count.to_f / l3_total * 100) : 0 %>
+          <% l3_pending_percentage = l3_total.positive? ? (@l3_pending_count.to_f / l3_total * 100) : 0 %>
+          <% l3_returned_percentage = l3_total.positive? ? (@l3_returned_count.to_f / l3_total * 100) : 0 %>
+          <path class="status-ring__bg" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" />
+          <path class="status-ring__segment status-ring__segment--approved-l3" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="<%= l3_approved_percentage %>, 100" stroke-dashoffset="0" />
+          <path class="status-ring__segment status-ring__segment--pending" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="<%= l3_pending_percentage %>, 100" stroke-dashoffset="<%= -l3_approved_percentage %>" />
+          <path class="status-ring__segment status-ring__segment--returned" d="M18 2.0845a 15.9155 15.9155 0 0 1 0 31.831a 15.9155 15.9155 0 0 1 0 -31.831" stroke-dasharray="<%= l3_returned_percentage %>, 100" stroke-dashoffset="<%= -(l3_approved_percentage + l3_pending_percentage) %>" />
+        </svg>
+        <div class="status-ring__center">
+          <strong><%= l3_total %></strong>
+          <span>records</span>
+        </div>
+      </div>
+
+      <div class="approval-breakdown">
+        <div class="approval-breakdown__item">
+          <span class="approval-dot approval-dot--approved-l3"></span>
+          <span>L3 Approved</span>
+          <strong><%= @l3_approved_count %></strong>
+        </div>
+        <div class="approval-breakdown__item">
+          <span class="approval-dot approval-dot--pending"></span>
+          <span>L3 Pending</span>
+          <strong><%= @l3_pending_count %></strong>
+        </div>
+        <div class="approval-breakdown__item">
+          <span class="approval-dot approval-dot--returned"></span>
+          <span>L3 Returned</span>
+          <strong><%= @l3_returned_count %></strong>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="insight-grid">
+    <article class="insight-card insight-card--amber">
+      <div class="insight-card__label">KPI Count</div>
+      <div class="insight-card__value"><%= @total_activities %></div>
+      <p>All KPI rows currently configured for the dashboard ecosystem.</p>
+    </article>
+
+    <article class="insight-card insight-card--emerald">
+      <div class="insight-card__label">Indicator Count</div>
+      <div class="insight-card__value"><%= @total_activities %></div>
+      <p>Indicators mapped into activity definitions for year-wise tracking.</p>
+    </article>
+
+    <article class="insight-card insight-card--violet">
+      <div class="insight-card__label">Weightage Count</div>
+      <div class="insight-card__value"><%= Activity.where('weight > 0').count %></div>
+      <p>Activities carrying non-zero weightage in the current KRA structure.</p>
+    </article>
+  </section>
 </div>
 
 <style>
-  /* Reset body and html margins */
   body, html {
     margin: 0;
     padding: 0;
-    height: 100%;
+    min-height: 100%;
     overflow-x: hidden;
   }
-  
-  /* Dashboard responsive layout */
-  .dashboard-container {
+
+  .dashboard-shell {
     margin-left: 16rem;
-    padding: 1.5rem;
     min-height: 100vh;
-    height: 100vh;
-    background-color: #f8fafc;
     width: calc(100vw - 16rem);
+    padding: 2rem;
+    background:
+      radial-gradient(circle at top right, rgba(254, 240, 138, 0.35), transparent 24%),
+      radial-gradient(circle at top left, rgba(191, 219, 254, 0.4), transparent 28%),
+      linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);
     overflow-y: auto;
   }
-  
-  /* Mobile responsive */
-  @media (max-width: 1024px) {
-    .dashboard-container {
-      margin-left: 0;
-      padding: 1rem;
-      width: 100vw;
-      height: 100vh;
-      min-height: 100vh;
+
+  .dashboard-hero {
+    display: flex;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 2rem;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    border-radius: 28px;
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+    margin-bottom: 1.5rem;
+  }
+
+  .dashboard-hero__copy {
+    max-width: 46rem;
+  }
+
+  .dashboard-eyebrow {
+    display: inline-flex;
+    padding: 0.4rem 0.8rem;
+    border-radius: 999px;
+    background: #e2e8f0;
+    color: #334155;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .dashboard-hero h1 {
+    margin: 1rem 0 0.6rem;
+    font-size: clamp(2rem, 3vw, 3.2rem);
+    line-height: 1.05;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  .dashboard-hero p {
+    margin: 0;
+    color: #475569;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+
+  .dashboard-hero__actions {
+    min-width: 18rem;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .dashboard-toggle-card,
+  .dashboard-download,
+  .spotlight-card,
+  .metric-card,
+  .approval-panel,
+  .insight-card {
+    transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
+  }
+
+  .dashboard-toggle-card:hover,
+  .dashboard-download:hover,
+  .spotlight-card:hover,
+  .metric-card:hover,
+  .approval-panel:hover,
+  .insight-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 20px 35px rgba(15, 23, 42, 0.10);
+  }
+
+  .dashboard-toggle-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.2rem;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #ffffff, #f8fafc);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.06);
+  }
+
+  .dashboard-toggle-card__label {
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #64748b;
+  }
+
+  .dashboard-toggle-card__value {
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin-top: 0.2rem;
+  }
+
+  .dashboard-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-radius: 22px;
+    font-weight: 800;
+    color: #134e4a;
+    text-decoration: none;
+    border: 1px solid rgba(16, 185, 129, 0.16);
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+    box-shadow: 0 16px 30px rgba(16, 185, 129, 0.18);
+  }
+
+  .dashboard-spotlights,
+  .metric-grid,
+  .approval-grid,
+  .insight-grid {
+    display: grid;
+    gap: 1.25rem;
+  }
+
+  .dashboard-spotlights {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 1.5rem;
+  }
+
+  .spotlight-card {
+    padding: 1.35rem 1.5rem;
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.22);
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 14px 30px rgba(15, 23, 42, 0.05);
+  }
+
+  .spotlight-card--time {
+    background: linear-gradient(135deg, rgba(219, 234, 254, 0.9), rgba(255, 255, 255, 0.95));
+  }
+
+  .spotlight-card--year {
+    background: linear-gradient(135deg, rgba(220, 252, 231, 0.92), rgba(255, 255, 255, 0.95));
+  }
+
+  .spotlight-card--snapshot {
+    background: linear-gradient(135deg, rgba(243, 232, 255, 0.92), rgba(255, 255, 255, 0.95));
+  }
+
+  .spotlight-card__label,
+  .metric-card__title,
+  .approval-panel__label,
+  .insight-card__label {
+    font-size: 0.76rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 800;
+    color: #64748b;
+  }
+
+  .spotlight-card__value {
+    margin-top: 0.5rem;
+    font-size: clamp(1.6rem, 2.4vw, 2.5rem);
+    font-weight: 800;
+    color: #0f172a;
+  }
+
+  .spotlight-card__meta {
+    margin-top: 0.45rem;
+    color: #475569;
+    font-size: 0.95rem;
+  }
+
+  .metric-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin-bottom: 1.5rem;
+  }
+
+  .metric-card {
+    padding: 1.5rem;
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.06);
+  }
+
+  .metric-card__icon {
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    margin-bottom: 1rem;
+  }
+
+  .metric-card__icon svg {
+    width: 1.4rem;
+    height: 1.4rem;
+  }
+
+  .metric-card--blue .metric-card__icon {
+    background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+    color: #1d4ed8;
+  }
+
+  .metric-card--green .metric-card__icon {
+    background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+    color: #15803d;
+  }
+
+  .metric-card--violet .metric-card__icon {
+    background: linear-gradient(135deg, #f3e8ff, #ddd6fe);
+    color: #7c3aed;
+  }
+
+  .metric-card--rose .metric-card__icon {
+    background: linear-gradient(135deg, #ffe4e6, #fecdd3);
+    color: #be123c;
+  }
+
+  .metric-card__count {
+    margin-top: 0.55rem;
+    font-size: 2.2rem;
+    line-height: 1;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  .metric-card__hint {
+    margin-top: 0.45rem;
+    color: #64748b;
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+
+  .approval-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-bottom: 1.5rem;
+  }
+
+  .approval-panel {
+    padding: 1.5rem;
+    border-radius: 26px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    box-shadow: 0 18px 34px rgba(15, 23, 42, 0.06);
+  }
+
+  .approval-panel--l1 {
+    background: linear-gradient(180deg, rgba(239, 246, 255, 0.96), rgba(255, 255, 255, 0.96));
+  }
+
+  .approval-panel--l2 {
+    background: linear-gradient(180deg, rgba(236, 253, 245, 0.96), rgba(255, 255, 255, 0.96));
+  }
+
+  .approval-panel--l3 {
+    background: linear-gradient(180deg, rgba(250, 245, 255, 0.96), rgba(255, 255, 255, 0.96));
+  }
+
+  .approval-panel__head {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .approval-panel__head h3 {
+    margin: 0.25rem 0 0;
+    font-size: 1.3rem;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  .approval-panel__total {
+    text-align: right;
+  }
+
+  .approval-panel__total span {
+    display: block;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    color: #64748b;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+  }
+
+  .approval-panel__total strong {
+    font-size: 1.8rem;
+    color: #0f172a;
+    font-weight: 800;
+  }
+
+  .approval-panel__ring {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    margin: 1.2rem 0 1rem;
+  }
+
+  .status-ring {
+    width: 10.5rem;
+    height: 10.5rem;
+    transform: rotate(-90deg);
+  }
+
+  .status-ring__bg,
+  .status-ring__segment {
+    fill: none;
+    stroke-width: 3.6;
+    transition: stroke-width 0.2s ease;
+  }
+
+  .status-ring__bg {
+    stroke: #e2e8f0;
+  }
+
+  .status-ring__segment:hover {
+    stroke-width: 5;
+  }
+
+  .status-ring__segment--approved {
+    stroke: #38bdf8;
+  }
+
+  .status-ring__segment--approved-l2 {
+    stroke: #22c55e;
+  }
+
+  .status-ring__segment--approved-l3 {
+    stroke: #a855f7;
+  }
+
+  .status-ring__segment--pending {
+    stroke: #fbbf24;
+  }
+
+  .status-ring__segment--returned {
+    stroke: #f87171;
+  }
+
+  .status-ring__center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .status-ring__center strong {
+    font-size: 1.7rem;
+    color: #0f172a;
+    line-height: 1;
+    font-weight: 800;
+  }
+
+  .status-ring__center span {
+    margin-top: 0.25rem;
+    font-size: 0.84rem;
+    color: #64748b;
+  }
+
+  .approval-breakdown {
+    display: grid;
+    gap: 0.8rem;
+  }
+
+  .approval-breakdown__item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(148, 163, 184, 0.14);
+    color: #334155;
+    font-weight: 600;
+  }
+
+  .approval-breakdown__item strong {
+    color: #0f172a;
+    font-size: 1.05rem;
+  }
+
+  .approval-dot {
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 999px;
+  }
+
+  .approval-dot--approved {
+    background: #38bdf8;
+  }
+
+  .approval-dot--approved-l2 {
+    background: #22c55e;
+  }
+
+  .approval-dot--approved-l3 {
+    background: #a855f7;
+  }
+
+  .approval-dot--pending {
+    background: #fbbf24;
+  }
+
+  .approval-dot--returned {
+    background: #f87171;
+  }
+
+  .insight-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .insight-card {
+    padding: 1.5rem;
+    border-radius: 24px;
+    color: #0f172a;
+    box-shadow: 0 16px 34px rgba(15, 23, 42, 0.06);
+  }
+
+  .insight-card__value {
+    margin-top: 0.5rem;
+    font-size: 2.15rem;
+    font-weight: 800;
+  }
+
+  .insight-card p {
+    margin: 0.55rem 0 0;
+    color: #475569;
+    line-height: 1.6;
+    font-size: 0.95rem;
+  }
+
+  .insight-card--amber {
+    background: linear-gradient(135deg, #fffbeb, #ffffff);
+    border: 1px solid rgba(245, 158, 11, 0.18);
+  }
+
+  .insight-card--emerald {
+    background: linear-gradient(135deg, #ecfdf5, #ffffff);
+    border: 1px solid rgba(16, 185, 129, 0.18);
+  }
+
+  .insight-card--violet {
+    background: linear-gradient(135deg, #faf5ff, #ffffff);
+    border: 1px solid rgba(139, 92, 246, 0.18);
+  }
+
+  @media (max-width: 1280px) {
+    .metric-grid,
+    .dashboard-spotlights,
+    .approval-grid,
+    .insight-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  
-  /* Ensure sidebar is visible */
-  #hs-application-sidebar {
-    display: block !important;
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    height: 100vh !important;
-    width: 16rem !important;
-    z-index: 50 !important;
+
+  @media (max-width: 1024px) {
+    .dashboard-shell {
+      margin-left: 0;
+      width: 100vw;
+      padding: 1rem;
+    }
+
+    .dashboard-hero {
+      flex-direction: column;
+      padding: 1.5rem;
+    }
+
+    .dashboard-hero__actions {
+      min-width: 0;
+    }
   }
-  
-  /* Professional chart styling */
-  .chart-container {
-    position: relative;
-  }
-  
-  /* Chart segment styling */
-  .chart-segment {
-    transition: stroke-width 0.2s ease;
-    cursor: pointer;
-  }
-  
-  .chart-segment:hover {
-    stroke-width: 6;
-  }
-  
-  /* Card hover effects */
-  .bg-white {
-    transition: box-shadow 0.2s ease;
-  }
-  
-  .bg-white:hover {
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-  }
-  
-  /* Legend item hover effects */
-  .space-y-2 > div {
-    transition: background-color 0.2s ease;
-  }
-  
-  .space-y-2 > div:hover {
-    background-color: #f9fafb;
+
+  @media (max-width: 767px) {
+    .dashboard-spotlights,
+    .metric-grid,
+    .approval-grid,
+    .insight-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .dashboard-hero h1 {
+      font-size: 2rem;
+    }
+
+    .approval-panel,
+    .metric-card,
+    .spotlight-card,
+    .insight-card {
+      padding: 1.2rem;
+    }
   }
 </style>
 
 <script>
-  // Initialize toggle state from the backend value
   let isActive = <%= @dashboard_active ? 'true' : 'false' %>;
-  
-  // Update toggle UI state and notify the backend
+
   function updateToggleState(active, shouldSave = true) {
     isActive = active;
-    
-    // Fallback to storing in localStorage just in case
     localStorage.setItem('dashboardActiveState', isActive);
-    
+
     const toggle = document.getElementById('active-inactive-toggle');
     const slider = document.getElementById('toggle-slider');
     const label = document.getElementById('toggle-label');
-    
+
+    if (!toggle || !slider || !label) return;
+
     if (isActive) {
       toggle.classList.remove('bg-gray-400');
       toggle.classList.add('bg-green-500');
       slider.classList.remove('translate-x-1');
       slider.classList.add('translate-x-11');
       label.textContent = 'Active';
-      label.classList.remove('text-gray-500');
-      label.classList.add('text-gray-700');
     } else {
       toggle.classList.remove('bg-green-500');
       toggle.classList.add('bg-gray-400');
       slider.classList.remove('translate-x-11');
       slider.classList.add('translate-x-1');
       label.textContent = 'Inactive';
-      label.classList.remove('text-gray-700');
-      label.classList.add('text-gray-500');
     }
-    
+
     if (shouldSave) {
-      // Create request to save this setting to the backend
       const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-      
+
       fetch('/update_dashboard_status', {
         method: 'POST',
         headers: {
@@ -501,66 +839,42 @@
       .then(response => response.json())
       .then(data => {
         if (!data.success) {
-          console.error('Failed to update dashboard status:', data);
-          // Revert UI if server update fails
           alert('Failed to update status. Please try again.');
-          // Revert the state without calling server again
-          updateToggleState(!isActive, false); 
-        } else {
-          console.log('Dashboard status successfully updated to', isActive);
+          updateToggleState(!isActive, false);
         }
       })
-      .catch((error) => {
-        console.error('Error:', error);
+      .catch(() => {
         alert('An error occurred while updating the status.');
-        // Revert UI safely
-        updateToggleState(!isActive, false); 
+        updateToggleState(!isActive, false);
       });
     }
   }
-  
-  // Handle toggle click - detect which side was clicked
+
   function handleToggleClick(event) {
     const toggle = document.getElementById('active-inactive-toggle');
     const rect = toggle.getBoundingClientRect();
     const clickX = event.clientX - rect.left;
-    const toggleWidth = rect.width;
-    const midpoint = toggleWidth / 2;
-    
-    // Left side clicked (Inactive)
+    const midpoint = rect.width / 2;
+
     if (clickX < midpoint) {
       setInactive();
-    } 
-    // Right side clicked (Active)
-    else {
+    } else {
       setActive();
     }
   }
-  
-  // Set to Active (right side click) - with confirmation
+
   function setActive() {
-    // If already active, do nothing
-    if (isActive) {
-      return;
-    }
-    
-    // Ask for confirmation before activating
+    if (isActive) return;
     if (confirm('Are you sure you want to activate?')) {
       updateToggleState(true);
     }
   }
-  
-  // Set to Inactive (left side click) - no confirmation needed
+
   function setInactive() {
-    // If already inactive, do nothing
-    if (!isActive) {
-      return;
-    }
-    
+    if (!isActive) return;
     updateToggleState(false);
   }
-  
-  // Set initial state on page load
+
   function initializeToggle() {
     const toggle = document.getElementById('active-inactive-toggle');
     if (toggle) {
@@ -568,8 +882,40 @@
       updateToggleState(isActive, false);
     }
   }
-  
-  // Handle both standard load and Turbo load
-  document.addEventListener('DOMContentLoaded', initializeToggle);
-  document.addEventListener('turbo:load', initializeToggle);
+
+  function updateDashboardClock() {
+    const now = new Date();
+    const timeElement = document.getElementById('dashboard-live-clock');
+    const dateElement = document.getElementById('dashboard-live-date');
+    if (!timeElement || !dateElement) return;
+
+    const timeText = now.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata'
+    });
+
+    const dateText = now.toLocaleDateString('en-IN', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Asia/Kolkata'
+    });
+
+    timeElement.textContent = timeText;
+    dateElement.textContent = dateText;
+  }
+
+  function initializeDashboard() {
+    initializeToggle();
+    updateDashboardClock();
+    if (window.dashboardClockInterval) clearInterval(window.dashboardClockInterval);
+    window.dashboardClockInterval = setInterval(updateDashboardClock, 1000);
+  }
+
+  document.addEventListener('DOMContentLoaded', initializeDashboard);
+  document.addEventListener('turbo:load', initializeDashboard);
 </script>

@@ -7,6 +7,16 @@
 %>
 
 <div class="main-content bg-gray-50 min-h-screen">
+  <div class="bg-white border border-gray-200 rounded-xl shadow-lg mb-4">
+    <div class="p-4 flex flex-wrap items-center justify-between gap-3">
+      <div class="text-lg font-semibold text-gray-800">Active Year: <%= @selected_year %></div>
+      <%= form_with url: get_user_detail_user_details_path, method: :get, local: true, class: "flex items-center gap-3" do |form| %>
+        <label class="text-sm font-medium text-gray-700">Change Year</label>
+        <%= select_tag :year, options_for_select(@available_years, @selected_year), class: "border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-800", onchange: "this.form.submit();" %>
+      <% end %>
+    </div>
+  </div>
+
   <!-- Filter Section - Added without changing your existing code -->
   <div class="bg-white border border-gray-200 rounded-xl shadow-lg mb-4">
     <div class="bg-blue-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">

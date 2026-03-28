@@ -5,6 +5,10 @@ class User < ApplicationRecord
 
   has_one :employee_detail
   has_one_attached :avatar
+  has_many :user_training_assignments, dependent: :destroy
+  has_many :assigned_trainings, through: :user_training_assignments, source: :training
+  has_many :user_training_progresses, dependent: :destroy
+
 
   # Server-side avatar validation
   validate :avatar_content_type, :avatar_file_size

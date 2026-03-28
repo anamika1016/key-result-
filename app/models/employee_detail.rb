@@ -2,6 +2,8 @@ class EmployeeDetail < ApplicationRecord
   has_many :user_details, dependent: :destroy
   has_many :sms_logs, dependent: :destroy
   belongs_to :user, optional: true
+  has_many :user_training_assignments, dependent: :destroy
+  has_many :assigned_trainings, through: :user_training_assignments, source: :training
   after_initialize :set_default_status, if: :new_record?
   after_create :create_user_account
 

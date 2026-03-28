@@ -77,3 +77,5 @@ gem "caxlsx_rails"
 
 gem "roo-xls"
 gem "httparty"
+gem 'wicked_pdf'
+gem 'wkhtmltopdf-binary'

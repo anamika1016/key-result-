@@ -37,7 +37,7 @@
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Name</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Employee Code</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Vertical</th>
-              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Months</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Quarter</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L1 Manager</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L2 Manager</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L3 Manager</th>
@@ -264,7 +264,7 @@
                   { color: "bg-gray-100 text-gray-800 border-gray-300", text: "Pending", icon: "fas fa-hourglass-half" }
                 end %>
 
-                <tr class="<%= row_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-indigo-50 transition-colors duration-200">
+                <tr class="manager-record-row <%= row_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-indigo-50 transition-colors duration-200">
                   <td class="px-6 py-4 text-sm font-medium text-gray-900 border-r border-gray-200">
                     <%= emp.employee_name %>
                   </td>
@@ -283,7 +283,7 @@
                       <%= quarter_display %>
                     </div>
                     <div class="text-xs text-gray-500 mt-1">
-                      <%= quarter_name %> Quarter
+                      <%= quarter_name %> Quarter | Year: <%= display_financial_year(@selected_year) %>
                     </div>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200">
@@ -295,8 +295,8 @@
                   <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200">
                     <%= emp.l3_employer_name %>
                   </td>
-                  <td class="px-6 py-4 text-sm border-r border-gray-200">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border <%= status_config[:color] %>">
+                  <td class="manager-status-cell px-6 py-4 text-sm border-r border-gray-200">
+                    <span class="manager-status-badge inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold border <%= status_config[:color] %>">
                       <i class="<%= status_config[:icon] %> mr-1"></i>
                       <%= status_config[:text] %>
                     </span>
@@ -319,13 +319,6 @@
             <i class="fas fa-inbox text-4xl mb-4"></i>
             <h3 class="text-lg font-semibold mb-2">No L2 Records Found</h3>
             <p class="text-sm">There are no employee records that are ready for L2 review. L2 can see records that are ready for L2 approval.</p>
-            <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p class="text-sm text-yellow-800">
-                <strong>Debug Info:</strong> Total employees checked: <%= @employee_details.count rescue 0 %> | 
-                Current user: <%= current_user.email rescue 'Unknown' %> | 
-                User role: <%= current_user.role rescue 'Unknown' %>
-              </p>
-            </div>
           </div>
         <% end %>
       </div>
@@ -435,7 +428,7 @@
             <i class="fas fa-user-tie mr-3" style="color: #2d374b;"></i>
             <div>
               <p class="text-sm font-medium text-blue-800">Total L2 Records</p>
-              <p class="text-2xl font-bold text-blue-900"><%= total_l2_records %></p>
+              <p id="l2-total-records" class="text-2xl font-bold text-blue-900"><%= total_l2_records %></p>
             </div>
           </div>
         </div>
@@ -446,7 +439,7 @@
             <i class="fas fa-clock text-yellow-600 mr-3"></i>
             <div>
               <p class="text-sm font-medium text-yellow-800">Pending L2 Review</p>
-              <p class="text-2xl font-bold text-yellow-900"><%= pending_l2_review_count %></p>
+              <p id="l2-pending-records" class="text-2xl font-bold text-yellow-900"><%= pending_l2_review_count %></p>
             </div>
           </div>
         </div>
@@ -457,7 +450,7 @@
             <i class="fas fa-check-double text-green-600 mr-3"></i>
             <div>
               <p class="text-sm font-medium text-green-800">L2 Approved</p>
-              <p class="text-2xl font-bold text-green-900"><%= l2_approved_count %></p>
+              <p id="l2-approved-records" class="text-2xl font-bold text-green-900"><%= l2_approved_count %></p>
             </div>
           </div>
         </div>
@@ -468,7 +461,7 @@
             <i class="fas fa-exclamation-triangle text-red-600 mr-3"></i>
             <div>
               <p class="text-sm font-medium text-red-800">L2 Returned</p>
-              <p class="text-2xl font-bold text-red-900"><%= l2_returned_count %></p>
+              <p id="l2-returned-records" class="text-2xl font-bold text-red-900"><%= l2_returned_count %></p>
             </div>
           </div>
         </div>
@@ -585,68 +578,58 @@
 </style>
 
 <script>
-  // Department filter functionality
-  document.addEventListener('DOMContentLoaded', function() {
+  function updateL2SummaryCounters() {
+    const visibleRows = Array.from(document.querySelectorAll('.manager-record-row')).filter((row) => row.style.display !== 'none');
+    let approved = 0;
+    let returned = 0;
+    let pending = 0;
+
+    visibleRows.forEach((row) => {
+      const statusText = row.querySelector('.manager-status-badge')?.textContent?.trim() || '';
+
+      if (statusText.includes('Return')) {
+        returned += 1;
+      } else if (statusText.includes('L2 Approved') || statusText.includes('L3 Approved')) {
+        approved += 1;
+      } else {
+        pending += 1;
+      }
+    });
+
+    const totalElement = document.getElementById('l2-total-records');
+    const approvedElement = document.getElementById('l2-approved-records');
+    const returnedElement = document.getElementById('l2-returned-records');
+    const pendingElement = document.getElementById('l2-pending-records');
+
+    if (totalElement) totalElement.textContent = visibleRows.length;
+    if (approvedElement) approvedElement.textContent = approved;
+    if (returnedElement) returnedElement.textContent = returned;
+    if (pendingElement) pendingElement.textContent = pending;
+  }
+
+  function initializeL2View() {
     const departmentFilter = document.getElementById('department_filter');
-    const tableRows = document.querySelectorAll('tbody tr');
-    
+    const tableRows = document.querySelectorAll('.manager-record-row');
+
     if (departmentFilter) {
       departmentFilter.addEventListener('change', function() {
         const selectedDepartment = this.value;
-        
-        tableRows.forEach(row => {
-          const departmentCell = row.querySelector('td:nth-child(3)'); // Vertical column
-          if (departmentCell) {
-            const departmentText = departmentCell.textContent.trim();
-            
-            if (selectedDepartment === '' || departmentText === selectedDepartment) {
-              row.style.display = '';
-            } else {
-              row.style.display = 'none';
-            }
-          }
+
+        tableRows.forEach((row) => {
+          const departmentCell = row.querySelector('td:nth-child(3)');
+          if (!departmentCell) return;
+
+          const departmentText = departmentCell.textContent.trim();
+          row.style.display = (selectedDepartment === '' || departmentText === selectedDepartment) ? '' : 'none';
         });
-        
-        // Update counters based on visible rows
-        updateCounters();
+
+        updateL2SummaryCounters();
       });
     }
-    
-    function updateCounters() {
-      const visibleRows = document.querySelectorAll('tbody tr[style=""], tbody tr:not([style*="display: none"])');
-      const totalRecords = visibleRows.length;
-      
-      let l2Approved = 0;
-      let l2Returned = 0;
-      let pendingReview = 0;
-      
-      visibleRows.forEach(row => {
-        const statusCell = row.querySelector('td:nth-child(7)'); // Status column
-        if (statusCell) {
-          const statusText = statusCell.textContent.trim();
-          if (statusText.includes('L2 Approved')) {
-            l2Approved++;
-          } else if (statusText.includes('L2 Returned')) {
-            l2Returned++;
-          } else if (statusText.includes('Pending Review') || statusText.includes('L1 Approved')) {
-            pendingReview++;
-          }
-        }
-      });
-      
-      // Update counter displays
-      const totalElement = document.querySelector('.text-2xl.font-bold.text-blue-900');
-      const approvedElement = document.querySelector('.text-2xl.font-bold.text-green-900');
-      const returnedElement = document.querySelector('.text-2xl.font-bold.text-red-900');
-      const pendingElement = document.querySelector('.text-2xl.font-bold.text-yellow-900');
-      
-      if (totalElement) totalElement.textContent = totalRecords;
-      if (approvedElement) approvedElement.textContent = l2Approved;
-      if (returnedElement) returnedElement.textContent = l2Returned;
-      if (pendingElement) pendingElement.textContent = pendingReview;
-    }
-  });
-  
-  // Manual refresh button available - removed auto-refresh to prevent continuous reloading
-  // Users can manually refresh using the refresh button if needed
+
+    updateL2SummaryCounters();
+  }
+
+  document.addEventListener('DOMContentLoaded', initializeL2View);
+  document.addEventListener('turbo:load', initializeL2View);
 </script>

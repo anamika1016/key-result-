@@ -8,7 +8,7 @@
         <i class="fas fa-tasks mr-3 text-indigo-600"></i>
         Activity List
       </h1>
-      <%= link_to departments_path, class: "inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-200" do %>
+      <%= link_to departments_path(year: @selected_year), class: "inline-flex items-center px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white font-semibold rounded-lg shadow-md transition duration-200" do %>
         <i class="fas fa-arrow-left mr-2"></i>
         Back to Departments
       <% end %>
@@ -26,6 +26,11 @@
         <div>
           <h3 class="text-sm font-semibold text-gray-600 mb-1">Department</h3>
           <p class="text-lg font-medium text-gray-800"><%= @department.department_type %></p>
+        </div>
+
+        <div>
+          <h3 class="text-sm font-semibold text-gray-600 mb-1">Year</h3>
+          <p class="text-lg font-medium text-gray-800"><%= @selected_year %></p>
         </div>
 
         <div>
@@ -125,7 +130,19 @@
 
     <!-- Summary Statistics -->
     <% if @activities.any? %>
-      <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-slate-50 rounded-lg p-4">
+          <div class="flex items-center">
+            <div class="flex-shrink-0">
+              <i class="fas fa-calendar-alt text-2xl" style="color: #2d374b;"></i>
+            </div>
+            <div class="ml-4">
+              <h3 class="text-sm font-medium text-slate-900">Active Year</h3>
+              <p class="text-2xl font-bold" style="color: #2d374b;"><%= @selected_year %></p>
+            </div>
+          </div>
+        </div>
+
         <div class="bg-blue-50 rounded-lg p-4">
           <div class="flex items-center">
             <div class="flex-shrink-0">

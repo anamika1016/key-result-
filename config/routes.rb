@@ -1,6 +1,28 @@
 # config/routes.rb
 
 Rails.application.routes.draw do
+  get "user_training_progresses/index"
+  get "user_training_progresses/show"
+  get "user_training_progresses/create"
+  get "user_training_progresses/update"
+  get "user_training_assignments/index"
+  get "user_training_assignments/show"
+  get "user_training_assignments/create"
+  get "user_training_assignments/destroy"
+  get "training_questions/index"
+  get "training_questions/show"
+  get "training_questions/new"
+  get "training_questions/create"
+  get "training_questions/edit"
+  get "training_questions/update"
+  get "training_questions/destroy"
+  get "trainings/index"
+  get "trainings/show"
+  get "trainings/new"
+  get "trainings/create"
+  get "trainings/edit"
+  get "trainings/update"
+  get "trainings/destroy"
   resources :user_details do
     collection do
       get :get_activities
@@ -96,5 +118,30 @@ Rails.application.routes.draw do
   # Keep your other routes
   devise_scope :user do
     delete "/users/sign_out", to: "devise/sessions#destroy"
+  end
+
+  resources :user_training_assignments, only: [ :index, :show, :edit, :update ], param: :employee_detail_id do
+    collection do
+      get :export_xlsx
+    end
+  end
+
+  resources :trainings do
+    member do
+      post :start
+      post :finish
+      patch :toggle_status
+      get  :preview
+      post :start_training
+      post :update_progress
+      post :complete_training
+      get  :certificate
+      get  :assessment
+      post :submit_assessment
+    end
+    collection do
+      get "monthly_certificate/:year/:month", to: "trainings#monthly_certificate", as: :monthly_certificate
+      get :download_assessment_template
+    end
   end
 end

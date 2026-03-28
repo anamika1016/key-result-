@@ -3,6 +3,7 @@ require "axlsx"
 
 class EmployeeDetailsController < ApplicationController
   before_action :set_employee_detail, only: [ :edit, :update, :destroy ]
+  before_action :set_financial_year_context, only: [ :l1, :l2, :l3, :show, :show_l2, :show_l3, :get_status ]
   load_and_authorize_resource except: [ :approve, :return, :l2_approve, :l2_return, :l3_approve, :l3_return ]
 
   def index
@@ -309,13 +310,23 @@ class EmployeeDetailsController < ApplicationController
   end
 
   def export_quarterly_xlsx
+    selected_year = normalize_financial_year(params[:year])
+    include_legacy_yearless_records = params[:year].blank? || selected_year == current_financial_year_label
+    year_scope = lambda do |scope|
+      if include_legacy_yearless_records
+        scope.where("user_details.year = ? OR user_details.year IS NULL OR user_details.year = ''", selected_year)
+      else
+        scope.where(year: selected_year)
+      end
+    end
+
     employee_details = EmployeeDetail.includes(
       user_details: [
         :activity,
         :department,
         { achievements: :achievement_remark }
       ]
-    ).all
+    ).joins(:user_details).merge(year_scope.call(UserDetail.all)).distinct
 
     package = Axlsx::Package.new
     workbook = package.workbook
@@ -328,7 +339,7 @@ class EmployeeDetailsController < ApplicationController
 
       # Add header row as per user request
       sheet.add_row [
-        "Employee Code", "Employee Name", "Department", "Quarter", "Status",
+        "Financial Year", "Employee Code", "Employee Name", "Department", "Quarter", "Status",
         "L1 Name", "L1 Employee Code", "L1 Remarks", "L1 Percentage",
         "L2 Name", "L2 Employee Code", "L2 Remarks", "L2 Percentage",
         "L3 Name", "L3 Employee Code", "L3 Remarks", "L3 Percentage"
@@ -351,14 +362,15 @@ class EmployeeDetailsController < ApplicationController
           emp.user_details.includes(:department).group_by(&:department).each do |department, user_details_for_dept|
             next if department.nil?
             combination_key = "#{emp.id}_#{department.id}"
+            filtered_user_details = year_scope.call(user_details_for_dept.is_a?(ActiveRecord::Relation) ? user_details_for_dept : UserDetail.where(id: user_details_for_dept.map(&:id)))
+            next if filtered_user_details.blank?
 
             unless seen_combinations.include?(combination_key)
               seen_combinations.add(combination_key)
-              user_detail = user_details_for_dept.first
               employee_department_entries << {
                 employee: emp,
                 department: department,
-                user_detail: user_detail
+                user_details: filtered_user_details.to_a
               }
             end
           end
@@ -369,7 +381,7 @@ class EmployeeDetailsController < ApplicationController
             employee_department_entries << {
               employee: emp,
               department: nil,
-              user_detail: nil
+              user_details: []
             }
           end
         end
@@ -380,11 +392,7 @@ class EmployeeDetailsController < ApplicationController
         emp = entry[:employee]
         quarters.each do |quarter_name, quarter_months|
           # Get achievements for this specific department
-          if entry[:user_detail]
-            all_quarter_achievements = entry[:user_detail].achievements.select { |ach| quarter_months.include?(ach.month&.downcase) }
-          else
-            all_quarter_achievements = emp.user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month&.downcase) }
-          end
+          all_quarter_achievements = entry[:user_details].flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month&.downcase) }
 
           # Only add row if there are achievements in this quarter
           if all_quarter_achievements.any?
@@ -442,6 +450,7 @@ class EmployeeDetailsController < ApplicationController
             end
 
             sheet.add_row [
+              selected_year,
               emp.employee_code || "N/A",
               emp.employee_name || "N/A",
               entry[:department]&.department_type || emp.department || "N/A",
@@ -459,18 +468,18 @@ class EmployeeDetailsController < ApplicationController
               emp.l3_code || "N/A",
               l3_remarks_text.presence || "No Remarks",
               "#{l3_avg}%"
-            ], style: [ data_style, data_style, data_style, data_style, data_style, data_style, data_style, data_style, percentage_style, data_style, data_style, data_style, percentage_style, data_style, data_style, data_style, percentage_style ]
+            ], style: [ data_style, data_style, data_style, data_style, data_style, data_style, data_style, data_style, data_style, percentage_style, data_style, data_style, data_style, percentage_style, data_style, data_style, data_style, percentage_style ]
           end
         end
       end
 
       # Auto-width for columns
-      sheet.column_widths nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
+      sheet.column_widths nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil
     end
 
-    tempfile = Tempfile.new([ "quarterly_l1_l2_data", ".xlsx" ])
+    tempfile = Tempfile.new([ "quarterly_l1_l2_data_#{selected_year.tr('-', '_')}", ".xlsx" ])
     package.serialize(tempfile.path)
-    send_file tempfile.path, filename: "quarterly_l1_l2_data.xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    send_file tempfile.path, filename: "quarterly_l1_l2_data_#{selected_year}.xlsx", type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
   end
 
   def download_template
@@ -600,7 +609,7 @@ class EmployeeDetailsController < ApplicationController
           { achievements: :achievement_remark }
         ]
       ).where(
-        id: UserDetail.joins(:achievements).distinct.pluck(:employee_detail_id)
+        id: scoped_user_details_for_year(UserDetail.joins(:achievements)).distinct.pluck(:employee_detail_id)
       )
     else
       # FIXED: L1 managers can see their assigned employees (with or without achievements)
@@ -619,7 +628,7 @@ class EmployeeDetailsController < ApplicationController
       all_employees = all_assigned_employees.select do |emp|
         # Only show employees who have submitted quarterly achievements (q1, q2, q3, q4) with actual data
         # Check if employee has quarterly achievements with meaningful data in any of their departments
-        emp.user_details.any? do |ud|
+        scoped_user_details_for_year(emp.user_details).any? do |ud|
           ud.achievements.any? do |ach|
             [ "q1", "q2", "q3", "q4" ].include?(ach.month) && ach.achievement.present?
           end
@@ -674,14 +683,17 @@ class EmployeeDetailsController < ApplicationController
       all_employee_records = EmployeeDetail.where(employee_name: @employee_detail.employee_name)
       user_details = []
       all_employee_records.each do |emp|
-        emp.user_details.includes(:activity, :department, { achievements: :achievement_remark })
-           .where(department_id: department_id)
-           .each do |ud|
+        scoped_user_details_for_department_and_year(
+          emp.user_details.includes(:activity, :department, { achievements: :achievement_remark }),
+          department_id
+        ).each do |ud|
           user_details << ud
         end
       end
     else
-      user_details = @employee_detail.user_details.includes(:activity, :department, { achievements: :achievement_remark })
+      user_details = scoped_user_details_for_year(
+        @employee_detail.user_details.includes(:activity, :department, { achievements: :achievement_remark })
+      )
     end
 
     # Calculate status
@@ -795,9 +807,10 @@ class EmployeeDetailsController < ApplicationController
       # Get all user_details from ALL employee records for this department
       @user_details = []
       all_employee_records.each do |emp|
-        emp.user_details.includes(:activity, :department, { achievements: :achievement_remark })
-           .where(department_id: @selected_department)
-           .each do |ud|
+        scoped_user_details_for_department_and_year(
+          emp.user_details.includes(:activity, :department, { achievements: :achievement_remark }),
+          @selected_department
+        ).each do |ud|
           @user_details << ud
         end
       end
@@ -816,9 +829,10 @@ class EmployeeDetailsController < ApplicationController
         # Get all user_details from ALL employee records for this department
         @user_details = []
         all_employee_records.each do |emp|
-          emp.user_details.includes(:activity, :department, { achievements: :achievement_remark })
-             .where(department_id: first_department.id)
-             .each do |ud|
+          scoped_user_details_for_department_and_year(
+            emp.user_details.includes(:activity, :department, { achievements: :achievement_remark }),
+            first_department.id
+          ).each do |ud|
             @user_details << ud
           end
         end
@@ -826,7 +840,7 @@ class EmployeeDetailsController < ApplicationController
       else
         # Fallback to all user details if no departments found
         @user_details = @employee_detail.user_details
-                          .includes(:activity, :department, { achievements: :achievement_remark })
+                          .then { |scope| scoped_user_details_for_year(scope.includes(:activity, :department, { achievements: :achievement_remark })) }
       end
     end
 
@@ -1104,7 +1118,7 @@ def l2
   # CRITICAL: Only show records where L1 has actually approved (workflow hierarchy)
   filtered_employees = all_employees.select do |emp|
     Rails.logger.info "L2 Controller: Checking employee #{emp.employee_name}"
-    has_qualifying_achievements = emp.user_details.any? do |ud|
+    has_qualifying_achievements = scoped_user_details_for_year(emp.user_details).any? do |ud|
       # Apply department filter at user_detail level if specified
       if @selected_department.present?
         next unless ud.department&.department_type == @selected_department
@@ -1209,9 +1223,10 @@ end
       # Get all user_details from ALL employee records for this department
       @user_details = []
       all_employee_records.each do |emp|
-        emp.user_details.includes(:activity, :department, { achievements: :achievement_remark })
-           .where(department_id: @selected_department)
-           .each do |ud|
+        scoped_user_details_for_department_and_year(
+          emp.user_details.includes(:activity, :department, { achievements: :achievement_remark }),
+          @selected_department
+        ).each do |ud|
           @user_details << ud
         end
       end
@@ -1230,9 +1245,10 @@ end
         # Get all user_details from ALL employee records for this department
         @user_details = []
         all_employee_records.each do |emp|
-          emp.user_details.includes(:activity, :department, { achievements: :achievement_remark })
-             .where(department_id: first_department.id)
-             .each do |ud|
+          scoped_user_details_for_department_and_year(
+            emp.user_details.includes(:activity, :department, { achievements: :achievement_remark }),
+            first_department.id
+          ).each do |ud|
             @user_details << ud
           end
         end
@@ -1240,7 +1256,7 @@ end
       else
         # Fallback to all user details if no departments found
         @user_details = @employee_detail.user_details
-                          .includes(:activity, :department, { achievements: :achievement_remark })
+                          .then { |scope| scoped_user_details_for_year(scope.includes(:activity, :department, { achievements: :achievement_remark })) }
       end
     end
 
@@ -1372,7 +1388,7 @@ end
           :department,
           { achievements: :achievement_remark }
         ]
-      ).order(created_at: :desc)
+      ).joins(:user_details).merge(scoped_user_details_for_year(UserDetail.all)).order(created_at: :desc)
     else
       # L3 managers can only see their assigned employees with L2 approved achievements
       # FIXED: Get all EmployeeDetail records for employees assigned to this L3 manager
@@ -1384,7 +1400,7 @@ end
     # Filter to include employees who have L2 approved, L3 approved, or L3 returned achievements
     # L3 view should show L2 approved (ready for L3 review), L3 approved, L3 returned, or returned to employee by L3
     filtered_employees = all_employees.select do |emp|
-      has_qualifying_achievements = emp.user_details.any? do |ud|
+      has_qualifying_achievements = scoped_user_details_for_year(emp.user_details).any? do |ud|
         # Show employees with L2 approved, L3 approved, L3 returned, or returned to employee by L3
         qualifying_achievements = ud.achievements.select do |achievement|
           # Must be L2 approved, L3 approved, L3 returned, or returned_to_employee by L3 AND have quarterly data
@@ -1430,9 +1446,10 @@ end
       # Get all user_details from ALL employee records for this department
       @user_details = []
       all_employee_records.each do |emp|
-        emp.user_details.includes(:activity, :department, { achievements: :achievement_remark })
-           .where(department_id: @selected_department)
-           .each do |ud|
+        scoped_user_details_for_department_and_year(
+          emp.user_details.includes(:activity, :department, { achievements: :achievement_remark }),
+          @selected_department
+        ).each do |ud|
           @user_details << ud
         end
       end
@@ -1451,9 +1468,10 @@ end
         # Get all user_details from ALL employee records for this department
         @user_details = []
         all_employee_records.each do |emp|
-          emp.user_details.includes(:activity, :department, { achievements: :achievement_remark })
-             .where(department_id: first_department.id)
-             .each do |ud|
+          scoped_user_details_for_department_and_year(
+            emp.user_details.includes(:activity, :department, { achievements: :achievement_remark }),
+            first_department.id
+          ).each do |ud|
             @user_details << ud
           end
         end
@@ -1461,7 +1479,7 @@ end
       else
         # Fallback to all user details if no departments found
         @user_details = @employee_detail.user_details
-                          .includes(:activity, :department, { achievements: :achievement_remark })
+                          .then { |scope| scoped_user_details_for_year(scope.includes(:activity, :department, { achievements: :achievement_remark })) }
       end
     end
 
@@ -1829,6 +1847,29 @@ end
         redirect_to show_l2_employee_detail_path(@employee_detail), alert: "❌ An error occurred while updating L2 details: #{e.message}"
       end
     end
+  end
+
+  def set_financial_year_context
+    @selected_year = normalize_financial_year(params[:year])
+    @selected_year_db = database_financial_year_value(UserDetail, @selected_year)
+    @available_years = financial_year_options(UserDetail.distinct.pluck(:year))
+  end
+
+  def scoped_user_details_for_year(scope)
+    return scope.where(year: @selected_year_db) if scope.klass.columns_hash["year"]&.type == :integer
+
+    return scope.where(year: @selected_year) unless include_legacy_yearless_records?
+
+    table_name = scope.klass.table_name
+    scope.where("#{table_name}.year = ? OR #{table_name}.year IS NULL OR #{table_name}.year = ''", @selected_year)
+  end
+
+  def scoped_user_details_for_department_and_year(scope, department_id)
+    scoped_user_details_for_year(scope.where(department_id: department_id))
+  end
+
+  def include_legacy_yearless_records?
+    params[:year].blank? || @selected_year == current_financial_year_label
   end
 
   private

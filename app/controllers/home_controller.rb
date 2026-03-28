@@ -1,5 +1,6 @@
 class HomeController < ApplicationController
    before_action :authenticate_user!
+   before_action :set_financial_year_context, only: [ :dashboard, :submitted_view_data, :quarterly_details ]
 
   def index
   end
@@ -25,21 +26,8 @@ class HomeController < ApplicationController
     end
 
     # Calculate dashboard statistics for HOD
-    @total_users = User.count  # Count total users in the system
+    @total_users = User.count
 
-    # FIXED: Use same quarter-based counting logic as L1/L2/L3 pages for consistency
-    # This counts employee-quarter combinations, which is more meaningful for management
-
-    # Get all employee details with achievements
-    employee_details = EmployeeDetail.includes(
-      user_details: [
-        :activity,
-        :department,
-        { achievements: :achievement_remark }
-      ]
-    ).joins(user_details: :achievements).distinct
-
-    # Initialize counters
     @l1_approved_count = 0
     @l2_approved_count = 0
     @l3_approved_count = 0
@@ -52,126 +40,57 @@ class HomeController < ApplicationController
     @total_employee_details = 0
 
     quarters = {
-      "Q1" => [ "april", "may", "june" ],
-      "Q2" => [ "july", "august", "september" ],
-      "Q3" => [ "october", "november", "december" ],
-      "Q4" => [ "january", "february", "march" ]
+      "Q1" => [ "april", "may", "june", "q1" ],
+      "Q2" => [ "july", "august", "september", "q2" ],
+      "Q3" => [ "october", "november", "december", "q3" ],
+      "Q4" => [ "january", "february", "march", "q4" ]
     }
 
-    processed_quarters = {}
+    year_user_details = UserDetail.includes(:employee_detail, :department, achievements: :achievement_remark)
+                                  .where(year: @selected_year_db)
+                                  .where.not(employee_detail_id: nil)
 
-    # Process each employee and quarter combination (same logic as L1/L2/L3 pages)
-    employee_details.each do |emp|
+    processed_quarters = Set.new
+
+    year_user_details.find_each do |user_detail|
+      next unless user_detail.employee_detail.present? && user_detail.department.present?
+
       quarters.each do |quarter_name, quarter_months|
-        # Create unique key for employee + quarter combination
-        quarter_key = "#{emp.id}_#{quarter_name}"
-        next if processed_quarters[quarter_key]
+        quarter_achievements = user_detail.achievements.select { |ach| quarter_months.include?(ach.month.to_s.downcase) }
+        next if quarter_achievements.empty?
 
-        # Get all achievements for this employee in this quarter
-        monthly_achievements = emp.user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month) }
+        quarter_key = [ user_detail.employee_detail_id, user_detail.department_id, quarter_name ].join("_")
+        next if processed_quarters.include?(quarter_key)
+        processed_quarters.add(quarter_key)
 
-        # Also check for quarterly format achievements (q1, q2, q3, q4)
-        quarterly_achievements = emp.user_details.flat_map(&:achievements).select do |ach|
-          case quarter_name
-          when "Q1"
-            ach.month == "q1"
-          when "Q2"
-            ach.month == "q2"
-          when "Q3"
-            ach.month == "q3"
-          when "Q4"
-            ach.month == "q4"
-          else
-            false
-          end
+        @total_employee_details += 1
+
+        quarter_statuses = quarter_achievements.map { |ach| ach.status.presence || "pending" }
+        l1_remarks_present = quarter_achievements.any? { |ach| ach.achievement_remark&.l1_remarks.present? && ach.achievement_remark.l1_remarks != "No remarks for this quarter" }
+        l1_percentage_present = quarter_achievements.any? { |ach| ach.achievement_remark&.l1_percentage.present? && ach.achievement_remark.l1_percentage.to_f > 0 }
+        l2_remarks_present = quarter_achievements.any? { |ach| ach.achievement_remark&.l2_remarks.present? }
+        l3_remarks_present = quarter_achievements.any? { |ach| ach.achievement_remark&.l3_remarks.present? }
+
+        @l3_approved_count += 1 if quarter_statuses.include?("l3_approved")
+        @l3_returned_count += 1 if quarter_statuses.include?("l3_returned") || (quarter_statuses.include?("returned_to_employee") && l3_remarks_present)
+        @l2_approved_count += 1 if quarter_statuses.include?("l2_approved")
+        @l2_returned_count += 1 if quarter_statuses.include?("l2_returned") || (quarter_statuses.include?("returned_to_employee") && l2_remarks_present && !l3_remarks_present)
+        @l1_approved_count += 1 if quarter_statuses.include?("l1_approved") || l1_remarks_present || l1_percentage_present
+        @l1_returned_count += 1 if quarter_statuses.include?("l1_returned") || (quarter_statuses.include?("returned_to_employee") && !l2_remarks_present && !l3_remarks_present)
+
+        if quarter_statuses.none? { |status| %w[l1_approved l1_returned l2_approved l2_returned l3_approved l3_returned returned_to_employee].include?(status) } &&
+           !l1_remarks_present && !l1_percentage_present
+          @l1_pending_count += 1
         end
 
-        # Combine both types of achievements
-        all_quarter_achievements = monthly_achievements + quarterly_achievements
-
-        # Only process quarters that have actual achievement data
-        if all_quarter_achievements.any?
-          processed_quarters[quarter_key] = true
-          @total_employee_details += 1
-
-          # Get all statuses for this quarter
-          quarter_statuses = all_quarter_achievements.map { |ach| ach.status || "pending" }
-
-          # Count based on overall status for this quarter - FIXED: Show counts at each level where approved
-          # Check each level independently to show proper counts
-          if quarter_statuses.any? { |s| s == "l3_approved" }
-            @l3_approved_count += 1
-          end
-          if quarter_statuses.any? { |s| s == "l3_returned" || (s == "returned_to_employee" && all_quarter_achievements.any? { |a| a.achievement_remark&.l3_remarks.present? }) }
-            @l3_returned_count += 1
-          end
-          if quarter_statuses.any? { |s| s == "l2_approved" }
-            @l2_approved_count += 1
-          end
-          if quarter_statuses.any? { |s| s == "l2_returned" || (s == "returned_to_employee" && all_quarter_achievements.any? { |a| a.achievement_remark&.l2_remarks.present? && a.achievement_remark&.l3_remarks.blank? }) }
-            @l2_returned_count += 1
-          end
-          if quarter_statuses.any? { |s| s == "l1_approved" }
-            @l1_approved_count += 1
-          end
-          if quarter_statuses.any? { |s| s == "l1_returned" || (s == "returned_to_employee" && all_quarter_achievements.any? { |a| a.achievement_remark&.l2_remarks.blank? && a.achievement_remark&.l3_remarks.blank? }) }
-            @l1_returned_count += 1
-          end
-
-          # Only count as pending if no approvals have been made at any level
-          if quarter_statuses.none? { |s| [ "l1_approved", "l2_approved", "l3_approved", "l1_returned", "l2_returned", "l3_returned", "returned_to_employee" ].include?(s) }
-            @l1_pending_count += 1
-          end
-        end
-      end
-    end
-
-    # Calculate pending counts for L2 and L3 (records that are ready for their review)
-    # FIXED: Calculate actual pending counts based on what's ready for each level
-    @l2_pending_count = 0
-    @l3_pending_count = 0
-
-    # Count records that are ready for L2 review (L1 approved but not yet L2 approved/returned)
-    employee_details.each do |emp|
-      quarters.each do |quarter_name, quarter_months|
-        quarter_key = "#{emp.id}_#{quarter_name}"
-        next if processed_quarters[quarter_key]
-
-        # Get all achievements for this employee in this quarter
-        monthly_achievements = emp.user_details.flat_map(&:achievements).select { |ach| quarter_months.include?(ach.month) }
-
-        # Also check for quarterly format achievements (q1, q2, q3, q4)
-        quarterly_achievements = emp.user_details.flat_map(&:achievements).select do |ach|
-          case quarter_name
-          when "Q1"
-            ach.month == "q1"
-          when "Q2"
-            ach.month == "q2"
-          when "Q3"
-            ach.month == "q3"
-          when "Q4"
-            ach.month == "q4"
-          else
-            false
-          end
+        if (quarter_statuses.include?("l1_approved") || l1_remarks_present || l1_percentage_present) &&
+           quarter_statuses.none? { |status| %w[l2_approved l2_returned l3_approved l3_returned returned_to_employee].include?(status) }
+          @l2_pending_count += 1
         end
 
-        all_quarter_achievements = monthly_achievements + quarterly_achievements
-
-        if all_quarter_achievements.any?
-          quarter_statuses = all_quarter_achievements.map { |ach| ach.status || "pending" }
-
-          # L2 pending: L1 approved but not yet L2 approved/returned
-          if quarter_statuses.any? { |s| s == "l1_approved" } &&
-             quarter_statuses.none? { |s| [ "l2_approved", "l2_returned", "l3_approved", "l3_returned", "returned_to_employee" ].include?(s) }
-            @l2_pending_count += 1
-          end
-
-          # L3 pending: L2 approved but not yet L3 approved/returned
-          if quarter_statuses.any? { |s| s == "l2_approved" } &&
-             quarter_statuses.none? { |s| [ "l3_approved", "l3_returned", "returned_to_employee" ].include?(s) }
-            @l3_pending_count += 1
-          end
+        if quarter_statuses.include?("l2_approved") &&
+           quarter_statuses.none? { |status| %w[l3_approved l3_returned returned_to_employee].include?(status) }
+          @l3_pending_count += 1
         end
       end
     end
@@ -258,8 +177,8 @@ class HomeController < ApplicationController
 
         # Deduplicate by activity and department to avoid showing duplicate entries
         # when user has multiple employee_detail records for the same activities
-        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
-                           .group(:activity_id, :department_id)
+        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year_db)
+                           .group(:activity_id, :department_id, :year)
                            .minimum(:id)
 
         # Build the query with strict filtering
@@ -327,7 +246,7 @@ class HomeController < ApplicationController
     when "hod"
       # Show all data for HOD that has either achievements OR quarterly targets
       # FIXED: Apply deduplication to prevent duplicate entries
-      min_ids = UserDetail.group(:activity_id, :department_id, :employee_detail_id)
+      min_ids = UserDetail.where(year: @selected_year_db).group(:activity_id, :department_id, :employee_detail_id, :year)
                           .minimum(:id)
 
       @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
@@ -386,8 +305,8 @@ class HomeController < ApplicationController
         employee_detail_ids = employee_details.pluck(:id)
 
         # Deduplicate by activity and department to avoid showing duplicate entries
-        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
-                           .group(:activity_id, :department_id)
+        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year_db)
+                           .group(:activity_id, :department_id, :year)
                            .minimum(:id)
 
         @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
@@ -450,8 +369,8 @@ class HomeController < ApplicationController
         employee_detail_ids = employee_details.pluck(:id)
 
         # Deduplicate by activity and department to avoid showing duplicate entries
-        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
-                           .group(:activity_id, :department_id)
+        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year_db)
+                           .group(:activity_id, :department_id, :year)
                            .minimum(:id)
 
         @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
@@ -546,8 +465,8 @@ class HomeController < ApplicationController
 
       if employee_details.any?
         employee_detail_ids = employee_details.pluck(:id)
-        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids)
-                           .group(:activity_id, :department_id)
+        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year_db)
+                           .group(:activity_id, :department_id, :year)
                            .minimum(:id)
 
         user_details = UserDetail.includes(achievements: :achievement_remark)
@@ -570,13 +489,13 @@ class HomeController < ApplicationController
         user_details = UserDetail.none
       end
     when "hod"
-      user_details = UserDetail.includes(:department, :employee_detail, achievements: :achievement_remark)
+      user_details = UserDetail.includes(:department, :employee_detail, achievements: :achievement_remark).where(year: @selected_year_db)
     when "l1_employer"
-      user_details = UserDetail.includes(:department, :employee_detail, achievements: :achievement_remark)
+      user_details = UserDetail.includes(:department, :employee_detail, achievements: :achievement_remark).where(year: @selected_year_db)
                               .joins(:employee_detail)
                               .where(employee_details: { l1_code: current_user.employee_code })
     when "l2_employer"
-      user_details = UserDetail.includes(:department, :employee_detail, achievements: :achievement_remark)
+      user_details = UserDetail.includes(:department, :employee_detail, achievements: :achievement_remark).where(year: @selected_year_db)
                               .joins(:employee_detail)
                               .where("employee_details.l2_code = ? OR employee_details.l2_employer_name = ?",
                                      current_user.employee_code, current_user.email)
@@ -604,11 +523,18 @@ class HomeController < ApplicationController
 
     render json: {
       quarter: quarter,
+      financial_year: @selected_year,
       summaries: department_summaries,
       l1: calculate_level_summary(user_details, quarter, "l1"), # Keep old keys for backward compatibility
       l2: calculate_level_summary(user_details, quarter, "l2"),
       l3: calculate_level_summary(user_details, quarter, "l3")
     }
+  end
+
+  def set_financial_year_context
+    @selected_year = normalize_financial_year(params[:year])
+    @selected_year_db = database_financial_year_value(UserDetail, @selected_year)
+    @available_years = financial_year_options(UserDetail.distinct.pluck(:year))
   end
 
   private

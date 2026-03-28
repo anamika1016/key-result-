@@ -5,9 +5,23 @@
       <h2 class="mb-4 text-dark">Quarterly Activity Data Entry</h2>   
 
       <div class="excel-upload-section">
+        <div class="year-toolbar">
+          <%= form_with url: new_user_detail_path, method: :get, local: true, class: "year-form" do |form| %>
+            <%= hidden_field_tag :department_id, params[:department_id] %>
+            <%= hidden_field_tag :employee_detail_id, params[:employee_detail_id] %>
+            <label for="year-select" class="year-label">Working Year</label>
+            <%= select_tag :year,
+                options_for_select(@available_years, @selected_year),
+                class: "year-select",
+                id: "year-select",
+                onchange: "this.form.submit();" %>
+          <% end %>
+        </div>
+
         <div class="excel-operations-container">
           <div class="left-operations">
             <%= form_with url: import_user_details_path, method: :post, multipart: true, local: true, class: "upload-form" do |form| %>
+              <%= hidden_field_tag :year, @selected_year %>
               <div class="file-input-group">
                 <%= form.file_field :file, accept: ".xlsx,.xls", class: "file-input", id: "excel-file-input" %>
                 <label for="excel-file-input" class="file-input-label">
@@ -23,7 +37,7 @@
           </div>
           
           <div class="right-operations">
-            <%= link_to export_department_activity_user_details_path(department_id: params[:department_id], employee_detail_id: params[:employee_detail_id], format: :xlsx), 
+            <%= link_to export_department_activity_user_details_path(department_id: params[:department_id], employee_detail_id: params[:employee_detail_id], year: @selected_year, format: :xlsx), 
                 class: "export-btn", 
                 id: "export-btn",
                 title: "Export current data to Excel" do %>
@@ -44,6 +58,7 @@
             <table class="table table-bordered table-hover w-full text-sm text-gray-700 border border-gray-300">
               <thead class="bg-gray-light">
                 <tr>
+                  <th class="px-4 py-3 text-start">Year</th>
                   <th class="px-4 py-3 text-start">Vertical</th>
                   <th class="px-4 py-3 text-start">Employee Name</th>
                   <th class="px-4 py-3 text-start">L1 Manager</th>
@@ -53,6 +68,14 @@
               </thead>
               <tbody>
                 <tr>
+                  <td class="px-4 py-3">
+                    <%= form.select :year,
+                        options_for_select(@available_years, @selected_year),
+                        {},
+                        class: "form-select form-select-sm w-full border-gray-300 rounded",
+                        onchange: "this.form.submit();" %>
+                  </td>
+
                   <!-- Department Dropdown -->
                   <td class="px-4 py-3">
                     <%= form.select :department_id,
@@ -108,7 +131,7 @@
           <div class="card-header bg-gray text-white">
             <h5 class="mb-0">
               <i class="fas fa-database me-2"></i>
-              Existing Data for <%= @selected_employee&.employee_name || 'Selected Employee' %> (Limited to 100 records)
+              Existing Data for <%= @selected_employee&.employee_name || 'Selected Employee' %> - <%= @selected_year %> (Limited to 100 records)
             </h5>
           </div>
           
@@ -317,6 +340,33 @@
     margin-bottom: 30px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     border: 1px solid var(--border-gray);
+  }
+
+  .year-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 18px;
+  }
+
+  .year-form {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .year-label {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-gray);
+  }
+
+  .year-select {
+    min-width: 140px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-gray);
+    border-radius: 8px;
+    background: var(--white);
+    color: var(--text-gray);
   }
 
   .excel-operations-container {

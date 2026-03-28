@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_05_053120) do
+ActiveRecord::Schema[8.0].define(version: 2026_03_25_075338) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -40,6 +40,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_05_053120) do
     t.text "l2_remarks"
     t.float "l2_percentage"
     t.text "employee_remarks"
+    t.string "return_to"
     t.index ["month"], name: "index_achievements_on_month"
     t.index ["status", "month"], name: "index_achievements_on_status_and_month"
     t.index ["status"], name: "index_achievements_on_status"
@@ -85,7 +86,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_05_053120) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.string "theme_name"
+    t.string "year", null: false
+    t.index ["department_id", "activity_name", "theme_name", "year"], name: "index_activities_on_department_activity_theme_year"
     t.index ["department_id"], name: "index_activities_on_department_id"
+    t.index ["year"], name: "index_activities_on_year"
   end
 
   create_table "departments", force: :cascade do |t|
@@ -117,6 +121,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_05_053120) do
     t.string "l3_code"
     t.string "l3_employer_name"
     t.integer "user_details_count", default: 0, null: false
+    t.boolean "assignments_managed"
     t.index ["employee_code"], name: "index_employee_details_on_employee_code"
     t.index ["employee_email"], name: "index_employee_details_on_employee_email"
     t.index ["l1_code", "status"], name: "index_employee_details_on_l1_code_and_status"
@@ -136,8 +141,16 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_05_053120) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "employee_detail_id", null: false
+    t.string "mobile_number"
+    t.string "provider_status"
+    t.string "provider_code"
+    t.string "provider_description"
+    t.string "message_id"
+    t.text "provider_response_raw"
     t.index ["employee_detail_id", "quarter"], name: "index_sms_logs_on_employee_detail_id_and_quarter"
     t.index ["employee_detail_id"], name: "index_sms_logs_on_employee_detail_id"
+    t.index ["message_id"], name: "index_sms_logs_on_message_id"
+    t.index ["mobile_number"], name: "index_sms_logs_on_mobile_number"
   end
 
   create_table "solid_cable_messages", force: :cascade do |t|
@@ -290,6 +303,32 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_05_053120) do
     t.index ["key"], name: "index_system_settings_on_key"
   end
 
+  create_table "training_questions", force: :cascade do |t|
+    t.bigint "training_id", null: false
+    t.text "question"
+    t.string "option_a"
+    t.string "option_b"
+    t.string "option_c"
+    t.string "option_d"
+    t.string "correct_answer"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["training_id"], name: "index_training_questions_on_training_id"
+  end
+
+  create_table "trainings", force: :cascade do |t|
+    t.string "title"
+    t.text "description"
+    t.integer "duration"
+    t.integer "created_by"
+    t.integer "month"
+    t.integer "year"
+    t.boolean "status"
+    t.boolean "has_assessment"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "user_details", force: :cascade do |t|
     t.bigint "department_id", null: false
     t.bigint "activity_id", null: false
@@ -314,11 +353,40 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_05_053120) do
     t.text "q2"
     t.text "q3"
     t.text "q4"
+    t.string "year", null: false
     t.index ["activity_id"], name: "index_user_details_on_activity_id"
     t.index ["department_id"], name: "index_user_details_on_department_id"
+    t.index ["employee_detail_id", "department_id", "activity_id", "year"], name: "index_user_details_on_employee_department_activity_year"
     t.index ["employee_detail_id", "department_id"], name: "index_user_details_on_employee_detail_id_and_department_id"
     t.index ["employee_detail_id"], name: "index_user_details_on_employee_detail_id"
     t.index ["user_id"], name: "index_user_details_on_user_id"
+    t.index ["year"], name: "index_user_details_on_year"
+  end
+
+  create_table "user_training_assignments", force: :cascade do |t|
+    t.bigint "user_id", null: false
+    t.bigint "training_id", null: false
+    t.bigint "employee_detail_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employee_detail_id"], name: "index_user_training_assignments_on_employee_detail_id"
+    t.index ["training_id"], name: "index_user_training_assignments_on_training_id"
+    t.index ["user_id"], name: "index_user_training_assignments_on_user_id"
+  end
+
+  create_table "user_training_progresses", force: :cascade do |t|
+    t.bigint "training_id", null: false
+    t.bigint "user_id", null: false
+    t.string "status"
+    t.datetime "started_at"
+    t.datetime "ended_at"
+    t.integer "time_spent"
+    t.string "financial_year"
+    t.integer "score"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["training_id"], name: "index_user_training_progresses_on_training_id"
+    t.index ["user_id"], name: "index_user_training_progresses_on_user_id"
   end
 
   create_table "users", force: :cascade do |t|
@@ -350,8 +418,14 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_05_053120) do
   add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "training_questions", "trainings"
   add_foreign_key "user_details", "activities"
   add_foreign_key "user_details", "departments"
   add_foreign_key "user_details", "employee_details"
   add_foreign_key "user_details", "users"
+  add_foreign_key "user_training_assignments", "employee_details"
+  add_foreign_key "user_training_assignments", "trainings"
+  add_foreign_key "user_training_assignments", "users"
+  add_foreign_key "user_training_progresses", "trainings"
+  add_foreign_key "user_training_progresses", "users"
 end

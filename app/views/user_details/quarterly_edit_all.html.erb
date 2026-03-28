@@ -12,6 +12,9 @@
             <i class="fas fa-edit me-3 text-2xl"></i>
             Quarterly Achievement Editor
           </h1>
+          <div class="text-sm font-semibold bg-white/10 rounded-full px-4 py-2">
+            Year: <%= @selected_year %>
+          </div>
         </div>
       </div>
     </div>
@@ -39,6 +42,7 @@
       <%= form_with url: update_quarterly_achievements_user_details_path, method: :patch, local: true, class: "quarterly-form w-full", multipart: true, data: { disable_with: "Updating..." }, id: "quarterly-form-#{Time.current.to_i}" do |form| %>
         <%= hidden_field_tag :selected_quarter, @selected_quarter.presence || params[:quarter] || "Q1", id: "selected_quarter_field" %>
         <%= hidden_field_tag :selected_department, @selected_department, id: "selected_department_field" %>
+        <%= hidden_field_tag :year, @selected_year %>
         
 
         <!-- KPI List - Same as Submit Page -->
