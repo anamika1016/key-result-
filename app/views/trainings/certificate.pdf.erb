@@ -56,6 +56,7 @@
     letter-spacing: 2px;
     font-family: 'Times New Roman', serif;
     text-transform: uppercase;
+    margin-bottom: 15px; /* Reduced from 25px */
   }
 
   .label-small {
@@ -173,7 +174,7 @@
     
     
     <div class="attribution">
-      an online course by <span>Ploughman Agro Pvt. Ltd.</span>
+      an online course by <span>ACTION FOR SOCIAL ADVANCEMENT</span>
     </div>
 
     <!-- Official Seal & ID Footer -->
@@ -183,7 +184,7 @@
       </div>
 
       <div class="footer-id">
-         Certificate ID: PAPL/BHOPAL/HO/<%= Time.current.year %>-<%= (Time.current.year + 1).to_s.last(2) %>/<%= @progress&.id || "M-#{Time.current.to_i}" %>
+         Certificate ID: ASA/BHOPAL/HO/<%= Time.current.year %>-<%= (Time.current.year + 1).to_s.last(2) %>/<%= @progress&.id || "M-#{Time.current.to_i}" %>
       </div>
     </div>
   </div>
