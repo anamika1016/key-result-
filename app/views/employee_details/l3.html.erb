@@ -2,9 +2,28 @@
 <div class="main-content sidebar-hidden bg-gray-50 min-h-screen">
   <div class="min-h-screen pl-64 pr-4 pt-4 pb-12 overflow-x-auto bg-gradient-to-br from-gray-50 to-gray-100">
     <div class="w-full max-w-7xl mx-auto bg-white p-8 rounded-xl shadow-xl border border-gray-200">
-      <div class="flex items-center mb-8 pb-4 border-b-2 border-gray-200">
-        <i class="fas fa-user-shield text-2xl text-purple-600 mr-3"></i>
-        <h2 class="text-3xl font-bold text-gray-800">L3 Manager View - Ready for L3 Review</h2>
+      <div class="flex flex-wrap items-end justify-between gap-4 mb-8 pb-4 border-b-2 border-gray-200">
+        <div class="flex items-center">
+          <i class="fas fa-user-shield text-2xl text-purple-600 mr-3"></i>
+          <div>
+            <h2 class="text-3xl font-bold text-gray-800">L3 Manager View - Ready for L3 Review</h2>
+            <p class="text-sm text-gray-500 mt-1">Financial Year: <%= display_financial_year(@selected_year) %></p>
+          </div>
+        </div>
+
+        <%= form_with url: l3_employee_details_path, method: :get, local: true, class: "flex items-end gap-4" do |form| %>
+          <div>
+            <label for="year_filter" class="block text-sm font-medium text-gray-700 mb-1">Financial Year</label>
+            <%= form.select :year,
+                options_for_select(@available_years.map { |year| [display_financial_year(year), year] }, @selected_year),
+                {},
+                {
+                  id: "year_filter",
+                  class: "px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500",
+                  onchange: "this.form.submit()"
+                } %>
+          </div>
+        <% end %>
       </div>
 
       <div class="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">  
@@ -40,11 +59,12 @@
             
             <% @employee_details.each do |emp| %>
               <% 
+                year_scoped_user_details = filtered_user_details_for_selected_year(emp.user_details)
                 # Group all activities and achievements by employee, department, and quarter
                 # Process achievements that are L2 approved (pending L3), L3 returned (needs re-review), or L3 approved (for viewing)
                 employee_department_quarters = {}
                 
-                emp.user_details.each do |ud|
+                year_scoped_user_details.each do |ud|
                   # FIXED: Don't pre-filter achievements - check quarter-wise approval instead
                   next if ud.achievements.empty?
                   
@@ -268,7 +288,7 @@
                   <td class="px-6 py-4 text-sm">
                     <% Rails.logger.info "L3 View: Generating link for emp ID: #{emp.id}, Name: #{emp.employee_name}, Code: #{emp.employee_code}" %>
                     <%= link_to "View Details", 
-                        show_l3_employee_detail_path(emp, quarter: quarter_name, department_id: department.id), 
+                        show_l3_employee_detail_path(emp, quarter: quarter_name, department_id: department.id, year: @selected_year), 
                         class: "inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all duration-200 hover:shadow-md transform hover:scale-105" %>
                   </td>
                 </tr>
@@ -302,13 +322,15 @@
         
         # Process each employee and quarter combination
         @employee_details.each do |emp|
+          year_scoped_user_details = filtered_user_details_for_selected_year(emp.user_details)
+
           quarters.each do |quarter_name, quarter_months|
             # FIXED: Create unique key for employee name + quarter combination (same as view logic)
             quarter_key = "#{emp.employee_name}_#{quarter_name}"
             next if global_processed_combinations[quarter_key]
             
             # Get L2+ approved achievements (same logic as table display)
-            l2_plus_achievements = emp.user_details.flat_map(&:achievements).select { |ach| 
+            l2_plus_achievements = year_scoped_user_details.flat_map(&:achievements).select { |ach| 
               quarter_months.include?(ach.month) && (['l2_approved', 'l3_approved', 'l3_returned'].include?(ach.status) || (ach.status == 'returned_to_employee' && ach.achievement_remark&.l3_remarks.present?))
             }
             

@@ -4,6 +4,7 @@ require "axlsx"
 class EmployeeDetailsController < ApplicationController
   before_action :set_employee_detail, only: [ :edit, :update, :destroy ]
   before_action :set_financial_year_context, only: [ :l1, :l2, :l3, :show, :show_l2, :show_l3, :get_status ]
+  helper_method :filtered_user_details_for_selected_year
   load_and_authorize_resource except: [ :approve, :return, :l2_approve, :l2_return, :l3_approve, :l3_return ]
 
   def index
@@ -636,10 +637,15 @@ class EmployeeDetailsController < ApplicationController
       end
     end
 
+    all_employees = Array(all_employees)
+
     # Apply department filter if specified
     if @selected_department.present?
-      all_employees = all_employees.joins(user_details: :department)
-                                   .where(departments: { department_type: @selected_department })
+      all_employees = all_employees.select do |emp|
+        filtered_user_details_for_selected_year(emp.user_details).any? do |ud|
+          ud.department&.department_type == @selected_department
+        end
+      end
     end
 
     # FIXED: For L1 view, show separate records for each department
@@ -1862,6 +1868,18 @@ end
 
     table_name = scope.klass.table_name
     scope.where("#{table_name}.year = ? OR #{table_name}.year IS NULL OR #{table_name}.year = ''", @selected_year)
+  end
+
+  def filtered_user_details_for_selected_year(user_details)
+    Array(user_details).select do |user_detail|
+      year_value = user_detail&.year
+
+      if year_value.blank?
+        include_legacy_yearless_records?
+      else
+        normalize_financial_year(year_value) == @selected_year
+      end
+    end
   end
 
   def scoped_user_details_for_department_and_year(scope, department_id)

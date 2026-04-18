@@ -42,7 +42,7 @@ class DepartmentsController < ApplicationController
         .uniq
         .sort
 
-    # Get unique employees based on base employee code (remove department suffixes)
+    # Keep the form employee dropdown unfiltered so new-year setup can still assign employees
     all_employees = EmployeeDetail.where.not(employee_name: [ nil, "" ])
                                  .includes(:user_details)
 
@@ -56,6 +56,14 @@ class DepartmentsController < ApplicationController
     end
 
     @employees = unique_employees.values.sort_by(&:employee_name)
+
+    year_employee_base_codes = EmployeeDetail.where(
+      id: UserDetail.where(year: @selected_year_db).distinct.pluck(:employee_detail_id)
+    ).pluck(:employee_code).map { |employee_code| employee_code.to_s.split("_").first }.uniq
+
+    @list_filter_employees = @employees.select do |employee|
+      year_employee_base_codes.include?(employee.employee_code.to_s.split("_").first)
+    end
 
     respond_to do |format|
       format.html
@@ -1210,9 +1218,11 @@ class DepartmentsController < ApplicationController
   def get_employee_activities(employee)
     activities_hash = {}
 
-    # Get all user_details for this employee grouped by department
+    representative_employee, related_employee_ids, base_employee_code = employee_records_for_year_scope(employee)
+
+    # Get all year-scoped user_details for this employee grouped by department
     user_details = UserDetail.includes(:activity, :department)
-                            .where(employee_detail_id: employee.id)
+                            .where(employee_detail_id: related_employee_ids)
                             .where(year: @selected_year_db)
                             .where("activity_id IS NOT NULL")
 
@@ -1222,22 +1232,23 @@ class DepartmentsController < ApplicationController
       next unless department
 
       # Create unique key for employee + department combination
-      key = "#{employee.employee_code}_#{department.id}"
+      key = "#{base_employee_code}_#{department.id}"
 
       # Get L1/L2/L3 info for this department
-      l1_info = employee.l1_for_department(department.id)
-      l2_info = employee.l2_for_department(department.id)
-      l3_info = employee.l3_for_department(department.id)
+      l1_info = representative_employee.l1_for_department(department.id)
+      l2_info = representative_employee.l2_for_department(department.id)
+      l3_info = representative_employee.l3_for_department(department.id)
 
       # Count unique activities for this employee in this department
       unique_activities = dept_user_details.map(&:activity).compact.uniq
 
       activities_hash[key] = {
         id: department.id, # Use department.id for Edit functionality
-        employee_id: employee.employee_code,
-        employee_name: employee.employee_name,
-        employee_code: employee.employee_code,
-        department: employee.department, # Employee's primary department
+        employee_id: representative_employee.employee_code,
+        display_employee_code: base_employee_code,
+        employee_name: representative_employee.employee_name,
+        employee_code: representative_employee.employee_code,
+        department: representative_employee.department, # Employee's primary department
         department_type: department.department_type, # Activity's department
         department_id: department.id,
         l1_code: l1_info[:code],
@@ -1264,13 +1275,36 @@ class DepartmentsController < ApplicationController
     activities_hash
   end
 
+  def employee_records_for_year_scope(employee)
+    base_employee_code = employee.employee_code.to_s.split("_").first
+    related_employee_records = EmployeeDetail.where("employee_code = ? OR employee_code LIKE ?", base_employee_code, "#{base_employee_code}_%")
+    year_employee_ids = UserDetail.where(employee_detail_id: related_employee_records.select(:id), year: @selected_year_db)
+                                  .distinct
+                                  .pluck(:employee_detail_id)
+
+    scoped_records = if year_employee_ids.any?
+      related_employee_records.where(id: year_employee_ids)
+    else
+      related_employee_records
+    end
+
+    representative_employee = scoped_records.where.not(employee_name: [ nil, "" ]).order(:id).first ||
+                              scoped_records.order(:id).first ||
+                              employee
+    [ representative_employee, scoped_records.pluck(:id), base_employee_code ]
+  end
+
   # Get all employees with their activities grouped by employee and department
   def get_all_employee_activities
     activities_hash = {}
     seen_combinations = Set.new
 
-    # Get all employees who have user_details with all associations in one query
-    employees_with_activities = EmployeeDetail.joins(:user_details)
+    year_employee_ids = UserDetail.where(year: @selected_year_db)
+                                  .distinct
+                                  .pluck(:employee_detail_id)
+
+    # Get all employees who have activities in the selected financial year
+    employees_with_activities = EmployeeDetail.where(id: year_employee_ids)
                                              .distinct
                                              .includes(user_details: [ :activity, :department ])
 
@@ -1284,15 +1318,14 @@ class DepartmentsController < ApplicationController
 
     # Process each unique base employee code only once
     employees_by_base_code.each do |base_employee_code, employee_records|
-      # Use the first employee record as the representative (they should all have same name)
-      representative_employee = employee_records.first
-
       # Get all user_details for all employee records with this base code
       all_employee_ids = employee_records.map(&:id)
       all_user_details = UserDetail.includes(:activity, :department)
                                   .where(employee_detail_id: all_employee_ids)
                                   .where(year: @selected_year_db)
                                   .where("activity_id IS NOT NULL")
+
+      representative_employee = employee_records.find { |record| record.employee_name.present? } || employee_records.first
 
       # Group by department to show one entry per employee+department combination
       all_user_details.group_by(&:department).each do |department, dept_user_details|
