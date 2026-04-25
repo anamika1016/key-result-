@@ -80,6 +80,8 @@ Rails.application.configure do
   # -----------------------------
   config.hosts << "kra.asaindia.org"
   config.hosts << "139.59.45.69"
+  config.hosts << "139.59.8.73"
+  config.hosts << "139.59.8.73:3002"
 
   # -----------------------------
   # Active Record

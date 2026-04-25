@@ -1,0 +1,34 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  quiz: one
+  question: Safety helmet kab pehna jata hai?
+  option_a: Hamesha work area me
+  option_b: Kabhi nahi
+  option_c: Sirf office me
+  option_d: Sirf lunch time
+  option_e:
+  option_f:
+  correct_answer: option_a
+
+three:
+  quiz: one
+  question: Emergency exit kis liye hota hai?
+  option_a: Decoration ke liye
+  option_b: Sirf managers ke liye
+  option_c: Surakshit bahar nikalne ke liye
+  option_d: Store room ke liye
+  option_e:
+  option_f:
+  correct_answer: option_c
+
+two:
+  quiz: two
+  question: Seed storage kis jagah hota hai?
+  option_a: Ghar ke bahar
+  option_b: Sukhi aur saaf jagah
+  option_c: Pani me
+  option_d: Khuli dhoop me
+  option_e:
+  option_f:
+  correct_answer: option_b

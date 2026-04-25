@@ -1,0 +1,104 @@
+<%= form_with model: quiz, local: true do |f| %>
+  <% if quiz.errors.any? %>
+    <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+      <%= quiz.errors.full_messages.to_sentence %>
+    </div>
+  <% end %>
+
+  <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div class="mb-6 grid gap-5 xl:grid-cols-2">
+      <div>
+        <%= f.label :title, class: "mb-2 block text-sm font-semibold text-black" %>
+        <%= f.text_field :title, placeholder: "Enter quiz title", class: "w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-black outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" %>
+      </div>
+
+      <div>
+        <%= f.label :duration, "Duration (minutes)", class: "mb-2 block text-sm font-semibold text-black" %>
+        <%= f.number_field :duration, min: 1, placeholder: "Example: 30", class: "w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-black outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" %>
+      </div>
+    </div>
+
+    <div class="mb-5">
+      <%= f.label :description, class: "mb-2 block text-sm font-semibold text-black" %>
+      <%= f.text_area :description, rows: 4, placeholder: "Enter short description for this quiz", class: "w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-black outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" %>
+    </div>
+
+    <div>
+      <%= f.label :status, class: "mb-2 block text-sm font-semibold text-black" %>
+      <%= f.select :status, options_for_select([["Active", "active"], ["Inactive", "inactive"]], quiz.status), {}, class: "w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-black outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100" %>
+    </div>
+  </div>
+
+  <div class="mt-8 rounded-3xl border border-slate-200 bg-slate-50 p-6 shadow-sm">
+    <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 class="text-xl font-semibold text-black">Questions and Answers</h2>
+        <p class="text-sm text-black">Add all questions here. Each question supports 4 options and one correct answer. Excel columns: Title, Description, Duration, Status, Question, Option A, Option B, Option C, Option D, Correct Answer.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-3">
+        <button type="button" id="add-question" class="inline-flex items-center rounded-xl px-5 py-3 text-sm font-semibold text-white shadow-sm transition" style="background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%); box-shadow: 0 14px 28px -18px rgba(240, 67, 133, 0.55);">
+          + Add manual question
+        </button>
+      </div>
+    </div>
+
+    <div id="questions-container" class="space-y-4">
+      <%= f.fields_for :questions do |question_form| %>
+        <%= render "question_fields", f: question_form %>
+      <% end %>
+    </div>
+  </div>
+
+  <div class="mt-8 flex flex-wrap items-center gap-3">
+    <%= f.submit submit_label, class: "rounded-xl px-6 py-3 text-sm font-semibold text-white shadow-sm transition", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%); box-shadow: 0 14px 28px -18px rgba(240, 67, 133, 0.55);" %>
+    <%= link_to "Back", quizzes_path, class: "rounded-xl border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-black transition hover:bg-slate-50" %>
+  </div>
+
+  <template id="question-template">
+    <%= f.fields_for :questions, Question.new, child_index: "NEW_RECORD" do |question_form| %>
+      <%= render "question_fields", f: question_form %>
+    <% end %>
+  </template>
+<% end %>
+
+<script>
+  document.addEventListener("turbo:load", function() {
+    const container = document.getElementById("questions-container");
+    const addButton = document.getElementById("add-question");
+    const template = document.getElementById("question-template");
+
+    if (!container || !addButton || !template || addButton.dataset.bound === "true") return;
+
+    addButton.dataset.bound = "true";
+
+    const refreshQuestionTitles = () => {
+      const visibleBlocks = container.querySelectorAll(".question-block");
+      visibleBlocks.forEach((block, index) => {
+        const title = block.querySelector(".question-title");
+        if (title) title.textContent = `Question ${index + 1}`;
+      });
+    };
+
+    addButton.addEventListener("click", function() {
+      const uniqueId = new Date().getTime();
+      const content = template.innerHTML.replace(/NEW_RECORD/g, uniqueId);
+      container.insertAdjacentHTML("beforeend", content);
+      refreshQuestionTitles();
+    });
+
+    container.addEventListener("click", function(event) {
+      const button = event.target.closest(".remove-question");
+      if (!button) return;
+
+      const block = button.closest(".question-block");
+      if (!block) return;
+
+      const destroyInput = block.querySelector(".destroy-flag");
+      if (destroyInput) destroyInput.value = "1";
+      block.remove();
+      refreshQuestionTitles();
+    });
+
+    refreshQuestionTitles();
+  });
+</script>

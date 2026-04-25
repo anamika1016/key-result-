@@ -1,0 +1,195 @@
+<div class="main-content sidebar-aware-content w-auto px-4 sm:px-8 py-6 sm:py-10" style="min-height: 100vh; background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);">
+  <div class="mx-auto w-full max-w-[1400px]">
+    <div class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-xl shadow-slate-200/40 backdrop-blur sm:p-8">
+      <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+        <div class="space-y-2">
+          <p class="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600">Quiz Access</p>
+          <h1 class="text-3xl font-bold text-slate-900">User Quiz Details</h1>
+          <p class="max-w-3xl text-sm text-slate-600">
+            Form aur Excel upload me sirf employee details aur password chahiye. Quiz, score aur status baad me update kiye ja sakte hain.
+          </p>
+        </div>
+
+        <div class="flex w-full flex-col gap-3 xl:w-auto sm:flex-row sm:items-center">
+          <%= form_with url: import_user_quizzes_path, local: true, multipart: true, class: "flex w-full flex-col gap-3 lg:min-w-[520px] sm:flex-row sm:items-center" do |form| %>
+            <%= form.file_field :file, accept: ".xlsx,.xls", class: "block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm" %>
+            <%= form.submit "Upload Excel", class: "rounded-xl bg-slate-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 whitespace-nowrap" %>
+          <% end %>
+
+          <%= link_to "Export Excel", export_user_quizzes_path(format: :xlsx), class: "rounded-xl bg-blue-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700 whitespace-nowrap" %>
+          <%= link_to "Download Template", download_template_user_quizzes_path(format: :xlsx), class: "rounded-xl bg-green-600 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-green-700 whitespace-nowrap" %>
+        </div>
+      </div>
+
+      <div class="mt-5 rounded-2xl border border-blue-100 bg-blue-50 px-5 py-4 text-sm text-blue-900">
+        Excel columns: <strong>Employee Code, Name, Email, Mobile Number, Designation, Branch, Sub Branch, Password</strong>
+      </div>
+    </div>
+
+    <div class="mt-8 rounded-3xl border border-slate-200 bg-white/95 p-8 shadow-xl shadow-slate-200/40">
+      <div class="mb-6 flex flex-col gap-2 border-b border-slate-200 pb-4">
+        <h2 class="text-2xl font-bold text-slate-900">Add User Quiz Entry</h2>
+        <p class="text-sm text-slate-500">Add employee details manually here. This page now stays visible beside the sidebar.</p>
+      </div>
+
+      <%= form_with model: @user_quiz, url: user_quizzes_path, local: true, data: { turbo: false } do |form| %>
+        <div class="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <%= form.label :employee_code, "Employee Code", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= form.text_field :employee_code, class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:ring-4 focus:ring-slate-100" %>
+          </div>
+
+          <div>
+            <%= form.label :name, "Name", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= form.text_field :name, class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:ring-4 focus:ring-slate-100" %>
+          </div>
+
+          <div>
+            <%= form.label :email, "Email", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= form.email_field :email, class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:ring-4 focus:ring-slate-100" %>
+          </div>
+
+          <div>
+            <%= form.label :mobile_number, "Mobile Number", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= form.text_field :mobile_number, class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:ring-4 focus:ring-slate-100" %>
+          </div>
+
+          <div>
+            <%= form.label :designation, "Designation", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= form.text_field :designation, class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:ring-4 focus:ring-slate-100" %>
+          </div>
+
+          <div>
+            <%= form.label :branch, "Branch", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= form.text_field :branch, class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:ring-4 focus:ring-slate-100" %>
+          </div>
+
+          <div>
+            <%= form.label :sub_branch, "Sub Branch", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= form.text_field :sub_branch, class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:ring-4 focus:ring-slate-100" %>
+          </div>
+
+          <div>
+            <%= form.label :password, "Password", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= form.text_field :password, class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm focus:ring-4 focus:ring-slate-100" %>
+          </div>
+        </div>
+
+        <div class="mt-8 flex justify-end">
+          <%= form.submit "Save User Quiz Entry", class: "rounded-xl bg-slate-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800" %>
+        </div>
+      <% end %>
+    </div>
+
+    <div class="mt-8 rounded-3xl border border-slate-200 bg-white/95 p-8 shadow-xl shadow-slate-200/40">
+      <div class="flex items-center justify-between mb-6">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full">
+          <h2 class="border-b border-slate-200 pb-2 text-2xl font-bold text-slate-900">Saved User Quiz Entries</h2>
+          <%= form_with url: user_quizzes_path, method: :get, local: true, class: "flex w-full max-w-md items-center gap-2" do |form| %>
+            <%= form.text_field :query, value: @query, placeholder: "Search user by code, name, email, mobile", class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 shadow-sm focus:ring-4 focus:ring-slate-100" %>
+            <%= form.submit "Search", class: "rounded-xl bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800" %>
+          <% end %>
+        </div>
+        <span class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600"><%= pluralize(@user_quizzes.total_count, "record") %></span>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-slate-200">
+        <table class="table table-striped table-bordered min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Employee Code</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Name</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Email</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Mobile</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Designation</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Branch</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Sub Branch</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Password</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Linked User</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Quiz</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Score</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Status</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Submitted At</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-200 bg-white">
+            <% @user_quizzes.each do |user_quiz| %>
+              <tr class="transition hover:bg-slate-50">
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.employee_code %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.name %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.email %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.mobile_number.presence || "-" %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.designation.presence || "-" %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.branch.presence || "-" %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.sub_branch.presence || "-" %></td>
+                <td class="whitespace-nowrap px-4 py-4 font-mono text-slate-900"><%= user_quiz.password %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.user&.email || "-" %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.quiz&.title || "-" %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.score || "-" %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.status.presence || "-" %></td>
+                <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= user_quiz.submitted_at&.strftime("%d %b %Y %I:%M %p") || "-" %></td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-6 flex justify-center">
+        <%= paginate @user_quizzes %>
+      </div>
+    </div>
+
+    <div class="mt-8 rounded-3xl border border-slate-200 bg-white/95 p-8 shadow-xl shadow-slate-200/40">
+      <div class="mb-6 flex flex-col gap-2 border-b border-slate-200 pb-4">
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-900">Completed Quiz History</h2>
+            <p class="text-sm text-slate-500">QR scan ke baad employee ne jo quiz submit kiya hai, uska score aur details yahan save dikh rahe hain.</p>
+          </div>
+          <%= link_to "Export Excel", export_user_quizzes_path(format: :xlsx), class: "inline-flex items-center justify-center rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-emerald-700" %>
+        </div>
+      </div>
+
+      <div class="overflow-x-auto rounded-2xl border border-slate-200">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+          <thead class="bg-slate-50">
+            <tr>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Quiz</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Employee Code</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Name</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Designation</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Score</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Status</th>
+              <th class="px-4 py-3 text-left font-medium uppercase tracking-wider text-slate-500">Submitted At</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-slate-200 bg-white">
+            <% if @quiz_submissions.any? %>
+              <% @quiz_submissions.each do |submission| %>
+                <tr class="transition hover:bg-slate-50">
+                  <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= submission.quiz&.title || "-" %></td>
+                  <td class="whitespace-nowrap px-4 py-4 font-medium text-slate-900"><%= submission.employee_code %></td>
+                  <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= submission.name %></td>
+                  <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= submission.designation.presence || "-" %></td>
+                  <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= submission.score || 0 %> / <%= submission.quiz&.questions&.count || 0 %></td>
+                  <td class="whitespace-nowrap px-4 py-4">
+                    <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      <%= submission.status.presence || "completed" %>
+                    </span>
+                  </td>
+                  <td class="whitespace-nowrap px-4 py-4 text-slate-900"><%= submission.submitted_at&.strftime("%d %b %Y %I:%M %p") || "-" %></td>
+                </tr>
+              <% end %>
+            <% else %>
+              <tr>
+                <td colspan="7" class="px-4 py-8 text-center text-sm text-slate-500">Abhi tak koi completed quiz submission save nahi hua hai.</td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>

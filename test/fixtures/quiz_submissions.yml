@@ -1,0 +1,12 @@
+completed_one:
+  quiz: two
+  user_quiz: two
+  user: two
+  employee_code: EMP002
+  name: Test Manager
+  email: user2@example.com
+  designation: Manager
+  score: 1
+  status: completed
+  submitted_answers: {"<%= ActiveRecord::FixtureSet.identify(:two) %>": "option_b"}
+  submitted_at: <%= Time.current %>

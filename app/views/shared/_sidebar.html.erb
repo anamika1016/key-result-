@@ -265,6 +265,30 @@
               <% end %>
             </li>
           <% end %>
+          <% if current_user.hod? %>
+            <li>
+              <%= link_to quizzes_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if controller_name == 'quizzes'} text-base text-gray-800 rounded-lg" do %>
+                <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  <path d="M8 7h8" />
+                  <path d="M8 11h8" />
+                </svg>
+                <span class="font-semibold text-base">Quiz Details</span>
+              <% end %>
+            </li>
+          <% end %>
+         <% if current_user.hod? %>
+            <li>
+              <%= link_to user_quizzes_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(user_quizzes_path)} text-base text-gray-800 rounded-lg" do %>
+                <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                <span class="font-semibold text-base">User Quiz Details</span>
+              <% end %>
+            </li>
+          <% end %>
+
 
           <!-- Settings - Show for all roles -->
           <li class="hs-accordion" id="settings-accordion">
@@ -325,4 +349,3 @@
     </div>
   </div>
   <!-- End Sidebar -->
-

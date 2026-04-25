@@ -1,0 +1,84 @@
+<div class="main-content sidebar-aware-content w-auto px-4 sm:px-6 py-6 sm:py-8" style="min-height: 100vh; background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);">
+  <div class="w-full space-y-8">
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/30 sm:p-8">
+      <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <p class="text-sm font-semibold uppercase tracking-[0.25em] text-black">Assessment Setup</p>
+          <h1 class="mt-2 text-3xl font-bold text-black"><%= @quiz.title %></h1>
+
+          <div class="mt-5 flex flex-wrap items-center gap-3 text-sm text-black">
+            <span class="rounded-full bg-slate-50 px-3 py-1 font-semibold text-black border border-slate-200">
+              <%= pluralize(@quiz.questions.count, "question") %>
+            </span>
+            <span class="rounded-full bg-slate-50 px-3 py-1 font-semibold text-black border border-slate-200">
+              Duration: <%= @quiz.duration.presence || 0 %> min
+            </span>
+            <span class="rounded-full bg-slate-50 px-3 py-1 font-semibold uppercase text-black border border-slate-200">
+              <%= @quiz.status.presence || "draft" %>
+            </span>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <%= link_to "Back to Quiz List", quizzes_path, class: "rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-slate-50" %>
+          <%= link_to "Edit Quiz", edit_quiz_path(@quiz), class: "rounded-xl px-5 py-3 text-sm font-semibold text-white transition", style: "background: #0b3b8c;" %>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid gap-8 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-xl shadow-slate-200/30">
+        <h2 class="text-xl font-bold text-black">Generated QR Code</h2>
+        <p class="mt-2 text-sm text-black">Quiz submit karte hi ye QR automatically show ho raha hai.</p>
+
+        <div class="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4">
+          <div class="flex min-h-[270px] items-center justify-center [&_svg]:h-[250px] [&_svg]:w-[250px]">
+            <%= quiz_qr_svg_data(@public_quiz_url, size: 250) %>
+          </div>
+        </div>
+
+        <div class="mt-5">
+          <label class="mb-2 block text-sm font-semibold text-black">Public Quiz Link</label>
+          <input type="text" readonly value="<%= @public_quiz_url %>" class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm text-black">
+        </div>
+      </div>
+
+      <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/30">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-200 pb-4">
+          <div>
+            <h2 class="text-xl font-bold text-black">Questions Preview</h2>
+            <p class="text-sm text-black">All saved questions for this quiz.</p>
+          </div>
+          <span class="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold text-black">
+            <%= pluralize(@quiz.questions.count, "question") %>
+          </span>
+        </div>
+
+        <div class="mt-6 space-y-4">
+          <% @quiz.questions.each_with_index do |question, index| %>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p class="text-sm font-semibold uppercase tracking-wide text-black">Question <%= index + 1 %></p>
+                  <h3 class="mt-1 text-base font-semibold text-black"><%= question.question %></h3>
+                </div>
+                <span class="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase text-black">
+                  Correct: <%= question.correct_answer.to_s.humanize %>
+                </span>
+              </div>
+
+              <div class="mt-4 grid gap-3 md:grid-cols-2">
+                <% [["Option A", question.option_a], ["Option B", question.option_b], ["Option C", question.option_c], ["Option D", question.option_d]].each do |label, value| %>
+                  <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-black">
+                    <span class="mb-1 block text-xs font-semibold uppercase tracking-wide text-black"><%= label %></span>
+                    <%= value.presence || "-" %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

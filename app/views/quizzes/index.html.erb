@@ -1,0 +1,117 @@
+<div class="main-content sidebar-aware-content w-auto px-4 py-6 sm:px-6 sm:py-8" style="min-height: 100vh; background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);">
+  <div class="w-full max-w-none">
+    <% total_quizzes = @quizzes.size %>
+    <% active_quizzes = @quizzes.count { |quiz| quiz.status.to_s.casecmp("active").zero? } %>
+    <% total_questions = @quizzes.sum { |quiz| quiz.questions.size } %>
+
+    <div class="rounded-[2rem] border border-slate-200 bg-white px-6 py-7 shadow-[0_18px_50px_-35px_rgba(15,23,42,0.22)] sm:px-8 sm:py-8">
+      <div class="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+        <div class="max-w-3xl space-y-4">
+          <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-black">
+            Assessment Hub
+          </span>
+          <div class="space-y-3">
+            <h1 class="text-3xl font-semibold tracking-tight text-black sm:text-5xl">Quiz Details</h1>
+            <p class="max-w-2xl text-sm leading-7 text-black sm:text-base">
+              Manage every assessment from one clean workspace. Review quiz status, question volume, duration, and jump straight into QR sharing or editing.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex w-full flex-col gap-4 xl:w-auto xl:min-w-[420px]">
+          <div class="grid gap-3 sm:grid-cols-3">
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.25em] text-black">Total Quizzes</p>
+              <p class="mt-3 text-3xl font-semibold text-black"><%= total_quizzes %></p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.25em] text-black">Active</p>
+              <p class="mt-3 text-3xl font-semibold text-black"><%= active_quizzes %></p>
+            </div>
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p class="text-xs font-semibold uppercase tracking-[0.25em] text-black">Questions</p>
+              <p class="mt-3 text-3xl font-semibold text-black"><%= total_questions %></p>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-3 xl:items-end">
+            <div class="flex flex-wrap items-center gap-3 justify-start xl:justify-end">
+              <%= form_with url: import_quizzes_path, local: true, multipart: true, class: "flex flex-wrap items-center gap-3" do |form| %>
+                <%= form.file_field :file, accept: ".xlsx,.xls", class: "block rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm min-w-[240px] max-w-[320px]" %>
+                <%= form.submit "Upload Excel", class: "inline-flex items-center justify-center rounded-2xl bg-green-300 px-5 py-3 text-sm font-semibold text-black transition hover:bg-green-400 whitespace-nowrap" %>
+              <% end %>
+              <%= link_to "Export Excel", export_quizzes_path(format: :xlsx), class: "inline-flex items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100" %>
+              <%= link_to "Add New Quiz", new_quiz_path, class: "inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-white shadow-lg transition duration-200 hover:-translate-y-0.5", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%); box-shadow: 0 18px 35px -18px rgba(240, 67, 133, 0.5);" %>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <% if @quizzes.any? %>
+      <div class="mt-8 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+        <% @quizzes.each do |quiz| %>
+          <% status = quiz.status.presence || "draft" %>
+          <% active = status.to_s.casecmp("active").zero? %>
+          <article class="group relative overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-35px_rgba(15,23,42,0.28)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_60px_-35px_rgba(15,23,42,0.34)]">
+            <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r <%= active ? 'from-pink-400 via-fuchsia-500 to-rose-500' : 'from-amber-400 via-orange-400 to-rose-400' %>"></div>
+
+            <div class="flex items-start justify-between gap-4">
+              <div class="space-y-3">
+                <div class="inline-flex items-center rounded-full bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-black ring-1 ring-slate-200">
+                  <%= status %>
+                </div>
+                <div>
+                  <h2 class="text-xl font-semibold leading-tight text-black"><%= quiz.title %></h2>
+                  <p class="mt-2 text-sm font-medium text-black"><%= pluralize(quiz.questions.size, "question") %></p>
+                </div>
+              </div>
+
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-semibold text-white shadow-lg" style="background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%); box-shadow: 0 16px 28px -18px rgba(240, 67, 133, 0.46);">
+                <%= quiz.questions.size %>
+              </div>
+            </div>
+
+            <% if quiz.description.present? %>
+              <p class="mt-5 min-h-[72px] text-sm leading-6 text-black">
+                <%= truncate(quiz.description, length: 135) %>
+              </p>
+            <% else %>
+              <div class="mt-5 min-h-[72px]"></div>
+            <% end %>
+
+            <div class="mt-6 grid grid-cols-2 gap-3">
+              <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-black">Duration</p>
+                <p class="mt-2 text-base font-semibold text-black"><%= quiz.duration.presence || 0 %> min</p>
+              </div>
+              <div class="rounded-2xl bg-slate-50 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-black">Updated</p>
+                <p class="mt-2 text-base font-semibold text-black"><%= l(quiz.updated_at, format: :short) %></p>
+              </div>
+            </div>
+
+            <div class="mt-6 flex flex-wrap items-center gap-3">
+              <%= link_to "View QR", quiz_path(quiz), class: "inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%);" %>
+              <%= link_to "Edit", edit_quiz_path(quiz), class: "inline-flex items-center justify-center rounded-xl border border-pink-200 bg-pink-50 px-4 py-2.5 text-sm font-semibold text-pink-700 transition hover:border-pink-300 hover:bg-pink-100" %>
+              <%= button_to "Delete", quiz_path(quiz), method: :delete, data: { turbo_confirm: "Delete this quiz?" }, form_class: "inline-block", class: "inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100" %>
+            </div>
+          </article>
+        <% end %>
+      </div>
+    <% else %>
+      <div class="mt-8 rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
+        <div class="mx-auto max-w-lg space-y-3">
+          <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-semibold text-white" style="background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%);">Q</div>
+          <h2 class="text-2xl font-semibold text-black">No quizzes created yet</h2>
+          <p class="text-sm leading-6 text-black">
+            Start building your first assessment to share via QR and track employee responses in one place.
+          </p>
+          <div class="pt-2">
+            <%= link_to "Create Your First Quiz", new_quiz_path, class: "inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white transition", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%);" %>
+          </div>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

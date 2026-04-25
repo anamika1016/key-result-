@@ -28,7 +28,7 @@
   </head>
 
   <body>
-    <%= render 'shared/sidebar' %>
+    <%= render 'shared/sidebar' if user_signed_in? %>
     
     <!-- Flash Messages - Upper Center -->
     <% if flash[:notice] %>

@@ -1,0 +1,31 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  user: one
+  quiz:
+  score:
+  status:
+  employee_code: EMP001
+  name: Test Employee
+  email: user1@example.com
+  mobile_number: "9999999999"
+  designation: Operator
+  branch: Rewa
+  sub_branch: Plant 1
+  password: "123456"
+  submitted_answers: {}
+
+two:
+  user: two
+  quiz:
+  score:
+  status:
+  employee_code: EMP002
+  name: Test Manager
+  email: user2@example.com
+  mobile_number: "8888888888"
+  designation: Manager
+  branch: Satna
+  sub_branch: Plant 2
+  password: "654321"
+  submitted_answers: {}

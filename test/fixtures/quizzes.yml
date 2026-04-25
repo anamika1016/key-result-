@@ -1,0 +1,15 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  title: Safety Quiz
+  description: Basic safety assessment
+  duration: 5
+  status: active
+  qr_token: quiz-token-one
+
+two:
+  title: Product Quiz
+  description: Product knowledge assessment
+  duration: 10
+  status: active
+  qr_token: quiz-token-two

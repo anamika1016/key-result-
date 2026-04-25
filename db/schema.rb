@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_03_25_075338) do
+ActiveRecord::Schema[8.0].define(version: 2026_04_20_094500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -132,6 +132,57 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_25_075338) do
     t.index ["l3_code"], name: "index_employee_details_on_l3_code"
     t.index ["status"], name: "index_employee_details_on_status"
     t.index ["user_id"], name: "index_employee_details_on_user_id"
+  end
+
+  create_table "questions", force: :cascade do |t|
+    t.bigint "quiz_id", null: false
+    t.text "question"
+    t.string "option_a"
+    t.string "option_b"
+    t.string "option_c"
+    t.string "option_d"
+    t.string "option_e"
+    t.string "option_f"
+    t.string "correct_answer"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["quiz_id"], name: "index_questions_on_quiz_id"
+  end
+
+  create_table "quiz_submissions", force: :cascade do |t|
+    t.bigint "quiz_id", null: false
+    t.bigint "user_quiz_id", null: false
+    t.bigint "user_id"
+    t.bigint "employee_detail_id"
+    t.string "employee_code", null: false
+    t.string "name", null: false
+    t.string "email"
+    t.string "mobile_number"
+    t.string "designation"
+    t.string "branch"
+    t.string "sub_branch"
+    t.integer "score"
+    t.string "status", null: false
+    t.jsonb "submitted_answers", default: {}, null: false
+    t.datetime "submitted_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["employee_detail_id"], name: "index_quiz_submissions_on_employee_detail_id"
+    t.index ["quiz_id", "employee_code"], name: "index_quiz_submissions_on_quiz_id_and_employee_code", unique: true
+    t.index ["quiz_id"], name: "index_quiz_submissions_on_quiz_id"
+    t.index ["user_id"], name: "index_quiz_submissions_on_user_id"
+    t.index ["user_quiz_id"], name: "index_quiz_submissions_on_user_quiz_id"
+  end
+
+  create_table "quizzes", force: :cascade do |t|
+    t.string "title"
+    t.text "description"
+    t.integer "duration"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "qr_token"
+    t.index ["qr_token"], name: "index_quizzes_on_qr_token", unique: true
   end
 
   create_table "sms_logs", force: :cascade do |t|
@@ -363,6 +414,27 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_25_075338) do
     t.index ["year"], name: "index_user_details_on_year"
   end
 
+  create_table "user_quizzes", force: :cascade do |t|
+    t.bigint "user_id"
+    t.bigint "quiz_id"
+    t.integer "score"
+    t.string "status"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "employee_code"
+    t.string "name"
+    t.string "email"
+    t.string "mobile_number"
+    t.string "designation"
+    t.string "branch"
+    t.string "sub_branch"
+    t.string "password"
+    t.jsonb "submitted_answers", default: {}, null: false
+    t.datetime "submitted_at"
+    t.index ["quiz_id"], name: "index_user_quizzes_on_quiz_id"
+    t.index ["user_id"], name: "index_user_quizzes_on_user_id"
+  end
+
   create_table "user_training_assignments", force: :cascade do |t|
     t.bigint "user_id", null: false
     t.bigint "training_id", null: false
@@ -411,6 +483,11 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_25_075338) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "activities", "departments"
   add_foreign_key "employee_details", "users"
+  add_foreign_key "questions", "quizzes"
+  add_foreign_key "quiz_submissions", "employee_details"
+  add_foreign_key "quiz_submissions", "quizzes"
+  add_foreign_key "quiz_submissions", "user_quizzes"
+  add_foreign_key "quiz_submissions", "users"
   add_foreign_key "sms_logs", "employee_details"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
@@ -423,6 +500,8 @@ ActiveRecord::Schema[8.0].define(version: 2026_03_25_075338) do
   add_foreign_key "user_details", "departments"
   add_foreign_key "user_details", "employee_details"
   add_foreign_key "user_details", "users"
+  add_foreign_key "user_quizzes", "quizzes"
+  add_foreign_key "user_quizzes", "users"
   add_foreign_key "user_training_assignments", "employee_details"
   add_foreign_key "user_training_assignments", "trainings"
   add_foreign_key "user_training_assignments", "users"

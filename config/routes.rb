@@ -126,6 +126,27 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :user_quizzes, only: [ :index, :create ] do
+    collection do
+      post :import
+      get :export
+      get :download_template
+    end
+  end
+
+  resources :quizzes do
+    collection do
+      post :import
+      get :export
+      get :download_template
+    end
+  end
+  get "quiz_access/:qr_token", to: "quiz_access#show", as: :quiz_access
+  post "quiz_access/:qr_token/start", to: "quiz_access#start", as: :start_quiz_access
+  post "quiz_access/:qr_token/submit", to: "quiz_access#submit", as: :submit_quiz_access
+  post "quiz_access/:qr_token/logout", to: "quiz_access#logout", as: :logout_quiz_access
+  get "quiz_access/:qr_token/result/:submission_id", to: "quiz_access#result", as: :quiz_access_result
+
   resources :trainings do
     member do
       post :start
