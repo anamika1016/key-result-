@@ -126,7 +126,7 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :user_quizzes, only: [ :index, :create ] do
+  resources :user_quizzes, only: [ :index, :create, :update, :destroy ] do
     collection do
       post :import
       get :export

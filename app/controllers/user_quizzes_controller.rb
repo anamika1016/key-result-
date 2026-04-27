@@ -3,6 +3,7 @@ require "axlsx"
 
 class UserQuizzesController < ApplicationController
   before_action :authorize_hod!
+  before_action :set_user_quiz, only: [ :update, :destroy ]
 
   HEADER_MAP = {
     "employee code" => "employee_code",
@@ -16,7 +17,7 @@ class UserQuizzesController < ApplicationController
   }.freeze
 
   def index
-    @user_quiz = UserQuiz.new
+    @user_quiz = params[:edit_id].present? ? UserQuiz.find_by(id: params[:edit_id]) || UserQuiz.new : UserQuiz.new
     @query = params[:query].to_s.strip
     @user_quizzes = filtered_user_quizzes.page(params[:page]).per(10)
     @quiz_submissions = QuizSubmission.includes(:quiz, :user_quiz).recent_first.limit(50)
@@ -37,6 +38,23 @@ class UserQuizzesController < ApplicationController
       flash.now[:alert] = @user_quiz.errors.full_messages.to_sentence
       render :index, status: :unprocessable_entity
     end
+  end
+
+  def update
+    if @user_quiz.update(user_quiz_params)
+      redirect_to user_quizzes_path, notice: "User quiz record updated successfully."
+    else
+      @query = params[:query].to_s.strip
+      @user_quizzes = filtered_user_quizzes.page(params[:page]).per(10)
+      @quiz_submissions = QuizSubmission.includes(:quiz, :user_quiz).recent_first.limit(50)
+      flash.now[:alert] = @user_quiz.errors.full_messages.to_sentence
+      render :index, status: :unprocessable_entity
+    end
+  end
+
+  def destroy
+    @user_quiz.destroy
+    redirect_to user_quizzes_path, notice: "User quiz record deleted successfully."
   end
 
   def export
@@ -224,5 +242,9 @@ class UserQuizzesController < ApplicationController
       "LOWER(COALESCE(employee_code, '')) LIKE :q OR LOWER(COALESCE(name, '')) LIKE :q OR LOWER(COALESCE(email, '')) LIKE :q OR LOWER(COALESCE(mobile_number, '')) LIKE :q OR LOWER(COALESCE(branch, '')) LIKE :q OR LOWER(COALESCE(sub_branch, '')) LIKE :q",
       q: q
     )
+  end
+
+  def set_user_quiz
+    @user_quiz = UserQuiz.find(params[:id])
   end
 end
