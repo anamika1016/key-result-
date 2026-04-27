@@ -166,9 +166,13 @@ body {
   .quiz-page__hero-layout,
   .user-quiz-page__hero-layout {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(420px, 760px);
+    grid-template-columns: minmax(280px, 1fr) minmax(520px, 760px);
     align-items: end !important;
     column-gap: 2rem;
+  }
+
+  .quiz-page__hero-copy {
+    max-width: 34rem;
   }
 
   .quiz-page__hero-side,
@@ -180,7 +184,7 @@ body {
   .quiz-page__action-row,
   .user-quiz-page__hero-actions {
     flex-wrap: nowrap !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     justify-content: flex-end !important;
   }
 
@@ -188,11 +192,20 @@ body {
   .user-quiz-page__upload-form {
     flex: 1 1 auto;
     display: flex !important;
-    flex-direction: row !important;
-    align-items: center !important;
+    align-items: flex-start !important;
     gap: 0.75rem !important;
     min-width: 0 !important;
     max-width: 100% !important;
+  }
+
+  .quiz-page__upload-form {
+    flex-direction: column !important;
+    max-width: 440px !important;
+  }
+
+  .user-quiz-page__upload-form {
+    flex-direction: row !important;
+    align-items: center !important;
   }
 
   .quiz-page input[type="file"],
@@ -200,6 +213,11 @@ body {
     min-width: 260px !important;
     width: 100% !important;
     max-width: 520px !important;
+  }
+
+  .quiz-page__action-buttons {
+    flex: 0 0 auto;
+    justify-content: flex-end;
   }
 
   .quiz-page__stats {
@@ -212,14 +230,13 @@ body {
   }
 
   .user-quiz-page__table-head {
-    align-items: flex-start !important;
+    align-items: center !important;
+    justify-content: space-between !important;
     gap: 1rem;
   }
 
   .user-quiz-page__table-controls {
-    width: 100%;
     align-items: center !important;
-    justify-content: space-between !important;
     gap: 1rem !important;
   }
 

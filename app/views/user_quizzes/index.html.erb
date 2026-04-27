@@ -1,5 +1,5 @@
 <div class="user-quiz-page main-content sidebar-aware-content w-auto px-4 sm:px-8 py-6 sm:py-10" style="min-height: 100vh; background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);">
-  <div class="mx-auto w-full max-w-[1400px]">
+  <div class="w-full">
     <div class="user-quiz-page__hero rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-xl shadow-slate-200/40 backdrop-blur sm:p-8">
       <div class="user-quiz-page__hero-layout flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div class="space-y-2">
@@ -82,15 +82,15 @@
     </div>
 
     <div class="mt-8 rounded-3xl border border-slate-200 bg-white/95 p-8 shadow-xl shadow-slate-200/40">
-      <div class="user-quiz-page__table-head flex items-center justify-between mb-6">
-        <div class="user-quiz-page__table-controls flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full">
-          <h2 class="border-b border-slate-200 pb-2 text-2xl font-bold text-slate-900">Saved User Quiz Entries</h2>
+      <div class="user-quiz-page__table-head mb-6 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+        <h2 class="border-b border-slate-200 pb-2 text-2xl font-bold text-slate-900">Saved User Quiz Entries</h2>
+        <div class="user-quiz-page__table-controls flex flex-col gap-3 sm:flex-row sm:items-center">
           <%= form_with url: user_quizzes_path, method: :get, local: true, class: "user-quiz-page__search-form flex w-full max-w-md items-center gap-2" do |form| %>
             <%= form.text_field :query, value: @query, placeholder: "Search user by code, name, email, mobile", class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 shadow-sm focus:ring-4 focus:ring-slate-100" %>
             <%= form.submit "Search", class: "rounded-xl bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800" %>
           <% end %>
+          <span class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600"><%= pluralize(@user_quizzes.total_count, "record") %></span>
         </div>
-        <span class="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600"><%= pluralize(@user_quizzes.total_count, "record") %></span>
       </div>
 
       <div class="overflow-x-auto rounded-2xl border border-slate-200">

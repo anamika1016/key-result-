@@ -1,12 +1,12 @@
 <div class="quiz-page main-content sidebar-aware-content w-auto px-4 py-6 sm:px-6 sm:py-8" style="min-height: 100vh; background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);">
-  <div class="w-full max-w-none">
+  <div class="mx-auto w-full max-w-[1540px]">
     <% total_quizzes = @quizzes.size %>
     <% active_quizzes = @quizzes.count { |quiz| quiz.status.to_s.casecmp("active").zero? } %>
     <% total_questions = @quizzes.sum { |quiz| quiz.questions.size } %>
 
     <div class="quiz-page__hero rounded-[2rem] border border-slate-200 bg-white px-6 py-7 shadow-[0_18px_50px_-35px_rgba(15,23,42,0.22)] sm:px-8 sm:py-8">
       <div class="quiz-page__hero-layout relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
-        <div class="max-w-3xl space-y-4">
+        <div class="quiz-page__hero-copy max-w-3xl space-y-4">
           <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-black">
             Assessment Hub
           </span>
@@ -35,13 +35,15 @@
           </div>
 
           <div class="quiz-page__actions flex flex-col gap-3 xl:items-end">
-            <div class="quiz-page__action-row flex flex-wrap items-center gap-3 justify-start xl:justify-end">
-              <%= form_with url: import_quizzes_path, local: true, multipart: true, class: "quiz-page__upload-form flex flex-wrap items-center gap-3" do |form| %>
-                <%= form.file_field :file, accept: ".xlsx,.xls", class: "block rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm min-w-[240px] max-w-[320px]" %>
-                <%= form.submit "Upload Excel", class: "inline-flex items-center justify-center rounded-2xl bg-green-300 px-5 py-3 text-sm font-semibold text-black transition hover:bg-green-400 whitespace-nowrap" %>
+            <div class="quiz-page__action-row flex flex-wrap items-start gap-3 justify-start xl:justify-end">
+              <%= form_with url: import_quizzes_path, local: true, multipart: true, class: "quiz-page__upload-form flex flex-col gap-3" do |form| %>
+                <%= form.file_field :file, accept: ".xlsx,.xls", class: "block rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm min-w-[240px]" %>
+                <%= form.submit "Upload Excel", class: "inline-flex items-center justify-center self-start rounded-2xl bg-green-300 px-5 py-3 text-sm font-semibold text-black transition hover:bg-green-400 whitespace-nowrap" %>
               <% end %>
-              <%= link_to "Export Excel", export_quizzes_path(format: :xlsx), class: "inline-flex items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100" %>
-              <%= link_to "Add New Quiz", new_quiz_path, class: "inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-white shadow-lg transition duration-200 hover:-translate-y-0.5", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%); box-shadow: 0 18px 35px -18px rgba(240, 67, 133, 0.5);" %>
+              <div class="quiz-page__action-buttons flex flex-wrap items-center gap-3">
+                <%= link_to "Export Excel", export_quizzes_path(format: :xlsx), class: "inline-flex items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100" %>
+                <%= link_to "Add New Quiz", new_quiz_path, class: "inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-white shadow-lg transition duration-200 hover:-translate-y-0.5", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%); box-shadow: 0 18px 35px -18px rgba(240, 67, 133, 0.5);" %>
+              </div>
             </div>
           </div>
         </div>
