@@ -1,7 +1,7 @@
 <div class="user-quiz-page main-content sidebar-aware-content w-auto px-4 sm:px-8 py-6 sm:py-10" style="min-height: 100vh; background: linear-gradient(180deg, #f8fafc 0%, #eef4ff 100%);">
   <div class="mx-auto w-full max-w-[1400px]">
-    <div class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-xl shadow-slate-200/40 backdrop-blur sm:p-8">
-      <div class="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+    <div class="user-quiz-page__hero rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-xl shadow-slate-200/40 backdrop-blur sm:p-8">
+      <div class="user-quiz-page__hero-layout flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
         <div class="space-y-2">
           <p class="text-sm font-semibold uppercase tracking-[0.25em] text-blue-600">Quiz Access</p>
           <h1 class="text-3xl font-bold text-slate-900">User Quiz Details</h1>
@@ -10,8 +10,8 @@
           </p>
         </div>
 
-        <div class="flex w-full flex-col gap-3 xl:w-auto sm:flex-row sm:items-center">
-          <%= form_with url: import_user_quizzes_path, local: true, multipart: true, class: "flex w-full flex-col gap-3 lg:min-w-[520px] sm:flex-row sm:items-center" do |form| %>
+        <div class="user-quiz-page__hero-actions flex w-full flex-col gap-3 xl:w-auto sm:flex-row sm:items-center">
+          <%= form_with url: import_user_quizzes_path, local: true, multipart: true, class: "user-quiz-page__upload-form flex w-full flex-col gap-3 lg:min-w-[520px] sm:flex-row sm:items-center" do |form| %>
             <%= form.file_field :file, accept: ".xlsx,.xls", class: "block w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm" %>
             <%= form.submit "Upload Excel", class: "rounded-xl bg-slate-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 whitespace-nowrap" %>
           <% end %>
@@ -82,10 +82,10 @@
     </div>
 
     <div class="mt-8 rounded-3xl border border-slate-200 bg-white/95 p-8 shadow-xl shadow-slate-200/40">
-      <div class="flex items-center justify-between mb-6">
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full">
+      <div class="user-quiz-page__table-head flex items-center justify-between mb-6">
+        <div class="user-quiz-page__table-controls flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full">
           <h2 class="border-b border-slate-200 pb-2 text-2xl font-bold text-slate-900">Saved User Quiz Entries</h2>
-          <%= form_with url: user_quizzes_path, method: :get, local: true, class: "flex w-full max-w-md items-center gap-2" do |form| %>
+          <%= form_with url: user_quizzes_path, method: :get, local: true, class: "user-quiz-page__search-form flex w-full max-w-md items-center gap-2" do |form| %>
             <%= form.text_field :query, value: @query, placeholder: "Search user by code, name, email, mobile", class: "w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 shadow-sm focus:ring-4 focus:ring-slate-100" %>
             <%= form.submit "Search", class: "rounded-xl bg-slate-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800" %>
           <% end %>

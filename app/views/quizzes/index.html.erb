@@ -4,8 +4,8 @@
     <% active_quizzes = @quizzes.count { |quiz| quiz.status.to_s.casecmp("active").zero? } %>
     <% total_questions = @quizzes.sum { |quiz| quiz.questions.size } %>
 
-    <div class="rounded-[2rem] border border-slate-200 bg-white px-6 py-7 shadow-[0_18px_50px_-35px_rgba(15,23,42,0.22)] sm:px-8 sm:py-8">
-      <div class="relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
+    <div class="quiz-page__hero rounded-[2rem] border border-slate-200 bg-white px-6 py-7 shadow-[0_18px_50px_-35px_rgba(15,23,42,0.22)] sm:px-8 sm:py-8">
+      <div class="quiz-page__hero-layout relative flex flex-col gap-8 xl:flex-row xl:items-end xl:justify-between">
         <div class="max-w-3xl space-y-4">
           <span class="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-4 py-1 text-xs font-semibold uppercase tracking-[0.35em] text-black">
             Assessment Hub
@@ -18,8 +18,8 @@
           </div>
         </div>
 
-        <div class="flex w-full flex-col gap-4 xl:w-auto xl:min-w-[420px]">
-          <div class="grid gap-3 sm:grid-cols-3">
+        <div class="quiz-page__hero-side flex w-full flex-col gap-4 xl:w-auto xl:min-w-[420px]">
+          <div class="quiz-page__stats grid gap-3 sm:grid-cols-3">
             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p class="text-xs font-semibold uppercase tracking-[0.25em] text-black">Total Quizzes</p>
               <p class="mt-3 text-3xl font-semibold text-black"><%= total_quizzes %></p>
@@ -34,9 +34,9 @@
             </div>
           </div>
 
-          <div class="flex flex-col gap-3 xl:items-end">
-            <div class="flex flex-wrap items-center gap-3 justify-start xl:justify-end">
-              <%= form_with url: import_quizzes_path, local: true, multipart: true, class: "flex flex-wrap items-center gap-3" do |form| %>
+          <div class="quiz-page__actions flex flex-col gap-3 xl:items-end">
+            <div class="quiz-page__action-row flex flex-wrap items-center gap-3 justify-start xl:justify-end">
+              <%= form_with url: import_quizzes_path, local: true, multipart: true, class: "quiz-page__upload-form flex flex-wrap items-center gap-3" do |form| %>
                 <%= form.file_field :file, accept: ".xlsx,.xls", class: "block rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm shadow-sm min-w-[240px] max-w-[320px]" %>
                 <%= form.submit "Upload Excel", class: "inline-flex items-center justify-center rounded-2xl bg-green-300 px-5 py-3 text-sm font-semibold text-black transition hover:bg-green-400 whitespace-nowrap" %>
               <% end %>
