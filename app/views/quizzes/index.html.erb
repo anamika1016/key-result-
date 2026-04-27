@@ -1,4 +1,4 @@
-<div class="main-content sidebar-aware-content w-auto px-4 py-6 sm:px-6 sm:py-8" style="min-height: 100vh; background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);">
+<div class="quiz-page main-content sidebar-aware-content w-auto px-4 py-6 sm:px-6 sm:py-8" style="min-height: 100vh; background: linear-gradient(180deg, #f8fbff 0%, #eef4fb 100%);">
   <div class="w-full max-w-none">
     <% total_quizzes = @quizzes.size %>
     <% active_quizzes = @quizzes.count { |quiz| quiz.status.to_s.casecmp("active").zero? } %>
