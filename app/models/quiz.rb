@@ -10,6 +10,7 @@ class Quiz < ApplicationRecord
 
   has_many :questions, dependent: :destroy
   has_many :quiz_submissions, dependent: :destroy
+  has_many :user_quizzes, dependent: :nullify
 
   accepts_nested_attributes_for :questions, allow_destroy: true, reject_if: :all_blank
 

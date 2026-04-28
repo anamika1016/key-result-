@@ -12,7 +12,7 @@ class UserQuiz < ApplicationRecord
 
   belongs_to :user, optional: true
   belongs_to :quiz, optional: true
-  has_many :quiz_submissions, dependent: :nullify
+  has_many :quiz_submissions, dependent: :destroy
 
   validates :employee_code, :name, :email, :password, presence: true
   validates :employee_code, uniqueness: { case_sensitive: false }
