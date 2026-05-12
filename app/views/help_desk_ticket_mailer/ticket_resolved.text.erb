@@ -1,0 +1,17 @@
+Hello,
+
+Your help desk <%= @ticket.request_label.downcase %> for <%= @ticket.department.department_type %> has been marked as completed by support and sent for user follow-up.
+Ticket No: <%= @ticket.ticket_reference %>
+
+Requester: <%= @ticket.requester_name %>
+<% if @ticket.assisted_request? && @ticket.submitted_by_user.present? %>
+Submitted by: <%= @ticket.submitted_by_user.display_name %> on behalf of the requester
+<% end %>
+Completed by: <%= @ticket.responded_by_user&.display_name || "Support Team" %>
+Action requested from: <%= @ticket.approval_pending_user&.display_name || @ticket.requester_name %>
+
+Response:
+<%= @ticket.response_message %>
+
+If the issue is still not solved, reopen this ticket with a remark. If everything is fine, close it from your side within 24 hours.
+If you take no action, the ticket will close automatically after 24 hours.

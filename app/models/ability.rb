@@ -26,6 +26,9 @@ class Ability
 
     # Basic employee permissions
     if user.employee? || user.l1_employer? || user.l2_employer?
+      can :create, HelpDeskTicket
+      can :read, HelpDeskTicket, user_id: user.id
+      can [ :read, :respond ], HelpDeskTicket, assigned_to_user_id: user.id
       can :read, EmployeeDetail, employee_email: user.email
       can :read, EmployeeDetail, employee_code: user.employee_code
     end

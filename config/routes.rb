@@ -114,6 +114,15 @@ Rails.application.routes.draw do
   get "settings", to: "settings#show"
   patch "settings/profile", to: "settings#update_profile"
   patch "settings/password", to: "settings#change_password"
+  resources :help_desk_tickets, path: "help-desk", only: [ :index, :create ] do
+    member do
+      patch :respond
+      patch :finalize_resolution
+    end
+  end
+  resources :help_desk_reports, path: "helpdesk-report", only: [ :index ]
+  resources :help_desk_question_masters, path: "helpdesk-question-master", except: [ :show, :new ]
+  resources :helpdesk_escalation_matrices, path: "helpdesk-escalation-matrix", except: [ :show, :new ]
 
   # Keep your other routes
   devise_scope :user do

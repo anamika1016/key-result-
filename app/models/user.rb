@@ -5,6 +5,7 @@ class User < ApplicationRecord
 
   has_one :employee_detail
   has_one_attached :avatar
+  has_many :help_desk_tickets, dependent: :destroy
   has_many :user_training_assignments, dependent: :destroy
   has_many :assigned_trainings, through: :user_training_assignments, source: :training
   has_many :user_training_progresses, dependent: :destroy
@@ -51,6 +52,16 @@ class User < ApplicationRecord
     role == "l2_employer"
   end
 
+  def mapped_employee_detail
+    @mapped_employee_detail ||= employee_detail ||
+      EmployeeDetail.find_by(employee_code: employee_code) ||
+      EmployeeDetail.find_by(employee_email: email)
+  end
+
+  def display_name
+    mapped_employee_detail&.employee_name.presence || email
+  end
+
   def self.find_for_database_authentication(warden_conditions)
     conditions = warden_conditions.dup
     login = conditions.delete(:login)
@@ -64,6 +75,6 @@ class User < ApplicationRecord
   end
 
   def name
-    email
+    display_name
   end
 end

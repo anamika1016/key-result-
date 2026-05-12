@@ -1,9 +1,10 @@
 class ApplicationController < ActionController::Base
   before_action :authenticate_user!
   before_action :set_dashboard_active
+  before_action :process_help_desk_escalations
   before_action :configure_permitted_parameters, if: :devise_controller?
 
-  helper_method :has_l1_responsibilities?, :has_l2_responsibilities?, :current_financial_year_label, :normalize_financial_year, :financial_year_options, :display_financial_year, :database_financial_year_value
+  helper_method :has_l1_responsibilities?, :has_l2_responsibilities?, :helpdesk_reviewer?, :current_financial_year_label, :normalize_financial_year, :financial_year_options, :display_financial_year, :database_financial_year_value
 
   private
 
@@ -28,6 +29,14 @@ class ApplicationController < ActionController::Base
     return true if current_user.hod?
     EmployeeDetail.exists?(l2_code: current_user.employee_code) ||
     EmployeeDetail.exists?(l2_employer_name: current_user.email)
+  end
+
+  def helpdesk_reviewer?
+    return false unless current_user.present?
+    return true if current_user.hod?
+
+    HelpdeskEscalationLevel.exists?(user_id: current_user.id) ||
+      HelpDeskTicket.open_for_review.exists?(assigned_to_user_id: current_user.id)
   end
 
   # Override Devise's after_sign_in_path_for to always redirect to User Profile
@@ -86,5 +95,11 @@ class ApplicationController < ActionController::Base
     end
 
     (Array(existing_values).compact.map { |value| normalize_financial_year(value) } + fallback).uniq.sort.reverse
+  end
+
+  def process_help_desk_escalations
+    HelpDeskEscalationProcessor.process_if_due
+  rescue ActiveRecord::ActiveRecordError
+    nil
   end
 end

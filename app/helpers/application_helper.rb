@@ -1,11 +1,7 @@
 module ApplicationHelper
   # Display user's name - prefer employee name if available, fallback to email
   def user_display_name(user)
-    if user.employee_detail&.employee_name.present?
-      user.employee_detail.employee_name
-    else
-      user.email
-    end
+    user.display_name
   end
 
   # Return CSS classes for role badge styling
@@ -44,5 +40,69 @@ module ApplicationHelper
   def format_date(date)
     return "Not available" if date.blank?
     date.strftime("%B %d, %Y")
+  end
+
+  def help_desk_status_badge_class(ticket)
+    case ticket.status
+    when "submitted"
+      "border-emerald-200 bg-emerald-50 text-emerald-700"
+    when "in_review", "reopened"
+      "border-amber-200 bg-amber-50 text-amber-700"
+    when "resolved"
+      "border-indigo-200 bg-indigo-50 text-indigo-700"
+    when "closed"
+      "border-slate-300 bg-slate-100 text-slate-700"
+    else
+      "border-slate-200 bg-slate-50 text-slate-600"
+    end
+  end
+
+  def help_desk_status_label(ticket)
+    case ticket.status
+    when "in_review"
+      "Open With Support"
+    when "resolved"
+      "Pending Reopen / Close"
+    when "reopened"
+      "Reopened By User"
+    else
+      ticket.status.to_s.humanize
+    end
+  end
+
+  def help_desk_status_badge_tone(ticket)
+    case ticket.status
+    when "submitted"
+      "helpdesk-badge--success"
+    when "in_review", "reopened"
+      "helpdesk-badge--warning"
+    when "resolved"
+      "helpdesk-badge--info"
+    else
+      "helpdesk-badge--neutral"
+    end
+  end
+
+  def help_desk_menu_notification_count
+    return 0 unless current_user.present?
+
+    @help_desk_menu_notification_count ||= begin
+      reviewer_count =
+        if helpdesk_reviewer?
+          reviewer_scope = HelpDeskTicket.open_for_review
+          current_user.hod? ? reviewer_scope.count : reviewer_scope.where(assigned_to_user_id: current_user.id).count
+        else
+          0
+        end
+
+      pending_user_action_count = HelpDeskTicket.where(status: "resolved", approval_user_id: current_user.id).count
+
+      reviewer_count + pending_user_action_count
+    end
+  end
+
+  def help_desk_menu_notification_label
+    count = help_desk_menu_notification_count
+    count > 99 ? "99+" : count.to_s
   end
 end
