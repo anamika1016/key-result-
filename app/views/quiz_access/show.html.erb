@@ -142,19 +142,19 @@
                   Start Quiz
                 </div>
                 <h2 class="mt-6 text-5xl font-black tracking-tight text-slate-950 sm:text-6xl">Quiz Login</h2>
-                <p class="mt-4 max-w-md text-base font-medium leading-7 text-slate-500">Securely enter your employee credentials and begin your assessment journey.</p>
+                <p class="mt-4 max-w-md text-base font-medium leading-7 text-slate-500">Please login with your ESS employee code and password.</p>
               </div>
 
               <%= form_with url: start_quiz_access_path(@quiz.qr_token), method: :post, local: true, data: { turbo: false }, class: "relative mt-10 space-y-5" do %>
                 <div>
-                  <%= label_tag :employee_code, "Employee Code", class: "mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500" %>
+                  <%= label_tag :employee_code, "ESS Employee Code", class: "mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500" %>
                   <div class="quiz-login-input-wrap">
                     <%= text_field_tag :employee_code, params[:employee_code], placeholder: "Enter your employee code", class: "w-full rounded-2xl border-0 bg-transparent px-5 py-4 text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 focus:ring-4 focus:ring-blue-100" %>
                   </div>
                 </div>
 
                 <div>
-                  <%= label_tag :password, "Password", class: "mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500" %>
+                  <%= label_tag :password, "ESS Password", class: "mb-2 block text-xs font-black uppercase tracking-[0.18em] text-slate-500" %>
                   <div class="quiz-login-input-wrap">
                     <%= password_field_tag :password, nil, placeholder: "Enter your password", class: "w-full rounded-2xl border-0 bg-transparent py-4 pl-5 pr-14 text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 focus:ring-4 focus:ring-blue-100", data: { quiz_password_field: true } %>
                     <button type="button" class="quiz-password-toggle" aria-label="Show password" data-quiz-password-toggle>
