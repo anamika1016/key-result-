@@ -130,7 +130,7 @@ class QuizzesController < ApplicationController
       sheet.add_row [
         "Capital of India",
         "Basic GK quiz",
-        "5",
+        "5m",
         "active",
         "India ki capital kya hai?",
         "Bhopal",
@@ -143,7 +143,7 @@ class QuizzesController < ApplicationController
       sheet.add_row [
         "Capital of India",
         "Basic GK quiz",
-        "5",
+        "5m",
         "active",
         "National animal kaun sa hai?",
         "Lion",
@@ -170,10 +170,9 @@ class QuizzesController < ApplicationController
   end
 
   def quiz_params
-    params.require(:quiz).permit(
+    permitted_params = params.require(:quiz).permit(
       :title,
       :description,
-      :duration,
       :status,
       questions_attributes: [
         :id,
@@ -186,6 +185,28 @@ class QuizzesController < ApplicationController
         :_destroy
       ]
     )
+
+    permitted_params[:duration] = duration_from_unit_params
+    permitted_params
+  end
+
+  def duration_from_unit_params
+    value = params.dig(:quiz, :duration_value).to_s.strip
+    unit = params.dig(:quiz, :duration_unit).to_s
+
+    return if value.blank?
+
+    amount = value.to_f
+    return if amount <= 0
+
+    case unit
+    when "seconds"
+      amount.to_i
+    when "hours"
+      amount.hours.to_i
+    else
+      amount.minutes.to_i
+    end
   end
 
   def build_question_if_needed
@@ -283,7 +304,7 @@ class QuizzesController < ApplicationController
     [
       quiz.title,
       quiz.description,
-      quiz.duration,
+      quiz.duration_label,
       quiz.status,
       question&.question,
       question&.option_a,

@@ -13,7 +13,6 @@ class QuizAccessController < ApplicationController
     @quiz_play_state = ensure_quiz_play_state!(@authenticated_user_quiz)
 
     @ordered_questions = ordered_questions_for(@quiz_play_state)
-    @question_media_map = question_media_map_for(@ordered_questions, @quiz_play_state)
     @quiz_duration_seconds = quiz_duration_seconds
     @quiz_started_at = quiz_started_at_for(@quiz_play_state)
     @quiz_deadline_at = @quiz_started_at + @quiz_duration_seconds
@@ -176,17 +175,12 @@ class QuizAccessController < ApplicationController
 
   def build_quiz_play_state(user_quiz)
     question_ids = @quiz.questions.ids.shuffle
-    media_files = @quiz.question_media_files.shuffle
-    question_media = question_ids.each_with_index.each_with_object({}) do |(question_id, index), memo|
-      memo[question_id.to_s] = media_files[index % media_files.length]
-    end
 
     {
       "quiz_id" => @quiz.id,
       "user_quiz_id" => user_quiz.id,
       "started_at" => Time.current.iso8601,
-      "question_ids" => question_ids,
-      "question_media" => question_media
+      "question_ids" => question_ids
     }
   end
 
@@ -195,15 +189,6 @@ class QuizAccessController < ApplicationController
 
     Array(state["question_ids"]).filter_map do |question_id|
       questions_by_id[question_id.to_i]
-    end
-  end
-
-  def question_media_map_for(ordered_questions, state)
-    saved_media = state.fetch("question_media", {})
-    default_media = @quiz.question_media_files
-
-    ordered_questions.each_with_index.each_with_object({}) do |(question, index), memo|
-      memo[question.id] = saved_media[question.id.to_s].presence || default_media[index % default_media.length]
     end
   end
 

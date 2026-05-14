@@ -42,7 +42,7 @@
               <% end %>
               <div class="quiz-page__action-buttons flex flex-wrap items-center gap-3">
                 <%= link_to "Export Excel", export_quizzes_path(format: :xlsx), class: "inline-flex items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-5 py-3 text-sm font-semibold text-blue-700 transition hover:border-blue-300 hover:bg-blue-100" %>
-                <%= link_to "Add New Quiz", new_quiz_path, class: "inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-white shadow-lg transition duration-200 hover:-translate-y-0.5", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%); box-shadow: 0 18px 35px -18px rgba(240, 67, 133, 0.5);" %>
+                <%= link_to "Add New Quiz", new_quiz_path, class: "inline-flex items-center justify-center rounded-2xl px-6 py-3 text-sm font-semibold text-white shadow-lg transition duration-200 hover:-translate-y-0.5", style: "background: linear-gradient(135deg, #0b3b8c 0%, #082f6f 100%); box-shadow: 0 18px 35px -18px rgba(11, 59, 140, 0.5);" %>
               </div>
             </div>
           </div>
@@ -56,7 +56,7 @@
           <% status = quiz.status.presence || "draft" %>
           <% active = status.to_s.casecmp("active").zero? %>
           <article class="group relative overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-[0_18px_45px_-35px_rgba(15,23,42,0.28)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_26px_60px_-35px_rgba(15,23,42,0.34)]">
-            <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r <%= active ? 'from-pink-400 via-fuchsia-500 to-rose-500' : 'from-amber-400 via-orange-400 to-rose-400' %>"></div>
+            <div class="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r <%= active ? 'from-blue-700 via-blue-800 to-slate-900' : 'from-slate-500 via-slate-600 to-slate-800' %>"></div>
 
             <div class="flex items-start justify-between gap-4">
               <div class="space-y-3">
@@ -69,7 +69,7 @@
                 </div>
               </div>
 
-              <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-semibold text-white shadow-lg" style="background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%); box-shadow: 0 16px 28px -18px rgba(240, 67, 133, 0.46);">
+              <div class="flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-semibold text-white shadow-lg" style="background: linear-gradient(135deg, #0b3b8c 0%, #082f6f 100%); box-shadow: 0 16px 28px -18px rgba(11, 59, 140, 0.46);">
                 <%= quiz.questions.size %>
               </div>
             </div>
@@ -85,7 +85,7 @@
             <div class="mt-6 grid grid-cols-2 gap-3">
               <div class="rounded-2xl bg-slate-50 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-black">Duration</p>
-                <p class="mt-2 text-base font-semibold text-black"><%= quiz.duration.presence || 0 %> min</p>
+                <p class="mt-2 text-base font-semibold text-black"><%= quiz.duration_label %></p>
               </div>
               <div class="rounded-2xl bg-slate-50 p-4">
                 <p class="text-xs font-semibold uppercase tracking-[0.2em] text-black">Updated</p>
@@ -94,9 +94,9 @@
             </div>
 
             <div class="mt-6 flex flex-wrap items-center gap-3">
-              <%= link_to "View QR", quiz_path(quiz), class: "inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%);" %>
-              <%= link_to "Edit", edit_quiz_path(quiz), class: "inline-flex items-center justify-center rounded-xl border border-pink-200 bg-pink-50 px-4 py-2.5 text-sm font-semibold text-pink-700 transition hover:border-pink-300 hover:bg-pink-100" %>
-              <%= button_to "Delete", quiz_path(quiz), method: :delete, data: { turbo_confirm: "Delete this quiz?" }, form_class: "inline-block", class: "inline-flex items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:border-rose-300 hover:bg-rose-100" %>
+              <%= link_to "View QR", quiz_path(quiz), class: "inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition", style: "background: linear-gradient(135deg, #0b3b8c 0%, #082f6f 100%);" %>
+              <%= link_to "Edit", edit_quiz_path(quiz), class: "inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-800 transition hover:border-blue-300 hover:bg-blue-100" %>
+              <%= button_to "Delete", quiz_path(quiz), method: :delete, data: { turbo_confirm: "Delete this quiz?" }, form_class: "inline-block", class: "inline-flex items-center justify-center rounded-xl border border-slate-300 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 transition hover:border-slate-400 hover:bg-slate-100" %>
             </div>
           </article>
         <% end %>
@@ -104,13 +104,13 @@
     <% else %>
       <div class="mt-8 rounded-[1.75rem] border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
         <div class="mx-auto max-w-lg space-y-3">
-          <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-semibold text-white" style="background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%);">Q</div>
+          <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-semibold text-white" style="background: linear-gradient(135deg, #0b3b8c 0%, #082f6f 100%);">Q</div>
           <h2 class="text-2xl font-semibold text-black">No quizzes created yet</h2>
           <p class="text-sm leading-6 text-black">
             Start building your first assessment to share via QR and track employee responses in one place.
           </p>
           <div class="pt-2">
-            <%= link_to "Create Your First Quiz", new_quiz_path, class: "inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white transition", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 100%);" %>
+            <%= link_to "Create Your First Quiz", new_quiz_path, class: "inline-flex items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold text-white transition", style: "background: linear-gradient(135deg, #0b3b8c 0%, #082f6f 100%);" %>
           </div>
         </div>
       </div>

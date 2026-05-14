@@ -11,7 +11,7 @@
               <%= pluralize(@quiz.questions.count, "question") %>
             </span>
             <span class="rounded-full bg-slate-50 px-3 py-1 font-semibold text-black border border-slate-200">
-              Duration: <%= @quiz.duration.presence || 0 %> min
+              Duration: <%= @quiz.duration_label %>
             </span>
             <span class="rounded-full bg-slate-50 px-3 py-1 font-semibold uppercase text-black border border-slate-200">
               <%= @quiz.status.presence || "draft" %>

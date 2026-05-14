@@ -30,7 +30,7 @@
           </div>
         </div>
 
-        <p class="mt-8 text-sm font-black uppercase tracking-[0.45em] text-pink-500">Quiz Submitted</p>
+        <p class="mt-8 text-sm font-black uppercase tracking-[0.45em] text-blue-800">Quiz Submitted</p>
         <h1 class="success-title mt-4 text-4xl font-black tracking-tight text-slate-950 sm:text-6xl">
           <span class="title-spark title-spark-one"></span>
           <span class="title-spark title-spark-two"></span>
@@ -42,15 +42,15 @@
         </p>
 
         <div class="score-panel mx-auto mt-8 max-w-sm px-6 py-6">
-          <p class="text-xs font-black uppercase tracking-[0.28em] text-pink-500">Score</p>
-          <p class="mt-3 text-5xl font-black text-pink-700 sm:text-6xl"><%= @result[:score] %> / <%= @result[:total] %></p>
+          <p class="text-xs font-black uppercase tracking-[0.28em] text-blue-800">Score</p>
+          <p class="mt-3 text-5xl font-black text-blue-900 sm:text-6xl"><%= @result[:score] %> / <%= @result[:total] %></p>
           <p class="mt-3 text-sm font-bold text-slate-500">Submission saved successfully</p>
         </div>
       </div>
 
       <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
-        <%= link_to "Done", quiz_access_path(@quiz.qr_token), class: "rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-[0.2em] text-white shadow-[0_18px_40px_rgba(236,72,153,0.32)] transition hover:-translate-y-1", style: "background: linear-gradient(135deg, #fb5a9b 0%, #f04385 55%, #be185d 100%);" %>
-        <%= link_to "Back To Quiz", quiz_access_path(@quiz.qr_token), class: "rounded-2xl border border-pink-100 bg-white px-8 py-4 text-sm font-black uppercase tracking-[0.2em] text-pink-700 shadow-[0_12px_30px_rgba(244,114,182,0.1)] transition hover:-translate-y-1 hover:border-pink-200 hover:bg-pink-50" %>
+        <%= link_to "Done", quiz_access_path(@quiz.qr_token), class: "rounded-2xl px-8 py-4 text-sm font-black uppercase tracking-[0.2em] text-white shadow-[0_18px_40px_rgba(11,59,140,0.28)] transition hover:-translate-y-1", style: "background: linear-gradient(135deg, #0b3b8c 0%, #082f6f 55%, #061d45 100%);" %>
+        <%= link_to "Back To Quiz", quiz_access_path(@quiz.qr_token), class: "rounded-2xl border border-blue-100 bg-white px-8 py-4 text-sm font-black uppercase tracking-[0.2em] text-blue-800 shadow-[0_12px_30px_rgba(11,59,140,0.1)] transition hover:-translate-y-1 hover:border-blue-200 hover:bg-blue-50" %>
       </div>
     </section>
   </div>
