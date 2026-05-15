@@ -6,6 +6,7 @@ one:
   activity_name: MyString
   unit: MyString
   weight: 1.5
+  year: 26-27
 
 two:
   department: two
@@ -13,3 +14,4 @@ two:
   activity_name: MyString
   unit: MyString
   weight: 1.5
+  year: 26-27

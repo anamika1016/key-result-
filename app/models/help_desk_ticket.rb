@@ -1,9 +1,10 @@
 class HelpDeskTicket < ApplicationRecord
+  DISPLAY_TIME_ZONE = "Asia/Kolkata".freeze
   REQUEST_TYPES = %w[complaint suggestion].freeze
   STATUSES = %w[submitted in_review reopened resolved closed].freeze
   FINAL_ACTION_MODES = %w[reopen_close approve_reject].freeze
   ESCALATION_RESPONSE_WINDOW = 2.days
-  REQUESTER_RESPONSE_WINDOW = 24.hours
+  REQUESTER_RESPONSE_WINDOW = 2.days
   REVIEW_OPEN_STATUSES = %w[submitted in_review reopened].freeze
   ALLOWED_DOCUMENT_TYPES = %w[
     application/pdf
@@ -29,7 +30,7 @@ class HelpDeskTicket < ApplicationRecord
   belongs_to :approval_user, class_name: "User", optional: true
   belongs_to :help_desk_question_master, optional: true
 
-  attr_accessor :requester_user_id, :on_behalf_requested
+  attr_accessor :requester_user_id, :on_behalf_requested, :request_received_on, :request_received_time
 
   has_many_attached :documents
 
@@ -59,6 +60,7 @@ class HelpDeskTicket < ApplicationRecord
       .or(where(approval_user_id: actor.id))
       .or(where(assigned_to_user_id: actor.id))
       .or(where(responded_by_user_id: actor.id))
+      .or(matching_requester_identity(actor))
   }
   scope :due_for_escalation, ->(reference_time = Time.current) {
     open_for_review.where.not(escalation_due_at: nil)
@@ -74,6 +76,7 @@ class HelpDeskTicket < ApplicationRecord
   before_validation :populate_question_subject_from_master
   before_validation :normalize_message
   before_validation :normalize_response_message
+  before_validation :populate_request_received_at_for_assisted_request, on: :create
   before_validation :set_default_status, on: :create
   before_validation :set_default_submitter, on: :create
   before_validation :assign_initial_escalation_details, on: :create
@@ -91,6 +94,9 @@ class HelpDeskTicket < ApplicationRecord
   validate :question_master_matches_request_context
   validate :message_presence_for_selected_type
   validate :department_has_escalation_matrix, on: :create
+  validate :request_received_on_required_for_assisted_request
+  validate :request_received_time_required_for_assisted_request
+  validate :request_received_on_cannot_be_in_future
   validate :response_message_required_for_resolution
   validate :approval_user_presence_for_confirmation
   validate :final_action_mode_presence_for_confirmation
@@ -114,11 +120,20 @@ class HelpDeskTicket < ApplicationRecord
     raised_on_behalf?
   end
 
+  def submission_mode_label
+    return "Self Submitted" unless assisted_request?
+    return "Oral Response Ticket" if request_received_at.present?
+
+    "Assisted Submission"
+  end
+
   def open_for_review_status?
     REVIEW_OPEN_STATUSES.include?(status)
   end
 
   def current_escalation_label
+    return "Response Ticket" if assisted_request?
+
     "L#{current_escalation_position.presence || 1} Escalation"
   end
 
@@ -162,10 +177,65 @@ class HelpDeskTicket < ApplicationRecord
   end
 
   def can_be_finalized_by?(actor)
-    actor.present? && resolved? && final_action_user_ids.include?(actor.id)
+    return false if actor.blank? || !resolved?
+    return true if final_action_user_ids.include?(actor.id)
+    return true if assisted_request? && requester_identity_matches?(actor)
+
+    approval_identity_matches?(actor)
+  end
+
+  def self.pending_user_action_for(actor)
+    return none if actor.blank?
+
+    pending_requester_confirmation.where(approval_user_id: actor.id)
+                                  .or(pending_requester_confirmation.where(raised_on_behalf: true).matching_requester_identity(actor))
+  end
+
+  def self.matching_requester_identity(actor)
+    return none if actor.blank?
+
+    conditions = []
+    values = {}
+
+    email = actor.email.to_s.strip.downcase
+    if email.present?
+      conditions << "LOWER(COALESCE(requester_email, '')) = :email"
+      values[:email] = email
+    end
+
+    employee_code = actor.employee_code.to_s.strip
+    if employee_code.present?
+      conditions << "TRIM(COALESCE(requester_employee_code, '')) = :employee_code"
+      values[:employee_code] = employee_code
+    end
+
+    return none if conditions.blank?
+
+    where(conditions.join(" OR "), values)
+  end
+
+  def prepare_assisted_resolution!(resolver:)
+    resolved_at = Time.current
+
+    self.raised_on_behalf = true if has_attribute?(:raised_on_behalf)
+    self.submitted_by_user = resolver
+    self.responded_by_user = resolver
+    self.approval_user = user
+    self.final_action_mode = "approve_reject"
+    self.response_message = "Response ticket submitted by #{resolver.display_name} after completing the oral request."
+    self.responded_at = resolved_at
+    self.status = "resolved"
+    self.requester_response_due_at = resolved_at + REQUESTER_RESPONSE_WINDOW
+    self.assigned_to_user = nil
+    self.assigned_at = nil
+    self.escalation_due_at = nil
+    self.closed_at = nil if has_attribute?(:closed_at)
+    self.closed_by_user = nil if has_attribute?(:closed_by_user_id)
+    self.closed_automatically = false if has_attribute?(:closed_automatically)
   end
 
   def auto_escalate_if_due!(reference_time: Time.current)
+    return false if assisted_request?
     return false unless overdue_for_response?(reference_time)
 
     levels = configured_escalation_levels
@@ -293,7 +363,7 @@ class HelpDeskTicket < ApplicationRecord
     self.current_escalation_position = return_position
     self.assigned_to_user = return_user
     self.assigned_at = assignment_time
-    self.escalation_due_at = assignment_time + ESCALATION_RESPONSE_WINDOW
+    self.escalation_due_at = assisted_request? ? nil : assignment_time + ESCALATION_RESPONSE_WINDOW
     self.approval_user = nil
     self.final_action_mode = nil
     self.requester_response_due_at = nil
@@ -346,6 +416,7 @@ class HelpDeskTicket < ApplicationRecord
   end
 
   def schedule_next_escalation_check!
+    return if assisted_request?
     return unless open_for_review_status?
     return if escalation_due_at.blank?
     return if escalation_due_at <= Time.current
@@ -371,6 +442,30 @@ class HelpDeskTicket < ApplicationRecord
     end
   end
 
+  def requester_identity_matches?(actor)
+    return false if actor.blank?
+
+    actor_email = actor.email.to_s.strip.downcase
+    actor_employee_code = actor.employee_code.to_s.strip
+    requester_email_value = requester_email.to_s.strip.downcase
+    requester_employee_code_value = requester_employee_code.to_s.strip
+
+    (actor_email.present? && requester_email_value == actor_email) ||
+      (actor_employee_code.present? && requester_employee_code_value == actor_employee_code)
+  end
+
+  def approval_identity_matches?(actor)
+    return false if actor.blank? || approval_user.blank?
+
+    actor_email = actor.email.to_s.strip.downcase
+    actor_employee_code = actor.employee_code.to_s.strip
+    approval_email = approval_user.email.to_s.strip.downcase
+    approval_employee_code = approval_user.employee_code.to_s.strip
+
+    (actor_email.present? && approval_email == actor_email) ||
+      (actor_employee_code.present? && approval_employee_code == actor_employee_code)
+  end
+
   def configured_escalation_levels
     department&.helpdesk_escalation_matrix&.ordered_levels.to_a
   end
@@ -387,6 +482,29 @@ class HelpDeskTicket < ApplicationRecord
 
   def normalize_question_subject
     self.question_subject = question_subject.to_s.strip.presence
+  end
+
+  def populate_request_received_at_for_assisted_request
+    return unless assisted_request_requested?
+    return if request_received_at.present?
+    return if request_received_on.blank? || request_received_time.blank?
+
+    parsed_date = Date.iso8601(request_received_on.to_s)
+    parsed_time = display_time_zone.parse(request_received_time.to_s)
+    raise ArgumentError if parsed_time.blank?
+
+    self.request_received_at = display_time_zone.local(
+      parsed_date.year,
+      parsed_date.month,
+      parsed_date.day,
+      parsed_time.hour,
+      parsed_time.min,
+      0
+    )
+  rescue ArgumentError
+    errors.add(:request_received_on, "must be a valid date")
+  rescue TypeError
+    errors.add(:request_received_time, "must be a valid time")
   end
 
   def populate_question_subject_from_master
@@ -416,6 +534,7 @@ class HelpDeskTicket < ApplicationRecord
 
   def assign_initial_escalation_details
     return unless department.present?
+    return if assisted_request?
     return if assigned_to_user_id.present?
 
     first_level = configured_escalation_levels.first
@@ -435,6 +554,31 @@ class HelpDeskTicket < ApplicationRecord
 
     label = request_type == "suggestion" ? "Suggestion details" : "Complaint details"
     errors.add(:message, "#{label} can't be blank")
+  end
+
+  def request_received_on_required_for_assisted_request
+    return unless assisted_request_requested?
+    return if request_received_on.present?
+
+    errors.add(:request_received_on, "Select the complaint or suggestion date for this oral ticket.")
+  end
+
+  def request_received_time_required_for_assisted_request
+    return unless assisted_request_requested?
+    return if request_received_time.present?
+
+    errors.add(:request_received_time, "Select the complaint or suggestion time for this oral ticket.")
+  end
+
+  def request_received_on_cannot_be_in_future
+    return if request_received_on.blank?
+
+    parsed_date = Date.iso8601(request_received_on.to_s)
+    return unless parsed_date > display_time_zone.today
+
+    errors.add(:request_received_on, "can't be in the future")
+  rescue ArgumentError
+    nil
   end
 
   def question_subject_presence_for_selected_type
@@ -482,6 +626,7 @@ class HelpDeskTicket < ApplicationRecord
 
   def department_has_escalation_matrix
     return unless department.present?
+    return if assisted_request?
     return if configured_escalation_levels.any?
 
     errors.add(:department_id, "does not have a configured helpdesk escalation matrix")
@@ -510,6 +655,14 @@ class HelpDeskTicket < ApplicationRecord
 
   def schedule_initial_escalation_check
     schedule_next_escalation_check!
+  end
+
+  def assisted_request_requested?
+    ActiveModel::Type::Boolean.new.cast(on_behalf_requested)
+  end
+
+  def display_time_zone
+    ActiveSupport::TimeZone[DISPLAY_TIME_ZONE] || Time.zone
   end
 
   def send_assignment_notifications

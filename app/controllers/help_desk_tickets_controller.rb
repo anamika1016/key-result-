@@ -15,7 +15,14 @@ class HelpDeskTicketsController < ApplicationController
     if @help_desk_ticket.errors.any?
       render :index, status: :unprocessable_entity
     elsif @help_desk_ticket.save
-      redirect_to help_desk_tickets_path, notice: "Your help desk request has been submitted successfully."
+      notice =
+        if @help_desk_ticket.assisted_request?
+          "Oral help desk request has been submitted on behalf of #{@help_desk_ticket.requester_name}."
+        else
+          "Your help desk request has been submitted successfully."
+        end
+
+      redirect_to help_desk_tickets_path, notice: notice
     else
       render :index, status: :unprocessable_entity
     end
@@ -38,7 +45,7 @@ class HelpDeskTicketsController < ApplicationController
             reviewer: current_user,
             response_message: response_message_param,
             approval_user: selected_approval_user,
-            final_action_mode: "reopen_close"
+            final_action_mode: @assigned_ticket.assisted_request? ? "approve_reject" : "reopen_close"
           )
         else
           @assigned_ticket.errors.add(:base, "Choose whether you want to keep this ticket open or close it.")
@@ -52,7 +59,8 @@ class HelpDeskTicketsController < ApplicationController
           "Update shared successfully. The ticket is still open with support and can continue without any user action yet."
         else
           approval_name = @assigned_ticket.approval_pending_user&.display_name.presence || "the selected user"
-          "Ticket marked as completed and shared with #{approval_name}. They can reopen it or close it within 24 hours."
+          action_label = @assigned_ticket.final_action_mode_approve_reject? ? "approve or reject" : "reopen it or close it"
+          "Ticket marked as completed and shared with #{approval_name}. They can #{action_label} within 2 days."
         end
 
       redirect_to help_desk_tickets_path, notice: notice
@@ -73,16 +81,17 @@ class HelpDeskTicketsController < ApplicationController
       when "approve", "close"
         @requester_action_ticket.approve_by!(actor: current_user)
       else
-        @requester_action_ticket.errors.add(:base, "Choose whether you want to reopen or close this ticket.")
+        action_text = @requester_action_ticket.final_action_mode_approve_reject? ? "approve or reject" : "reopen or close"
+        @requester_action_ticket.errors.add(:base, "Choose whether you want to #{action_text} this ticket.")
         false
       end
 
     if success
       notice =
         if %w[reject reopen reverse].include?(decision)
-          "Ticket reopened successfully and sent back to support with your remark."
+          @requester_action_ticket.final_action_mode_approve_reject? ? "Response ticket rejected and sent back with your remark." : "Ticket reopened successfully and sent back to support with your remark."
         else
-          "Ticket closed successfully."
+          @requester_action_ticket.final_action_mode_approve_reject? ? "Response ticket approved successfully." : "Ticket closed successfully."
         end
       redirect_to help_desk_tickets_path, notice: notice
     else
@@ -98,15 +107,16 @@ class HelpDeskTicketsController < ApplicationController
     @requester_profile = current_user.mapped_employee_detail
     @departments = Department.selectable_verticals
     @can_review_help_desk_tickets = helpdesk_reviewer?
-    @can_create_assisted_help_desk_tickets = @can_review_help_desk_tickets
-    @help_desk_requester_options = build_help_desk_requester_options
+    @help_desk_requester_directory = build_help_desk_requester_directory
+    @can_create_assisted_help_desk_tickets = @help_desk_requester_directory.any?
+    @help_desk_requester_options = @help_desk_requester_directory.map { |requester| [ requester[:label], requester[:id] ] }
     @help_desk_question_catalog = build_help_desk_question_catalog
     @recent_tickets = load_recent_tickets
     @assigned_tickets = load_assigned_tickets
   end
 
   def help_desk_ticket_params
-    params.require(:help_desk_ticket).permit(:department_id, :request_type, :question_subject, :help_desk_question_master_id, :message, :requester_user_id, :on_behalf_requested, documents: [])
+    params.require(:help_desk_ticket).permit(:department_id, :request_type, :question_subject, :help_desk_question_master_id, :message, :requester_user_id, :on_behalf_requested, :request_received_on, :request_received_time, documents: [])
   end
 
   def response_message_param
@@ -194,13 +204,13 @@ class HelpDeskTicketsController < ApplicationController
     return ticket unless assisted_requested
 
     unless can_create_assisted_help_desk_tickets?
-      ticket.errors.add(:base, "Only help desk reviewers can raise tickets on behalf of another employee.")
+      ticket.errors.add(:base, "You are not allowed to raise an oral response ticket right now.")
       return ticket
     end
 
     requester_user = User.find_by(id: ticket.requester_user_id)
     if requester_user.blank?
-      ticket.errors.add(:requester_user_id, "Please select the employee for whom you are raising this ticket.")
+      ticket.errors.add(:requester_user_id, "Please select the employee for whom you are raising this response ticket.")
       return ticket
     end
 
@@ -209,23 +219,70 @@ class HelpDeskTicketsController < ApplicationController
       return ticket
     end
 
+    unless allowed_assisted_requester_ids.include?(requester_user.id)
+      ticket.errors.add(:requester_user_id, "You can raise an oral response ticket only for an available employee.")
+      return ticket
+    end
+
     ticket.user = requester_user
     ticket.raised_on_behalf = true if ticket.has_attribute?(:raised_on_behalf)
+    ticket.prepare_assisted_resolution!(resolver: current_user)
     ticket
   end
 
-  def build_help_desk_requester_options
-    User.includes(:employee_detail)
-        .where.not(id: current_user.id)
-        .map do |user|
-          identifier = user.employee_code.presence || user.email
-          [ "#{user.display_name} (#{identifier})", user.id ]
-        end
-        .sort_by(&:first)
+  def build_help_desk_requester_directory
+    users = User.includes(:employee_detail).where.not(id: current_user.id).to_a
+
+    users.map do |user|
+      employee_profile = user.mapped_employee_detail
+      identifier = employee_profile&.employee_code.presence || user.employee_code.presence || user.email
+
+      {
+        id: user.id,
+        label: "#{user.display_name} (#{identifier})",
+        name: user.display_name,
+        employee_code: identifier,
+        email: user.email
+      }
+    end.sort_by { |requester| requester[:label].downcase }
   end
 
   def can_create_assisted_help_desk_tickets?
     @can_create_assisted_help_desk_tickets
+  end
+
+  def allowed_assisted_requester_ids
+    @allowed_assisted_requester_ids ||= @help_desk_requester_directory.map { |requester| requester[:id] }
+  end
+
+  def direct_report_requester_users
+    manager_code = current_user.employee_code.to_s.strip
+    manager_email = current_user.email.to_s.strip.downcase
+    conditions = []
+    values = {}
+
+    if manager_code.present?
+      conditions << "TRIM(l1_code) = :manager_code"
+      values[:manager_code] = manager_code
+    end
+
+    if manager_email.present?
+      conditions << "LOWER(COALESCE(l1_employer_name, '')) = :manager_email"
+      values[:manager_email] = manager_email
+    end
+
+    return [] if conditions.empty?
+
+    employee_details = EmployeeDetail.includes(:user).where(conditions.join(" OR "), values)
+
+    employee_details.filter_map do |employee_detail|
+      user =
+        employee_detail.user ||
+        User.find_by(employee_code: employee_detail.employee_code.to_s.strip) ||
+        User.find_by("LOWER(email) = ?", employee_detail.employee_email.to_s.strip.downcase)
+
+      user if user.present? && user.id != current_user.id
+    end.uniq { |user| user.id }
   end
 
   def build_help_desk_question_catalog

@@ -42,12 +42,22 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
       role: "hod"
     )
 
+    @oral_l1_user = User.create!(
+      email: "manager.helpdesk@example.com",
+      employee_code: "M1001",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "employee"
+    )
+
     EmployeeDetail.create!(
       user: @user,
       employee_name: "Help Desk Employee",
       employee_email: @user.email,
       employee_code: @user.employee_code,
-      department: "IT Support"
+      department: "IT Support",
+      l1_code: @oral_l1_user.employee_code,
+      l1_employer_name: @oral_l1_user.email
     )
 
     HelpdeskEscalationMatrix.create!(
@@ -218,32 +228,30 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
     assert_not ticket.can_be_finalized_by?(@user)
   end
 
-  test "ticket pending user action auto closes after 24 hours if selected user does not respond" do
-    freeze_time do
-      ticket = HelpDeskTicket.create!(
-        user: @user,
-        department: @department,
-        request_type: "suggestion",
-        question_subject: "Onboarding improvement",
-        message: "Please improve the onboarding steps."
-      )
+  test "ticket pending user action auto closes after 2 days if selected user does not respond" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "suggestion",
+      question_subject: "Onboarding improvement",
+      message: "Please improve the onboarding steps."
+    )
 
-      assert ticket.mark_resolved_by(
-        reviewer: @l1_user,
-        response_message: "The onboarding steps have been updated.",
-        final_action_mode: "reopen_close"
-      )
+    assert ticket.mark_resolved_by(
+      reviewer: @l1_user,
+      response_message: "The onboarding steps have been updated.",
+      final_action_mode: "reopen_close"
+    )
 
-      assert_equal Time.current + 24.hours, ticket.requester_response_due_at
+    assert_in_delta 2.days.from_now.to_i, ticket.requester_response_due_at.to_i, 2
 
-      travel_to(ticket.requester_response_due_at + 5.minutes) do
-        assert ticket.auto_close_if_requester_inactive!(reference_time: Time.current)
+    travel_to(ticket.requester_response_due_at + 5.minutes) do
+      assert ticket.auto_close_if_requester_inactive!(reference_time: Time.current)
 
-        ticket.reload
-        assert_equal "closed", ticket.status
-        assert ticket.closed_automatically
-        assert_equal Time.current, ticket.closed_at
-      end
+      ticket.reload
+      assert_equal "closed", ticket.status
+      assert ticket.closed_automatically
+      assert_equal Time.current, ticket.closed_at
     end
   end
 
@@ -309,5 +317,102 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
 
     assert_not ticket.valid?
     assert_includes ticket.errors[:question_subject], "Select a common question or type your own topic."
+  end
+
+  test "captures oral response ticket timestamp and sends it for approval" do
+    freeze_time do
+      ticket = HelpDeskTicket.new(
+        user: @user,
+        submitted_by_user: @oral_l1_user,
+        department: @department,
+        request_type: "complaint",
+        question_subject: "Walk-in complaint",
+        message: "Employee shared this issue verbally with the manager.",
+        on_behalf_requested: "1",
+        request_received_on: "2026-05-10",
+        request_received_time: "14:35"
+      )
+      ticket.prepare_assisted_resolution!(resolver: @oral_l1_user)
+      ticket.save!
+
+      assert ticket.assisted_request?
+      assert_equal "Oral Response Ticket", ticket.submission_mode_label
+      assert_equal "resolved", ticket.status
+      assert_equal "approve_reject", ticket.final_action_mode
+      assert_equal @user.id, ticket.approval_user_id
+      assert_nil ticket.assigned_to_user_id
+      assert_nil ticket.escalation_due_at
+      assert_equal Date.new(2026, 5, 10), ticket.request_received_at.in_time_zone("Asia/Kolkata").to_date
+      assert_equal "14:35", ticket.request_received_at.in_time_zone("Asia/Kolkata").strftime("%H:%M")
+    end
+  end
+
+  test "oral response ticket requires manual date and time" do
+    ticket = HelpDeskTicket.new(
+      user: @user,
+      submitted_by_user: @oral_l1_user,
+      department: @department,
+      request_type: "suggestion",
+      question_subject: "Verbal suggestion",
+      message: "Employee shared this suggestion verbally.",
+      on_behalf_requested: "1"
+    )
+    ticket.prepare_assisted_resolution!(resolver: @oral_l1_user)
+
+    assert_not ticket.valid?
+    assert_includes ticket.errors[:request_received_on], "Select the complaint or suggestion date for this oral ticket."
+    assert_includes ticket.errors[:request_received_time], "Select the complaint or suggestion time for this oral ticket."
+  end
+
+  test "requester can reject an oral response ticket back to the resolver" do
+    ticket = HelpDeskTicket.new(
+      user: @user,
+      submitted_by_user: @oral_l1_user,
+      department: @department,
+      request_type: "suggestion",
+      question_subject: "Verbal suggestion",
+      message: "Employee shared this suggestion verbally.",
+      on_behalf_requested: "1",
+      request_received_on: "2026-05-10",
+      request_received_time: "14:35"
+    )
+    ticket.prepare_assisted_resolution!(resolver: @oral_l1_user)
+    ticket.save!
+
+    assert ticket.reject_by!(actor: @user, remark: "This work is not completed yet.")
+
+    ticket.reload
+    assert_equal "reopened", ticket.status
+    assert_equal @oral_l1_user.id, ticket.assigned_to_user_id
+    assert_nil ticket.escalation_due_at
+    assert_equal "This work is not completed yet.", ticket.requester_remark
+  end
+
+  test "requester identity can approve oral response ticket even when login user id differs" do
+    alternate_login = User.create!(
+      email: "alternate.helpdesk.employee@example.com",
+      employee_code: @user.employee_code,
+      password: "password123",
+      password_confirmation: "password123",
+      role: "employee"
+    )
+
+    ticket = HelpDeskTicket.new(
+      user: @user,
+      submitted_by_user: @oral_l1_user,
+      department: @department,
+      request_type: "complaint",
+      question_subject: "Walk-in complaint",
+      message: "Employee shared this issue verbally with the manager.",
+      on_behalf_requested: "1",
+      request_received_on: "2026-05-10",
+      request_received_time: "14:35"
+    )
+    ticket.prepare_assisted_resolution!(resolver: @oral_l1_user)
+    ticket.save!
+
+    assert_includes HelpDeskTicket.visible_to_actor(alternate_login), ticket
+    assert_includes HelpDeskTicket.pending_user_action_for(alternate_login), ticket
+    assert ticket.can_be_finalized_by?(alternate_login)
   end
 end

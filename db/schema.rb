@@ -177,6 +177,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_14_093000) do
     t.bigint "approval_user_id"
     t.string "final_action_mode"
     t.integer "reopen_count", default: 0, null: false
+    t.datetime "request_received_at"
     t.index ["approval_user_id"], name: "index_help_desk_tickets_on_approval_user_id"
     t.index ["assigned_to_user_id", "status"], name: "index_help_desk_tickets_on_assignee_and_status"
     t.index ["assigned_to_user_id"], name: "index_help_desk_tickets_on_assigned_to_user_id"

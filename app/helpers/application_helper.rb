@@ -62,7 +62,7 @@ module ApplicationHelper
     when "in_review"
       "Open With Support"
     when "resolved"
-      "Pending Reopen / Close"
+      ticket.final_action_mode_approve_reject? ? "Pending Approve / Reject" : "Pending Reopen / Close"
     when "reopened"
       "Reopened By User"
     else
@@ -95,7 +95,7 @@ module ApplicationHelper
           0
         end
 
-      pending_user_action_count = HelpDeskTicket.where(status: "resolved", approval_user_id: current_user.id).count
+      pending_user_action_count = HelpDeskTicket.pending_user_action_for(current_user).count
 
       reviewer_count + pending_user_action_count
     end

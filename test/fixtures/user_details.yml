@@ -15,6 +15,7 @@ one:
   january: MyText
   february: MyText
   march: MyText
+  year: 26-27
 
 two:
   department: two
@@ -31,3 +32,4 @@ two:
   january: MyText
   february: MyText
   march: MyText
+  year: 26-27

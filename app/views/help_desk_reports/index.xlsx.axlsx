@@ -64,7 +64,9 @@ wb.styles do |styles|
       "Requester Name",
       "Requester Employee Code",
       "Requester Email",
+      "Submission Mode",
       "Submitted By",
+      "Complaint Received At",
       "Action User",
       "Reopen Count",
       "Current Owner",
@@ -78,7 +80,7 @@ wb.styles do |styles|
       "Closure Mode",
       "Support Update",
       "User Remark"
-    ], style: Array.new(22, header_style), height: 30
+    ], style: Array.new(24, header_style), height: 30
 
     @report_tickets.each do |ticket|
       status_style =
@@ -99,7 +101,9 @@ wb.styles do |styles|
         ticket.requester_name,
         ticket.requester_employee_code,
         ticket.requester_email,
+        ticket.submission_mode_label,
         (ticket.submitted_by_user.present? ? user_display_name(ticket.submitted_by_user) : "-"),
+        (ticket.request_received_at.present? ? ticket.request_received_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : "-"),
         (ticket.approval_pending_user.present? ? user_display_name(ticket.approval_pending_user) : "-"),
         ticket.total_reopens,
         (ticket.assigned_to_user.present? ? user_display_name(ticket.assigned_to_user) : "-"),
@@ -110,10 +114,12 @@ wb.styles do |styles|
         (ticket.responded_at.present? ? ticket.responded_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : "-"),
         (ticket.requester_response_due_at.present? ? ticket.requester_response_due_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : "-"),
         (ticket.closed_at.present? ? ticket.closed_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : "-"),
-        (ticket.closed? ? (ticket.closed_automatically? ? "Auto Closed" : "Manually Closed") : "-"),
+        (ticket.closed? ? (ticket.closed_automatically? && ticket.final_action_mode_approve_reject? ? "Auto Approved" : (ticket.closed_automatically? ? "Auto Closed" : "Manually Closed")) : "-"),
         ticket.response_message.presence || "-",
         ticket.requester_remark.presence || "-"
       ], style: [
+        text_style,
+        text_style,
         text_style,
         text_style,
         text_style,
@@ -139,7 +145,7 @@ wb.styles do |styles|
       ]
     end
 
-    sheet.column_widths 14, 14, 20, 26, 36, 20, 18, 26, 20, 20, 14, 20, 20, 16, 20, 22, 22, 22, 20, 18, 30, 28
+    sheet.column_widths 14, 14, 20, 26, 36, 20, 18, 26, 18, 20, 22, 20, 14, 20, 20, 16, 20, 22, 22, 22, 20, 18, 30, 28
 
     sheet.sheet_view.pane do |pane|
       pane.top_left_cell = "A5"

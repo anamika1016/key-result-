@@ -51,12 +51,22 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       role: "employee"
     )
 
+    @oral_l1_user = User.create!(
+      email: "people.manager@example.com",
+      employee_code: "M2001",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "employee"
+    )
+
     EmployeeDetail.create!(
       user: @user,
       employee_name: "Support User",
       employee_email: @user.email,
       employee_code: @user.employee_code,
-      department: "Administration"
+      department: "Administration",
+      l1_code: @oral_l1_user.employee_code,
+      l1_employer_name: @oral_l1_user.email
     )
 
     HelpdeskEscalationMatrix.create!(
@@ -77,7 +87,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should get index for signed in user" do
-    sign_in @user
+    sign_in @user, scope: :user
 
     get help_desk_tickets_url
 
@@ -86,7 +96,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should create help desk ticket and assign first escalation" do
-    sign_in @user
+    sign_in @user, scope: :user
 
     assert_difference("HelpDeskTicket.count", 1) do
       post help_desk_tickets_url, params: {
@@ -116,7 +126,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       message: "Please make the queue status clearer."
     )
 
-    sign_in @l1_user
+    sign_in @l1_user, scope: :user
 
     patch respond_help_desk_ticket_url(ticket), params: {
       review_decision: "keep_open",
@@ -144,7 +154,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       message: "There is a fresh network issue for reviewer notification."
     )
 
-    sign_in @l1_user
+    sign_in @l1_user, scope: :user
 
     get help_desk_tickets_url
 
@@ -161,7 +171,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       message: "Please make the queue status clearer."
     )
 
-    sign_in @l1_user
+    sign_in @l1_user, scope: :user
 
     patch respond_help_desk_ticket_url(ticket), params: {
       review_decision: "close",
@@ -190,7 +200,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       message: "The internet issue needs a support closure flow."
     )
 
-    sign_in @l1_user
+    sign_in @l1_user, scope: :user
 
     patch respond_help_desk_ticket_url(ticket), params: {
       review_decision: "close",
@@ -217,7 +227,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       message: "Please make the queue status clearer."
     )
 
-    sign_in @l1_user
+    sign_in @l1_user, scope: :user
 
     patch respond_help_desk_ticket_url(ticket), params: {
       review_decision: "close",
@@ -244,7 +254,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       message: "My laptop is still restarting unexpectedly."
     )
 
-    sign_in @l1_user
+    sign_in @l1_user, scope: :user
 
     patch respond_help_desk_ticket_url(ticket), params: {
       help_desk_ticket: {
@@ -277,7 +287,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       final_action_mode: "reopen_close"
     )
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     patch finalize_resolution_help_desk_ticket_url(ticket), params: {
       decision: "reopen",
@@ -311,7 +321,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       final_action_mode: "reopen_close"
     )
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     patch finalize_resolution_help_desk_ticket_url(ticket), params: {
       decision: "close",
@@ -344,7 +354,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       )
     end
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     get help_desk_tickets_url
 
@@ -353,7 +363,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, ticket.ticket_reference
     assert_includes response.body, "Reopen Ticket"
     assert_includes response.body, "Close Ticket"
-    assert_includes response.body, "24 hours"
+    assert_includes response.body, "2 days"
   end
 
   test "selected action user sees reopen and close actions after support closes ticket" do
@@ -371,7 +381,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       final_action_mode: "reopen_close"
     )
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     get help_desk_tickets_url
 
@@ -396,7 +406,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       final_action_mode: "reopen_close"
     )
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     patch finalize_resolution_help_desk_ticket_url(ticket), params: {
       decision: "close",
@@ -429,7 +439,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       final_action_mode: "reopen_close"
     )
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     patch finalize_resolution_help_desk_ticket_url(ticket), params: {
       decision: "reopen",
@@ -450,14 +460,14 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
   test "reviewer can choose original submitter as action user" do
     ticket = HelpDeskTicket.create!(
       user: @user,
-      submitted_by_user: @submitter_user,
       department: @department,
       request_type: "complaint",
       question_subject: "Laptop issue",
       message: "Laptop issue was raised on behalf of requester."
     )
+    ticket.update_columns(submitted_by_user_id: @submitter_user.id, raised_on_behalf: false)
 
-    sign_in @l2_user
+    sign_in @l1_user, scope: :user
 
     patch respond_help_desk_ticket_url(ticket), params: {
       review_decision: "close",
@@ -473,7 +483,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "resolved", ticket.status
     assert_equal @submitter_user.id, ticket.approval_user_id
 
-    sign_in @submitter_user
+    sign_in @submitter_user, scope: :user
     get help_desk_tickets_url
 
     assert_response :success
@@ -496,7 +506,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
       response_message: "We are still investigating the login service and keeping this ticket open."
     )
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     get help_desk_tickets_url
 
@@ -508,12 +518,158 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "shows common question field on help desk form" do
-    sign_in @user
+    sign_in @user, scope: :user
 
     get help_desk_tickets_url
 
     assert_response :success
     assert_includes response.body, "Common Question / Topic"
     assert_includes response.body, "Other / Type your own topic"
+  end
+
+  test "any user can raise oral response ticket on behalf of another employee" do
+    sign_in @l2_user, scope: :user
+
+    get help_desk_tickets_url
+
+    assert_response :success
+    assert_includes response.body, "Create response ticket for an oral complaint / suggestion"
+
+    freeze_time do
+      assert_difference("HelpDeskTicket.count", 1) do
+        post help_desk_tickets_url, params: {
+          help_desk_ticket: {
+            department_id: @department.id,
+            request_type: "complaint",
+            on_behalf_requested: "1",
+            requester_user_id: @user.id,
+            request_received_on: "2026-05-10",
+            request_received_time: "14:35",
+            help_desk_question_master_id: @question_master.id,
+            message: "Employee reported the login issue verbally to the L1 manager."
+          }
+        }
+      end
+
+      ticket = HelpDeskTicket.order(:id).last
+
+      assert_redirected_to help_desk_tickets_url
+      assert_equal @user.id, ticket.user_id
+      assert_equal @l2_user.id, ticket.submitted_by_user_id
+      assert_equal @l2_user.id, ticket.responded_by_user_id
+      assert ticket.raised_on_behalf
+      assert_equal "resolved", ticket.status
+      assert_equal "approve_reject", ticket.final_action_mode
+      assert_equal @user.id, ticket.approval_user_id
+      assert_equal Date.new(2026, 5, 10), ticket.request_received_at.in_time_zone("Asia/Kolkata").to_date
+      assert_equal "14:35", ticket.request_received_at.in_time_zone("Asia/Kolkata").strftime("%H:%M")
+      assert_nil ticket.assigned_to_user_id
+      assert_nil ticket.escalation_due_at
+    end
+  end
+
+  test "user cannot raise oral response ticket for self" do
+    sign_in @l2_user, scope: :user
+
+    assert_no_difference("HelpDeskTicket.count") do
+      post help_desk_tickets_url, params: {
+        help_desk_ticket: {
+          department_id: @department.id,
+          request_type: "complaint",
+          on_behalf_requested: "1",
+          requester_user_id: @l2_user.id,
+          help_desk_question_master_id: @question_master.id,
+          message: "Trying to raise an oral response ticket for self."
+        }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Choose another employee or turn off on behalf mode."
+  end
+
+  test "oral response ticket requires selecting an employee name" do
+    sign_in @l2_user, scope: :user
+
+    assert_no_difference("HelpDeskTicket.count") do
+      post help_desk_tickets_url, params: {
+        help_desk_ticket: {
+          department_id: @department.id,
+          request_type: "complaint",
+          on_behalf_requested: "1",
+          requester_user_id: "",
+          help_desk_question_master_id: @question_master.id,
+          message: "Employee reported this verbally and the resolver completed the work."
+        }
+      }
+    end
+
+    assert_response :unprocessable_entity
+    assert_includes response.body, "Please select the employee"
+  end
+
+  test "requester sees approve reject actions for oral response ticket" do
+    sign_in @l2_user, scope: :user
+
+    post help_desk_tickets_url, params: {
+      help_desk_ticket: {
+        department_id: @department.id,
+        request_type: "complaint",
+        on_behalf_requested: "1",
+        requester_user_id: @user.id,
+        request_received_on: "2026-05-10",
+        request_received_time: "14:35",
+        help_desk_question_master_id: @question_master.id,
+        message: "Employee reported the login issue verbally and it was completed."
+      }
+    }
+
+    ticket = HelpDeskTicket.order(:id).last
+
+    sign_in @user, scope: :user
+    get help_desk_tickets_url
+
+    assert_response :success
+    assert_includes response.body, ticket.ticket_reference
+    assert_includes response.body, "Response ticket is waiting for your approval"
+    assert_includes response.body, "Approve"
+    assert_includes response.body, "Reject"
+  end
+
+  test "requester login with same employee code sees approve reject actions for oral response ticket" do
+    alternate_login = User.create!(
+      email: "alternate.support.user@example.com",
+      employee_code: @user.employee_code,
+      password: "password123",
+      password_confirmation: "password123",
+      role: "employee"
+    )
+
+    sign_in @l2_user, scope: :user
+
+    post help_desk_tickets_url, params: {
+      help_desk_ticket: {
+        department_id: @department.id,
+        request_type: "complaint",
+        on_behalf_requested: "1",
+        requester_user_id: @user.id,
+        request_received_on: "2026-05-10",
+        request_received_time: "14:35",
+        help_desk_question_master_id: @question_master.id,
+        message: "Employee reported the login issue verbally and it was completed."
+      }
+    }
+
+    ticket = HelpDeskTicket.order(:id).last
+
+    sign_in alternate_login, scope: :user
+    get help_desk_tickets_url
+
+    assert_response :success
+    assert_includes response.body, 'data-helpdesk-menu-badge="1"'
+    assert_includes response.body, ticket.ticket_reference
+    assert_includes response.body, "Response ticket is waiting for your approval"
+    assert_includes response.body, "Approve"
+    assert_includes response.body, "Reject"
   end
 end

@@ -150,6 +150,9 @@
                 <div class="helpdesk-badge-row">
                   <span class="helpdesk-badge"><%= ticket.ticket_reference %></span>
                   <span class="helpdesk-badge <%= ticket.complaint? ? 'helpdesk-badge--danger' : 'helpdesk-badge--info' %>"><%= ticket.request_label %></span>
+                  <% if ticket.assisted_request? %>
+                    <span class="helpdesk-badge helpdesk-badge--neutral"><%= ticket.submission_mode_label %></span>
+                  <% end %>
                 </div>
                 <h3 class="helpdesk-ticket__title" style="margin-top: 14px;"><%= ticket.request_subject %></h3>
                 <p class="helpdesk-ticket__copy"><%= ticket.current_escalation_label %></p>
@@ -187,6 +190,10 @@
                     <span class="helpdesk-kv__value"><%= ticket.requester_name %> (<%= ticket.requester_employee_code.presence || ticket.requester_email %>)</span>
                   </div>
                   <div class="helpdesk-kv__row">
+                    <span class="helpdesk-kv__label">Submission Mode</span>
+                    <span class="helpdesk-kv__value"><%= ticket.submission_mode_label %></span>
+                  </div>
+                  <div class="helpdesk-kv__row">
                     <span class="helpdesk-kv__label">Department</span>
                     <span class="helpdesk-kv__value"><%= ticket.department.department_type %></span>
                   </div>
@@ -198,6 +205,12 @@
                     <div class="helpdesk-kv__row">
                       <span class="helpdesk-kv__label">Submitted By</span>
                       <span class="helpdesk-kv__value"><%= user_display_name(ticket.submitted_by_user) %></span>
+                    </div>
+                  <% end %>
+                  <% if ticket.request_received_at.present? %>
+                    <div class="helpdesk-kv__row">
+                      <span class="helpdesk-kv__label">Complaint Received</span>
+                      <span class="helpdesk-kv__value"><%= ticket.request_received_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
                     </div>
                   <% end %>
                   <% if ticket.assigned_to_user.present? %>
@@ -241,7 +254,7 @@
                   <% end %>
                   <% if ticket.closed_at.present? %>
                     <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label"><%= ticket.closed_automatically? ? "Auto Closed" : "Closed" %></span>
+                      <span class="helpdesk-kv__label"><%= ticket.closed_automatically? && ticket.final_action_mode_approve_reject? ? "Auto Approved" : (ticket.closed_automatically? ? "Auto Closed" : "Closed") %></span>
                       <span class="helpdesk-kv__value"><%= ticket.closed_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
                     </div>
                   <% elsif ticket.escalation_due_at.present? && ticket.open_for_review_status? %>
@@ -277,7 +290,7 @@
                   <div class="helpdesk-action-panel" style="margin-top: 12px;">
                     <p class="helpdesk-action-panel__title">Closure Summary</p>
                     <p class="helpdesk-action-panel__copy">
-                      <%= ticket.closed_automatically? ? "Closed automatically after no user action." : "Closed manually after user action." %>
+                      <%= ticket.closed_automatically? && ticket.final_action_mode_approve_reject? ? "Approved automatically after no user action." : (ticket.closed_automatically? ? "Closed automatically after no user action." : "Closed manually after user action.") %>
                     </p>
                   </div>
                 <% end %>
