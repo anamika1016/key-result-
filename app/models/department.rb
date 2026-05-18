@@ -22,12 +22,21 @@ validates :department_type, presence: true
   # Callback methods for global user detail sync have been removed to prevent cross-assignment.
 
   def self.selectable_verticals
-    joins(:user_details)
-      .select("departments.*")
-      .distinct
-      .select { |department| department.department_type.to_s.strip.present? }
-      .uniq { |department| department.department_type.to_s.strip }
-      .sort_by { |department| department.department_type.to_s.strip.downcase }
+    department_names = (
+      distinct.pluck(:department_type) +
+      EmployeeDetail.distinct.pluck(:department)
+    ).map { |name| name.to_s.strip }
+     .reject(&:blank?)
+     .uniq
+
+    existing_departments = where(department_type: department_names).index_by(&:department_type)
+    missing_department_names = department_names - existing_departments.keys
+
+    missing_department_names.each do |department_name|
+      existing_departments[department_name] = create!(department_type: department_name)
+    end
+
+    existing_departments.values.sort_by { |department| [ department.department_type.to_s.downcase, department.theme_name.to_s.downcase ] }
   end
 
   # Get employee name from employee_reference (which stores employee_id)
