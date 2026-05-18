@@ -528,6 +528,7 @@
           </div>
 
           <% @recent_tickets.each do |ticket| %>
+            <% next unless ticket.visible_in_user_current_list_for?(current_user) %>
             <article class="helpdesk-data-table__row">
               <div class="helpdesk-data-table__cell">
                 <p class="helpdesk-cell-title">Ticket</p>

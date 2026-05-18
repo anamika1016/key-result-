@@ -149,7 +149,7 @@ class HelpDeskTicketsController < ApplicationController
                           .includes(:department, :submitted_by_user, { user: :employee_detail }, { assigned_to_user: :employee_detail }, { approval_user: :employee_detail }, documents_attachments: :blob)
                           .recent_first
 
-    current_user.hod? ? scope.limit(12) : scope.assigned_to(current_user).limit(12)
+    scope.assigned_to(current_user).limit(12)
   end
 
   def load_recent_tickets
@@ -166,12 +166,13 @@ class HelpDeskTicketsController < ApplicationController
 
     current_statuses = HelpDeskTicket::REVIEW_OPEN_STATUSES + ["resolved"]
 
-    HelpDeskTicket.visible_to_actor(current_user)
+    HelpDeskTicket.user_side_visible_to_actor(current_user)
                   .where(status: current_statuses)
                   .includes(*includes_config)
                   .recent_first
-                  .limit(10)
                   .to_a
+                  .select { |ticket| ticket.visible_in_user_current_list_for?(current_user) }
+                  .first(10)
   end
 
   def set_assigned_ticket

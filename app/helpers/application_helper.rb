@@ -89,8 +89,7 @@ module ApplicationHelper
     @help_desk_menu_notification_count ||= begin
       reviewer_count =
         if helpdesk_reviewer?
-          reviewer_scope = HelpDeskTicket.open_for_review
-          current_user.hod? ? reviewer_scope.count : reviewer_scope.where(assigned_to_user_id: current_user.id).count
+          HelpDeskTicket.open_for_review.where(assigned_to_user_id: current_user.id).count
         else
           0
         end

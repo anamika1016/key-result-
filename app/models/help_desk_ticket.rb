@@ -51,6 +51,12 @@ class HelpDeskTicket < ApplicationRecord
   scope :open_for_review, -> { where(status: REVIEW_OPEN_STATUSES) }
   scope :pending_requester_confirmation, -> { where(status: "resolved") }
   scope :assigned_to, ->(reviewer) { where(assigned_to_user_id: reviewer.id) }
+  scope :user_side_visible_to_actor, ->(actor) {
+    next none if actor.blank?
+
+    where(approval_user_id: actor.id)
+      .or(matching_requester_identity(actor))
+  }
   scope :visible_to_actor, ->(actor) {
     next none if actor.blank?
     next all if actor.hod?
@@ -182,6 +188,13 @@ class HelpDeskTicket < ApplicationRecord
     return true if assisted_request? && requester_identity_matches?(actor)
 
     approval_identity_matches?(actor)
+  end
+
+  def visible_in_user_current_list_for?(actor)
+    return false if actor.blank?
+    return true if approval_user_id == actor.id
+
+    requester_identity_matches?(actor)
   end
 
   def self.pending_user_action_for(actor)

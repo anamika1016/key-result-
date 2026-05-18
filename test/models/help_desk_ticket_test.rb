@@ -137,6 +137,41 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
     assert_includes HelpDeskTicket.visible_to_actor(@l1_user), ticket
   end
 
+  test "user side visibility excludes support-only assignments" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "complaint",
+      question_subject: "Laptop issue",
+      message: "Laptop is not charging."
+    )
+
+    assert_equal @l1_user.id, ticket.assigned_to_user_id
+    assert_includes HelpDeskTicket.user_side_visible_to_actor(@user), ticket
+    assert_not_includes HelpDeskTicket.user_side_visible_to_actor(@l1_user), ticket
+    assert_not_includes HelpDeskTicket.user_side_visible_to_actor(@l3_user), ticket
+  end
+
+  test "user side visibility ignores mismatched stored owner when requester belongs to another user" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "complaint",
+      question_subject: "Laptop issue",
+      message: "Laptop is not charging."
+    )
+
+    ticket.update_columns(
+      user_id: @l1_user.id,
+      requester_email: @user.email,
+      requester_employee_code: @user.employee_code
+    )
+
+    assert_not_includes HelpDeskTicket.user_side_visible_to_actor(@l1_user), ticket
+    assert_not ticket.reload.visible_in_user_current_list_for?(@l1_user)
+    assert_includes HelpDeskTicket.user_side_visible_to_actor(@user), ticket
+  end
+
   test "reviewer can keep a ticket open without sending it for user action" do
     freeze_time do
       ticket = HelpDeskTicket.create!(
