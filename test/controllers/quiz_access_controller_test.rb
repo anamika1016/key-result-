@@ -19,6 +19,42 @@ class QuizAccessControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "istockphoto-"
   end
 
+  test "does not allow inactive quiz access from qr link" do
+    quiz = quizzes(:one)
+    quiz.update!(status: "inactive")
+
+    get quiz_access_path(quiz.qr_token)
+
+    assert_response :forbidden
+    assert_includes response.body, "currently inactive"
+    assert_no_match(/Quiz Login/, response.body)
+  end
+
+  test "does not start or submit inactive quiz" do
+    quiz = quizzes(:one)
+    user_quiz = user_quizzes(:one)
+    question = questions(:one)
+    quiz.update!(status: "inactive")
+
+    post start_quiz_access_path(quiz.qr_token), params: {
+      employee_code: user_quiz.employee_code,
+      password: user_quiz.password
+    }
+
+    assert_response :forbidden
+    assert_nil session["quiz_access_user_quiz_#{quiz.id}"]
+
+    assert_no_difference("QuizSubmission.count") do
+      post submit_quiz_access_path(quiz.qr_token), params: {
+        answers: {
+          question.id.to_s => question.correct_answer
+        }
+      }
+    end
+
+    assert_response :forbidden
+  end
+
   test "submits quiz once and blocks repeat attempt" do
     quiz = quizzes(:one)
     user_quiz = user_quizzes(:one)

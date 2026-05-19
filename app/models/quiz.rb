@@ -19,6 +19,10 @@ class Quiz < ApplicationRecord
     "/quiz_access/#{qr_token}"
   end
 
+  def active_for_access?
+    status.to_s.strip.casecmp("active").zero?
+  end
+
   def duration_in_seconds
     duration.to_i
   end

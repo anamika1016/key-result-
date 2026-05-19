@@ -2,6 +2,7 @@ class QuizAccessController < ApplicationController
   skip_before_action :authenticate_user!
 
   before_action :set_quiz
+  before_action :ensure_quiz_active!, except: :logout
 
   def show
     @user_quiz = UserQuiz.new
@@ -93,6 +94,17 @@ class QuizAccessController < ApplicationController
 
   def set_quiz
     @quiz = Quiz.find_by!(qr_token: params[:qr_token])
+  end
+
+  def ensure_quiz_active!
+    return if @quiz.active_for_access?
+
+    clear_quiz_access_session!
+
+    respond_to do |format|
+      format.html { render :inactive, status: :forbidden }
+      format.any { head :forbidden }
+    end
   end
 
   def find_user_quiz
