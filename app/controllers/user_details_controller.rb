@@ -176,11 +176,12 @@ class UserDetailsController < ApplicationController
       activity_params = {
         theme_name: params[:user_detail][:activity_theme_name],
         unit: params[:user_detail][:activity_unit],
-        weight: params[:user_detail][:activity_weight]
+        weight: params[:user_detail][:total_weightage].presence || params[:user_detail][:activity_weight]
       }
 
       # Remove activity fields from user_detail_params
       user_detail_params_filtered = user_detail_params.except(:activity_theme_name, :activity_unit, :activity_weight)
+      user_detail_params_filtered[:total_weightage] = activity_params[:weight] if activity_params[:weight].present? && user_detail_params_filtered[:total_weightage].blank?
 
       ActiveRecord::Base.transaction do
         # Update the user detail
@@ -1099,14 +1100,19 @@ class UserDetailsController < ApplicationController
             q1: extract_month_value(details, "q1"),
             q2: extract_month_value(details, "q2"),
             q3: extract_month_value(details, "q3"),
-            q4: extract_month_value(details, "q4")
+            q4: extract_month_value(details, "q4"),
+            total_weightage: normalize_percentage(details["total_weightage"] || details[:total_weightage] || details["weight"] || details[:weight]),
+            weightage_q1: normalize_percentage(details["weightage_q1"] || details[:weightage_q1]),
+            weightage_q2: normalize_percentage(details["weightage_q2"] || details[:weightage_q2]),
+            weightage_q3: normalize_percentage(details["weightage_q3"] || details[:weightage_q3]),
+            weightage_q4: normalize_percentage(details["weightage_q4"] || details[:weightage_q4])
           }
 
           # Extract activity metadata (unit, theme_name, and weight)
           # Handle blank values properly - convert empty strings to nil for database
           unit_value = details["unit"] || details[:unit]
           theme_value = details["theme_name"] || details[:theme_name]
-          weight_value = details["weight"] || details[:weight]
+          weight_value = details["total_weightage"] || details[:total_weightage] || details["weight"] || details[:weight]
 
           activity_metadata = {
             unit: unit_value.present? ? unit_value : nil,
@@ -1260,7 +1266,8 @@ class UserDetailsController < ApplicationController
 
 
             # Extract the 15 columns including Employee Email, Employee Code, and L1/L2/L3 codes
-            department_type = row["department"]
+            row_year = database_financial_year_value(UserDetail, row["financial_year"].presence || row["year"].presence || selected_year)
+            department_type = row["department"] || row["vertical"]
             employee_name = row["employee_name"]
             employee_email = row["employee_email"]
             employee_code = row["employee_code"]
@@ -1274,7 +1281,11 @@ class UserDetailsController < ApplicationController
             activity_name = row["activity"]
             activity_theme_name = row["theme"]
             unit = row["unit"]
-            weightage = row["weightage"] || row["weight"]
+            weightage = row["total_weightage"] || row["weightage"] || row["weight"]
+            weightage_q1 = row["weightage_q1"] || row["q1_weightage"]
+            weightage_q2 = row["weightage_q2"] || row["q2_weightage"]
+            weightage_q3 = row["weightage_q3"] || row["q3_weightage"]
+            weightage_q4 = row["weightage_q4"] || row["q4_weightage"]
 
             # Debug logging for weight values
             Rails.logger.info "Processing weight for row #{i}: original_weightage=#{row['weightage']}, original_weight=#{row['weight']}, final_weightage=#{weightage}"
@@ -1373,7 +1384,8 @@ class UserDetailsController < ApplicationController
 
             activity = Activity.find_or_create_by!(
               activity_name: activity_name.to_s.strip,
-              department_id: department.id
+              department_id: department.id,
+              year: row_year
             ) do |a|
               a.unit = unit.to_s.strip if unit.present?
               a.weight = processed_weightage if processed_weightage.present?
@@ -1393,9 +1405,14 @@ class UserDetailsController < ApplicationController
                 employee_detail_id: employee.id,
                 department_id: department.id,
                 activity_id: activity.id,
-                year: selected_year
+                year: row_year
               )
 
+              user_detail.total_weightage = processed_weightage if processed_weightage.present?
+              user_detail.weightage_q1 = normalize_percentage(weightage_q1) if weightage_q1.present?
+              user_detail.weightage_q2 = normalize_percentage(weightage_q2) if weightage_q2.present?
+              user_detail.weightage_q3 = normalize_percentage(weightage_q3) if weightage_q3.present?
+              user_detail.weightage_q4 = normalize_percentage(weightage_q4) if weightage_q4.present?
               user_detail.save!
               success_count += 1
             rescue ActiveRecord::RecordInvalid => e
@@ -1442,6 +1459,9 @@ class UserDetailsController < ApplicationController
     params.require(:user_detail).permit(:department_id, :activity_id, :april, :may, :june,
                                         :july, :august, :september, :october, :november,
                                         :december, :january, :february, :march,
+                                        :q1, :q2, :q3, :q4,
+                                        :total_weightage, :weightage_q1, :weightage_q2,
+                                        :weightage_q3, :weightage_q4,
                                         :employee_detail_id, :employee_detail_email,
                                         :activity_theme_name, :activity_unit, :activity_weight, :year)
   end

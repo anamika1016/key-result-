@@ -2,12 +2,13 @@ wb = xlsx_package.workbook
 
 wb.add_worksheet(name: "User Details") do |sheet|
   sheet.add_row [
-    "Department", "Employee Name", "Employee Email", "Employee Code", "Mobile Number",
-    "Activity", "Theme", "Unit", "Weightage"
+    "Financial Year", "Department", "Employee Name", "Employee Email", "Employee Code", "Mobile Number",
+    "Activity", "Theme", "Unit", "Total Weightage", "Weightage Q1", "Weightage Q2", "Weightage Q3", "Weightage Q4"
   ]
 
   @user_details.each do |ud|
     sheet.add_row [
+      display_financial_year(ud.year),
       ud.department&.department_type,
       ud.employee_detail&.employee_name,
       ud.employee_detail&.employee_email,
@@ -16,7 +17,11 @@ wb.add_worksheet(name: "User Details") do |sheet|
       ud.activity&.activity_name,
       ud.activity&.theme_name,
       ud.activity&.unit,
-      ud.activity&.weight
+      ud.weight,
+      ud.weightage_for_quarter(:q1),
+      ud.weightage_for_quarter(:q2),
+      ud.weightage_for_quarter(:q3),
+      ud.weightage_for_quarter(:q4)
     ]
   end
 end

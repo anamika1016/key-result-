@@ -1,6 +1,7 @@
 class EmployeeDetail < ApplicationRecord
   has_many :user_details, dependent: :destroy
   has_many :sms_logs, dependent: :destroy
+  has_many :quiz_submissions, dependent: :nullify
   belongs_to :user, optional: true
   has_many :user_training_assignments, dependent: :destroy
   has_many :assigned_trainings, through: :user_training_assignments, source: :training

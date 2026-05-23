@@ -236,12 +236,14 @@
                 <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Indicator</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">KPI</th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Weightage</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Total Weightage</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Weightage <%= @selected_quarter.presence || "Q1" %></th>
                 <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600" colspan="3">
                   <%= @selected_quarter %> - <%= @selected_year %> (<%= display_months.map(&:last).join('-') %>)
                 </th>
               </tr>
               <tr class="bg-gray-700">
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
                 <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600"></th>
@@ -254,6 +256,7 @@
             <tbody class="bg-white divide-y divide-gray-200">
               <% 
                 total_weightage = 0
+                total_quarter_weightage = 0
                 total_achievement = 0
                 total_weightage_score = 0
                 row_count = 0
@@ -272,36 +275,27 @@
                   detail = details.first
                 %>
                 <% 
-                  # FIXED: Calculate quarterly data for this activity
-                  quarter_achievements = detail.achievements.select { |a| display_months.map(&:first).map(&:to_s).include?(a.month) }
-                  
-                  
-                  # Get weightage from the activity (using 'weight' attribute)
-                  weightage = detail.activity&.weight || 0
+                  selected_quarter_key = @selected_quarter.to_s.downcase.presence || "q1"
+                  direct_quarter_achievement = detail.achievements.find { |a| a.month.to_s.downcase == selected_quarter_key }
+                  quarter_achievements = detail.achievements.select { |a| display_months.map(&:first).map(&:to_s).include?(a.month.to_s.downcase) }
+                  weightage = detail.weight.to_f
+                  quarter_weightage = detail.weightage_for_quarter(selected_quarter_key).to_f
                   total_weightage += weightage
+                  total_quarter_weightage += quarter_weightage
                   
-                  # FIXED: Calculate average achievement for the quarter
-                  quarter_achievement_values = quarter_achievements.map { |a| a.achievement.to_f rescue 0 }.compact
-                  avg_achievement = quarter_achievement_values.any? ? (quarter_achievement_values.sum / quarter_achievement_values.size) : 0
-                  
-                  # FIXED: If no quarter achievements found, try to get any achievements for this activity
-                  if avg_achievement == 0 && detail.achievements.any?
-                    all_achievement_values = detail.achievements.map { |a| a.achievement.to_f rescue 0 }.compact
-                    avg_achievement = all_achievement_values.any? ? (all_achievement_values.sum / all_achievement_values.size) : 0
+                  if direct_quarter_achievement&.achievement.present?
+                    avg_achievement = direct_quarter_achievement.achievement.to_f
+                  else
+                    quarter_achievement_values = quarter_achievements.filter_map { |a| a.achievement.present? ? a.achievement.to_f : nil }
+                    avg_achievement = quarter_achievement_values.any? ? (quarter_achievement_values.sum / quarter_achievement_values.size) : 0
                   end
                   
                   
                   # Calculate weightage score
-                  weightage_score = (weightage * avg_achievement / 100).round(2)
+                  weightage_score = (quarter_weightage * avg_achievement / 100).round(2)
                   total_weightage_score += weightage_score
                   
-                  # FIXED: Get remarks (use the first available remark)
-                  remarks = quarter_achievements.map { |a| a.employee_remarks }.compact.first
-                  
-                  # If no quarter remarks, try to get any remarks for this activity
-                  if remarks.blank? && detail.achievements.any?
-                    remarks = detail.achievements.map { |a| a.employee_remarks }.compact.first
-                  end
+                  remarks = direct_quarter_achievement&.employee_remarks.presence || quarter_achievements.map { |a| a.employee_remarks }.compact.first
                   
                   # Don't set default remarks - show empty if no remarks provided
                   remarks = remarks.present? ? remarks : ""
@@ -319,11 +313,14 @@
                     <%= detail.activity&.unit || 'N/A' %>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
-                    <%= weightage %>
+                    <%= "#{weightage.to_i}%" %>
+                  </td>
+                  <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
+                    <%= "#{quarter_weightage.to_i}%" %>
                   </td>
                   <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
                     <span class="text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
-                      <%= avg_achievement.round(0) %>%
+                      <%= avg_achievement.to_i == avg_achievement ? avg_achievement.to_i : avg_achievement.round(2) %>%
                     </span>
                   </td>
                   <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
@@ -350,10 +347,12 @@
                 <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">TOTAL COUNT</td>
                 <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
                 <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
-                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200"><%= total_weightage.round(2) %></td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200"><%= "#{total_weightage.to_i}%" %></td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200"><%= "#{total_quarter_weightage.to_i}%" %></td>
                 <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
                   <span class="text-green-800 font-bold">
-                    <%= total_weightage > 0 ? ((total_weightage_score / total_weightage) * 100).round(2) : 0 %>%
+                    <% total_achievement_percentage = total_quarter_weightage > 0 ? ((total_weightage_score / total_quarter_weightage) * 100).round(2) : 0 %>
+                    <%= total_achievement_percentage.to_i == total_achievement_percentage ? total_achievement_percentage.to_i : total_achievement_percentage %>%
                   </span>
                 </td>
                 <td class="px-6 py-4 text-sm text-center border-r border-gray-200">

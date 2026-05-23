@@ -130,7 +130,7 @@
                 <div id="activities-container">
                   <!-- Default activity field - will be replaced by JavaScript if needed -->
                   <div class="activity-fields border border-gray-200 rounded-md p-4 mb-4 bg-gray-50">
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-8 gap-4">
                       <div>
                          <label class="block text-sm font-medium text-gray-700">KPI</label>
                          <input type="text" name="department[activities_attributes][default][theme_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter KPI" required>
@@ -144,8 +144,24 @@
                         <input type="text" name="department[activities_attributes][default][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter unit">
                       </div>
                       <div>
-                         <label class="block text-sm font-medium text-gray-700">Weightage</label>
+                         <label class="block text-sm font-medium text-gray-700">Total Weightage</label>
                          <input type="number" name="department[activities_attributes][default][weight]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Weightage" required>
+                      </div>
+                      <div>
+                         <label class="block text-sm font-medium text-gray-700">Weightage Q1</label>
+                         <input type="number" name="department[activities_attributes][default][weightage_q1]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q1">
+                      </div>
+                      <div>
+                         <label class="block text-sm font-medium text-gray-700">Weightage Q2</label>
+                         <input type="number" name="department[activities_attributes][default][weightage_q2]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q2">
+                      </div>
+                      <div>
+                         <label class="block text-sm font-medium text-gray-700">Weightage Q3</label>
+                         <input type="number" name="department[activities_attributes][default][weightage_q3]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q3">
+                      </div>
+                      <div>
+                         <label class="block text-sm font-medium text-gray-700">Weightage Q4</label>
+                         <input type="number" name="department[activities_attributes][default][weightage_q4]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q4">
                       </div>
                     </div>
                     <div class="mt-3 flex justify-end">
@@ -763,7 +779,7 @@ class DepartmentManager {
   getActivityTemplate(index) {
     return `
       <div class="activity-fields border border-gray-200 rounded-md p-4 mb-4 bg-gray-50">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-8 gap-4">
           <div>
              <label class="block text-sm font-medium text-gray-700">KPI</label>
              <input type="text" name="department[activities_attributes][${index}][theme_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter KPI" required>
@@ -777,8 +793,24 @@ class DepartmentManager {
             <input type="text" name="department[activities_attributes][${index}][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter unit">
           </div>
           <div>
-             <label class="block text-sm font-medium text-gray-700">Weightage</label>
+             <label class="block text-sm font-medium text-gray-700">Total Weightage</label>
              <input type="number" name="department[activities_attributes][${index}][weight]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Weightage" required>
+          </div>
+          <div>
+             <label class="block text-sm font-medium text-gray-700">Weightage Q1</label>
+             <input type="number" name="department[activities_attributes][${index}][weightage_q1]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q1">
+          </div>
+          <div>
+             <label class="block text-sm font-medium text-gray-700">Weightage Q2</label>
+             <input type="number" name="department[activities_attributes][${index}][weightage_q2]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q2">
+          </div>
+          <div>
+             <label class="block text-sm font-medium text-gray-700">Weightage Q3</label>
+             <input type="number" name="department[activities_attributes][${index}][weightage_q3]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q3">
+          </div>
+          <div>
+             <label class="block text-sm font-medium text-gray-700">Weightage Q4</label>
+             <input type="number" name="department[activities_attributes][${index}][weightage_q4]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q4">
           </div>
         </div>
         <div class="mt-3 flex justify-end">
@@ -1078,6 +1110,10 @@ class DepartmentManager {
         currentActivity.querySelector('input[name*="[activity_name]"]').value = activity.activity_name || '';
         currentActivity.querySelector('input[name*="[unit]"]').value = activity.unit || '';
         currentActivity.querySelector('input[name*="[weight]"]').value = activity.weight || '';
+        currentActivity.querySelector('input[name*="[weightage_q1]"]').value = activity.weightage_q1 || '';
+        currentActivity.querySelector('input[name*="[weightage_q2]"]').value = activity.weightage_q2 || '';
+        currentActivity.querySelector('input[name*="[weightage_q3]"]').value = activity.weightage_q3 || '';
+        currentActivity.querySelector('input[name*="[weightage_q4]"]').value = activity.weightage_q4 || '';
         currentActivity.querySelector('input[name*="[id]"]').value = activity.id || '';
 
         console.log(`Activity ${index} populated with ID: ${activity.id}, name: ${activity.activity_name}`);

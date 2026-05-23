@@ -14,15 +14,14 @@ class EmployeeDetailsController < ApplicationController
     # Get all employee details with their user_details
     employee_details = @q.result
                          .includes(:user, user_details: [ :department, :activity, achievements: :achievement_remark ])
-                         .order(created_at: :desc)
+                         .order(Arel.sql("LOWER(employee_details.employee_name) ASC"), :employee_code)
 
     # Create a list of unique employee-department combinations
     @employee_department_entries = []
     seen_combinations = Set.new
 
     # Get all employee records (both original and department-specific)
-    all_employees = EmployeeDetail.includes(:user, user_details: [ :department, :activity, achievements: :achievement_remark ])
-                                 .order(created_at: :desc)
+    all_employees = employee_details
 
     all_employees.each do |emp|
       if emp.user_details.any?
@@ -30,7 +29,7 @@ class EmployeeDetailsController < ApplicationController
         emp.user_details.includes(:department).group_by(&:department).each do |department, user_details_for_dept|
           # Create a unique key for employee-department combination
           # Use base employee code (remove department suffix if exists)
-          base_employee_code = emp.employee_code.split("_").first
+          base_employee_code = emp.employee_code.to_s.split("_").first
           combination_key = "#{base_employee_code}_#{department.id}"
 
           # Only add if we haven't seen this combination before
@@ -73,6 +72,14 @@ class EmployeeDetailsController < ApplicationController
       end
     end
 
+    @employee_department_entries.sort_by! do |entry|
+      [
+        entry[:employee].employee_name.to_s.downcase,
+        entry[:department]&.department_type.to_s.downcase,
+        entry[:employee].employee_code.to_s
+      ]
+    end
+
     # Paginate the entries
     @employee_department_entries = Kaminari.paginate_array(@employee_department_entries)
                                           .page(params[:page])
@@ -92,7 +99,7 @@ class EmployeeDetailsController < ApplicationController
       # Rebuild the employee_department_entries for the form
       employee_details = @q.result
                            .includes(:user, user_details: [ :department, :activity, achievements: :achievement_remark ])
-                           .order(created_at: :desc)
+                           .order(Arel.sql("LOWER(employee_details.employee_name) ASC"), :employee_code)
 
       @employee_department_entries = []
       seen_combinations = Set.new
@@ -140,6 +147,14 @@ class EmployeeDetailsController < ApplicationController
             }
           end
         end
+      end
+
+      @employee_department_entries.sort_by! do |entry|
+        [
+          entry[:employee].employee_name.to_s.downcase,
+          entry[:department]&.department_type.to_s.downcase,
+          entry[:employee].employee_code.to_s
+        ]
       end
 
       @employee_department_entries = Kaminari.paginate_array(@employee_department_entries)

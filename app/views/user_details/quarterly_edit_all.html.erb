@@ -137,7 +137,7 @@
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.theme_name.presence || 'No Theme' %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity.unit %></td>
-                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold"><%= detail.activity.weight.present? ? "#{detail.activity.weight.to_i}%" : '0%' %></td>
+                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold"><%= detail.weight.present? ? "#{detail.weight.to_f.to_i}%" : '0%' %></td>
 
                     <!-- Q1 Quarter -->
                     <% if params[:quarter] == 'Q1' || params[:quarter].blank? %>
@@ -154,7 +154,7 @@
                           data-timestamp-param="<%= params[:timestamp] || Time.current.to_i %>"
                           class="achievement-input border border-gray-300 p-2 rounded-lg w-full bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-indigo-200 transition-all duration-200 text-sm text-black"
                           onchange="calculateWeightageScore(this)" oninput="calculateWeightageScore(this)"
-                          data-weight="<%= detail.activity.weight.present? ? detail.activity.weight : 0 %>"
+                          data-weight="<%= detail.weightage_for_quarter(:q1).presence || 0 %>"
                           autocomplete="off"
                         />
                       </td>
@@ -171,7 +171,7 @@
                           # Calculate weightage score for Q1
                           q1_achievement = existing_achievements['q1']&.achievement
                           q1_achievement_float = q1_achievement.present? ? q1_achievement.to_f : 0
-                          weight = detail.activity.weight.present? ? detail.activity.weight.to_f : 0
+                          weight = detail.weightage_for_quarter(:q1).present? ? detail.weightage_for_quarter(:q1).to_f : 0
                           weight_decimal = weight > 1 ? weight / 100 : weight
                           q1_score = q1_achievement_float > 0 && weight > 0 ? (weight_decimal * q1_achievement_float).round(2) : 0
                         %>
@@ -201,7 +201,7 @@
                           data-timestamp-param="<%= params[:timestamp] || Time.current.to_i %>"
                           class="achievement-input border border-gray-300 p-2 rounded-lg w-full bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-indigo-200 transition-all duration-200 text-sm text-black"
                           onchange="calculateWeightageScore(this)" oninput="calculateWeightageScore(this)"
-                          data-weight="<%= detail.activity.weight.present? ? detail.activity.weight : 0 %>"
+                          data-weight="<%= detail.weightage_for_quarter(:q2).presence || 0 %>"
                         />
                       </td>
                       <td class="px-3 py-3 text-sm text-center border-r border-gray-200 quarter-cell" data-quarter="q2">
@@ -217,7 +217,7 @@
                           # Calculate weightage score for Q2
                           q2_achievement = existing_achievements['q2']&.achievement
                           q2_achievement_float = q2_achievement.present? ? q2_achievement.to_f : 0
-                          weight = detail.activity.weight.present? ? detail.activity.weight.to_f : 0
+                          weight = detail.weightage_for_quarter(:q2).present? ? detail.weightage_for_quarter(:q2).to_f : 0
                           weight_decimal = weight > 1 ? weight / 100 : weight
                           q2_score = q2_achievement_float > 0 && weight > 0 ? (weight_decimal * q2_achievement_float).round(2) : 0
                         %>
@@ -247,7 +247,7 @@
                           data-timestamp-param="<%= params[:timestamp] || Time.current.to_i %>"
                           class="achievement-input border border-gray-300 p-2 rounded-lg w-full bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-indigo-200 transition-all duration-200 text-sm text-black"
                           onchange="calculateWeightageScore(this)" oninput="calculateWeightageScore(this)"
-                          data-weight="<%= detail.activity.weight.present? ? detail.activity.weight : 0 %>"
+                          data-weight="<%= detail.weightage_for_quarter(:q3).presence || 0 %>"
                         />
                       </td>
                       <td class="px-3 py-3 text-sm text-center border-r border-gray-200 quarter-cell" data-quarter="q3">
@@ -263,7 +263,7 @@
                           # Calculate weightage score for Q3
                           q3_achievement = existing_achievements['q3']&.achievement
                           q3_achievement_float = q3_achievement.present? ? q3_achievement.to_f : 0
-                          weight = detail.activity.weight.present? ? detail.activity.weight.to_f : 0
+                          weight = detail.weightage_for_quarter(:q3).present? ? detail.weightage_for_quarter(:q3).to_f : 0
                           weight_decimal = weight > 1 ? weight / 100 : weight
                           q3_score = q3_achievement_float > 0 && weight > 0 ? (weight_decimal * q3_achievement_float).round(2) : 0
                         %>
@@ -293,7 +293,7 @@
                           data-timestamp-param="<%= params[:timestamp] || Time.current.to_i %>"
                           class="achievement-input border border-gray-300 p-2 rounded-lg w-full bg-gray-50 focus:bg-white focus:border-indigo-500 focus:ring-indigo-200 transition-all duration-200 text-sm text-black"
                           onchange="calculateWeightageScore(this)" oninput="calculateWeightageScore(this)"
-                          data-weight="<%= detail.activity.weight.present? ? detail.activity.weight : 0 %>"
+                          data-weight="<%= detail.weightage_for_quarter(:q4).presence || 0 %>"
                         />
                       </td>
                       <td class="px-3 py-3 text-sm text-center border-r border-gray-200 quarter-cell" data-quarter="q4">
@@ -309,7 +309,7 @@
                           # Calculate weightage score for Q4
                           q4_achievement = existing_achievements['q4']&.achievement
                           q4_achievement_float = q4_achievement.present? ? q4_achievement.to_f : 0
-                          weight = detail.activity.weight.present? ? detail.activity.weight.to_f : 0
+                          weight = detail.weightage_for_quarter(:q4).present? ? detail.weightage_for_quarter(:q4).to_f : 0
                           weight_decimal = weight > 1 ? weight / 100 : weight
                           q4_score = q4_achievement_float > 0 && weight > 0 ? (weight_decimal * q4_achievement_float).round(2) : 0
                         %>
@@ -336,8 +336,8 @@
                       # Calculate total weightage
                       total_weightage = 0
                       @user_details.each do |detail|
-                        if detail.activity.weight.present?
-                          total_weightage += detail.activity.weight.to_f
+                        if detail.weight.present?
+                          total_weightage += detail.weight.to_f
                         end
                       end
                     %>
@@ -404,8 +404,8 @@
                             end
                           end
                           
-                          if achievement_value && detail.activity.weight.present?
-                            weight = detail.activity.weight.to_f
+                          if achievement_value && detail.weightage_for_quarter(:q1).present?
+                            weight = detail.weightage_for_quarter(:q1).to_f
                             weight_decimal = weight > 1 ? weight / 100 : weight
                             total_q1_weightage += (weight_decimal * achievement_value)
                           end
@@ -472,8 +472,8 @@
                             end
                           end
                           
-                          if achievement_value && detail.activity.weight.present?
-                            weight = detail.activity.weight.to_f
+                          if achievement_value && detail.weightage_for_quarter(:q2).present?
+                            weight = detail.weightage_for_quarter(:q2).to_f
                             weight_decimal = weight > 1 ? weight / 100 : weight
                             total_q2_weightage += (weight_decimal * achievement_value)
                           end
@@ -540,8 +540,8 @@
                             end
                           end
                           
-                          if achievement_value && detail.activity.weight.present?
-                            weight = detail.activity.weight.to_f
+                          if achievement_value && detail.weightage_for_quarter(:q3).present?
+                            weight = detail.weightage_for_quarter(:q3).to_f
                             weight_decimal = weight > 1 ? weight / 100 : weight
                             total_q3_weightage += (weight_decimal * achievement_value)
                           end
@@ -608,8 +608,8 @@
                             end
                           end
                           
-                          if achievement_value && detail.activity.weight.present?
-                            weight = detail.activity.weight.to_f
+                          if achievement_value && detail.weightage_for_quarter(:q4).present?
+                            weight = detail.weightage_for_quarter(:q4).to_f
                             weight_decimal = weight > 1 ? weight / 100 : weight
                             total_q4_weightage += (weight_decimal * achievement_value)
                           end

@@ -1,9 +1,5 @@
 <div class="main-content bg-gray-50 min-h-screen">
 <% if @user_details.any? %>
-  <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-    <i class="fas fa-calendar-alt"></i>
-    Financial Year: <%= @selected_year %>
-  </div>
   <script>
     // Initialize dynamic update listener without auto-refresh
     document.addEventListener('DOMContentLoaded', function() {
@@ -145,8 +141,16 @@
       </p>
     </div>
     
-    <!-- Edit Button -->
-    <div class="flex justify-end mb-4">
+    <div class="flex flex-wrap justify-end gap-3 mb-4">
+      <form action="<%= submitted_view_data_path %>" method="get" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm">
+        <label for="submitted-view-year" class="text-sm font-semibold text-slate-700">Financial Year</label>
+        <%= select_tag :year,
+            options_for_select(@available_years.map { |year| [display_financial_year(year), year] }, @selected_year),
+            id: "submitted-view-year",
+            class: "border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-800 text-sm",
+            onchange: "this.form.submit();" %>
+      </form>
+
       <button id="edit-quarterly-btn" 
               class="bg-gray-400 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center shadow-md hover:shadow-lg transform hover:scale-105"
               disabled
@@ -207,6 +211,13 @@
         weightage_score.to_s
       end
 
+      def format_achievement_value(value)
+        return "" if value.blank?
+
+        number = value.to_f
+        number == number.to_i ? number.to_i.to_s : number.round(2).to_s
+      end
+
       # Helper method to get quarterly remarks
       def get_quarterly_remarks(user_detail, months)
         remarks = []
@@ -229,7 +240,11 @@
               <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Indicator</th>
               <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">KPI</th>
               <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
-              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage</th>
+              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Total Weightage</th>
+              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Q1</th>
+              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Q2</th>
+              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Q3</th>
+              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Q4</th>
               <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-orange-700">Q1</th>
               <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-purple-700">Q2</th>
               <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-blue-700">Q3</th>
@@ -250,7 +265,7 @@
               <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Score</th>
             </tr>
             <tr class="bg-gray-600">
-              <th colspan="6" class="px-3 py-2 text-center border-r border-gray-600">
+              <th colspan="10" class="px-3 py-2 text-center border-r border-gray-600">
                 <span class="text-white text-xs font-medium">Select Quarters to Edit:</span>
               </th>
               <th colspan="3" class="px-3 py-2 text-center border-r border-gray-600">
@@ -332,7 +347,19 @@
                   <%= detail.activity.unit %>
                 </td>
                 <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
-                  <%= detail.activity.weight.present? ? "#{detail.activity.weight.to_i}%" : '0%' %>
+                  <%= detail.weight.present? ? "#{detail.weight.to_f.to_i}%" : '0%' %>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
+                  <%= detail.weightage_for_quarter(:q1).present? ? "#{detail.weightage_for_quarter(:q1).to_f.to_i}%" : '0%' %>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
+                  <%= detail.weightage_for_quarter(:q2).present? ? "#{detail.weightage_for_quarter(:q2).to_f.to_i}%" : '0%' %>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
+                  <%= detail.weightage_for_quarter(:q3).present? ? "#{detail.weightage_for_quarter(:q3).to_f.to_i}%" : '0%' %>
+                </td>
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
+                  <%= detail.weightage_for_quarter(:q4).present? ? "#{detail.weightage_for_quarter(:q4).to_f.to_i}%" : '0%' %>
                 </td>
 
                 <!-- Q1 Columns -->
@@ -341,7 +368,7 @@
                     # Check for quarterly achievement first (case-insensitive), then quarterly target, then calculated achievement
                     q1_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q1' }
                     if q1_quarterly_achievement&.achievement.present?
-                      q1_display = q1_quarterly_achievement.achievement.to_f.to_i
+                      q1_display = q1_quarterly_achievement.achievement.to_f
                       q1_is_target = false
                       q1_is_quarterly_achievement = true
                     elsif detail.q1.present?
@@ -358,7 +385,7 @@
                         data-quarter="q1" 
                         data-detail-id="<%= detail.id %>"
                         data-achievement-value="<%= q1_display %>">
-                    <%= q1_display.present? ? (q1_is_quarterly_achievement ? "#{q1_display}%" : (q1_is_target ? q1_display : "#{q1_display}%")) : '-' %>
+                    <%= q1_display.present? ? (q1_is_target ? q1_display : "#{format_achievement_value(q1_display)}%") : '-' %>
                   </span>
                 </td>
                 <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
@@ -379,7 +406,7 @@
                   <% 
                     # For weightage score calculation, we need the percentage value, not the raw target
                     q1_achievement_for_score = q1_is_target ? nil : (q1_is_quarterly_achievement ? q1_display : q1_display)
-                    q1_weightage_score = calculate_weightage_score(detail.activity.weight, q1_achievement_for_score) 
+                    q1_weightage_score = calculate_weightage_score(detail.weightage_for_quarter(:q1), q1_achievement_for_score)
                   %>
                   <span class="<%= q1_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
                     <%= q1_weightage_score.present? ? q1_weightage_score : '-' %>
@@ -392,7 +419,7 @@
                     # Check for quarterly achievement first (case-insensitive), then quarterly target, then calculated achievement
                     q2_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q2' }
                     if q2_quarterly_achievement&.achievement.present?
-                      q2_display = q2_quarterly_achievement.achievement.to_f.to_i
+                      q2_display = q2_quarterly_achievement.achievement.to_f
                       q2_is_target = false
                       q2_is_quarterly_achievement = true
                     elsif detail.q2.present?
@@ -409,7 +436,7 @@
                         data-quarter="q2" 
                         data-detail-id="<%= detail.id %>"
                         data-achievement-value="<%= q2_display %>">
-                    <%= q2_display.present? ? (q2_is_quarterly_achievement ? "#{q2_display}%" : (q2_is_target ? q2_display : "#{q2_display}%")) : '-' %>
+                    <%= q2_display.present? ? (q2_is_target ? q2_display : "#{format_achievement_value(q2_display)}%") : '-' %>
                   </span>
                 </td>
                 <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
@@ -430,7 +457,7 @@
                   <% 
                     # For weightage score calculation, we need the percentage value, not the raw target
                     q2_achievement_for_score = q2_is_target ? nil : (q2_is_quarterly_achievement ? q2_display : q2_display)
-                    q2_weightage_score = calculate_weightage_score(detail.activity.weight, q2_achievement_for_score) 
+                    q2_weightage_score = calculate_weightage_score(detail.weightage_for_quarter(:q2), q2_achievement_for_score)
                   %>
                   <span class="<%= q2_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
                     <%= q2_weightage_score.present? ? q2_weightage_score : '-' %>
@@ -443,7 +470,7 @@
                     # Check for quarterly achievement first (case-insensitive), then quarterly target, then calculated achievement
                     q3_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q3' }
                     if q3_quarterly_achievement&.achievement.present?
-                      q3_display = q3_quarterly_achievement.achievement.to_f.to_i
+                      q3_display = q3_quarterly_achievement.achievement.to_f
                       q3_is_target = false
                       q3_is_quarterly_achievement = true
                     elsif detail.q3.present?
@@ -460,7 +487,7 @@
                         data-quarter="q3" 
                         data-detail-id="<%= detail.id %>"
                         data-achievement-value="<%= q3_display %>">
-                    <%= q3_display.present? ? (q3_is_quarterly_achievement ? "#{q3_display}%" : (q3_is_target ? q3_display : "#{q3_display}%")) : '-' %>
+                    <%= q3_display.present? ? (q3_is_target ? q3_display : "#{format_achievement_value(q3_display)}%") : '-' %>
                   </span>
                 </td>
                 <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
@@ -481,7 +508,7 @@
                   <% 
                     # For weightage score calculation, we need the percentage value, not the raw target
                     q3_achievement_for_score = q3_is_target ? nil : (q3_is_quarterly_achievement ? q3_display : q3_display)
-                    q3_weightage_score = calculate_weightage_score(detail.activity.weight, q3_achievement_for_score) 
+                    q3_weightage_score = calculate_weightage_score(detail.weightage_for_quarter(:q3), q3_achievement_for_score)
                   %>
                   <span class="<%= q3_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
                     <%= q3_weightage_score.present? ? q3_weightage_score : '-' %>
@@ -494,7 +521,7 @@
                     # Check for quarterly achievement first (case-insensitive), then quarterly target, then calculated achievement
                     q4_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q4' }
                     if q4_quarterly_achievement&.achievement.present?
-                      q4_display = q4_quarterly_achievement.achievement.to_f.to_i
+                      q4_display = q4_quarterly_achievement.achievement.to_f
                       q4_is_target = false
                       q4_is_quarterly_achievement = true
                     elsif detail.q4.present?
@@ -511,7 +538,7 @@
                         data-quarter="q4" 
                         data-detail-id="<%= detail.id %>"
                         data-achievement-value="<%= q4_display %>">
-                    <%= q4_display.present? ? (q4_is_quarterly_achievement ? "#{q4_display}%" : (q4_is_target ? q4_display : "#{q4_display}%")) : '-' %>
+                    <%= q4_display.present? ? (q4_is_target ? q4_display : "#{format_achievement_value(q4_display)}%") : '-' %>
                   </span>
                 </td>
                 <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
@@ -532,7 +559,7 @@
                   <% 
                     # For weightage score calculation, we need the percentage value, not the raw target
                     q4_achievement_for_score = q4_is_target ? nil : (q4_is_quarterly_achievement ? q4_display : q4_display)
-                    q4_weightage_score = calculate_weightage_score(detail.activity.weight, q4_achievement_for_score) 
+                    q4_weightage_score = calculate_weightage_score(detail.weightage_for_quarter(:q4), q4_achievement_for_score)
                   %>
                   <span class="<%= q4_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
                     <%= q4_weightage_score.present? ? q4_weightage_score : '-' %>
@@ -551,8 +578,8 @@
                     # Calculate total weightage
                     total_weightage = 0
                     @user_details.each do |detail|
-                      if detail.activity.weight.present?
-                        total_weightage += detail.activity.weight.to_f
+                      if detail.weight.present?
+                        total_weightage += detail.weight.to_f
                       end
                     end
                   %>
@@ -560,6 +587,16 @@
                     <%= total_weightage.to_i %>%
                   </span>
                 </td>
+                <% [:q1, :q2, :q3, :q4].each do |quarter| %>
+                  <td class="px-4 py-3 text-sm text-center border-r border-gray-200">
+                    <%
+                      total_quarter_weightage = @user_details.sum { |detail| detail.weightage_for_quarter(quarter).to_f }
+                    %>
+                    <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
+                      <%= total_quarter_weightage.to_i %>%
+                    </span>
+                  </td>
+                <% end %>
                 <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
                   <% 
                     # Calculate total Q1 achievements
@@ -589,8 +626,8 @@
                     total_q1_weightage = 0
                     @user_details.each do |detail|
                       q1_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q1' }
-                      if q1_quarterly_achievement&.achievement.present? && detail.activity.weight.present?
-                        weight = detail.activity.weight.to_f
+                      if q1_quarterly_achievement&.achievement.present? && detail.weightage_for_quarter(:q1).present?
+                        weight = detail.weightage_for_quarter(:q1).to_f
                         achievement = q1_quarterly_achievement.achievement.to_f
                         weight_decimal = weight > 1 ? weight / 100 : weight
                         total_q1_weightage += (weight_decimal * achievement)
@@ -630,8 +667,8 @@
                     total_q2_weightage = 0
                     @user_details.each do |detail|
                       q2_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q2' }
-                      if q2_quarterly_achievement&.achievement.present? && detail.activity.weight.present?
-                        weight = detail.activity.weight.to_f
+                      if q2_quarterly_achievement&.achievement.present? && detail.weightage_for_quarter(:q2).present?
+                        weight = detail.weightage_for_quarter(:q2).to_f
                         achievement = q2_quarterly_achievement.achievement.to_f
                         weight_decimal = weight > 1 ? weight / 100 : weight
                         total_q2_weightage += (weight_decimal * achievement)
@@ -671,8 +708,8 @@
                     total_q3_weightage = 0
                     @user_details.each do |detail|
                       q3_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q3' }
-                      if q3_quarterly_achievement&.achievement.present? && detail.activity.weight.present?
-                        weight = detail.activity.weight.to_f
+                      if q3_quarterly_achievement&.achievement.present? && detail.weightage_for_quarter(:q3).present?
+                        weight = detail.weightage_for_quarter(:q3).to_f
                         achievement = q3_quarterly_achievement.achievement.to_f
                         weight_decimal = weight > 1 ? weight / 100 : weight
                         total_q3_weightage += (weight_decimal * achievement)
@@ -712,8 +749,8 @@
                     total_q4_weightage = 0
                     @user_details.each do |detail|
                       q4_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q4' }
-                      if q4_quarterly_achievement&.achievement.present? && detail.activity.weight.present?
-                        weight = detail.activity.weight.to_f
+                      if q4_quarterly_achievement&.achievement.present? && detail.weightage_for_quarter(:q4).present?
+                        weight = detail.weightage_for_quarter(:q4).to_f
                         achievement = q4_quarterly_achievement.achievement.to_f
                         weight_decimal = weight > 1 ? weight / 100 : weight
                         total_q4_weightage += (weight_decimal * achievement)
@@ -740,6 +777,14 @@
         <i class="fas fa-check-circle me-3 text-green-600 text-2xl"></i>
         Submitted View Data
       </h2>
+      <form action="<%= submitted_view_data_path %>" method="get" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm">
+        <label for="submitted-view-empty-year" class="text-sm font-semibold text-slate-700">Financial Year</label>
+        <%= select_tag :year,
+            options_for_select(@available_years.map { |year| [display_financial_year(year), year] }, @selected_year),
+            id: "submitted-view-empty-year",
+            class: "border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-800 text-sm",
+            onchange: "this.form.submit();" %>
+      </form>
     </div>
   </div>
   <div class="p-6">
@@ -748,6 +793,7 @@
         <i class="fas fa-clipboard-list text-6xl mb-4 text-blue-500"></i>
         <h3 class="text-xl font-semibold text-gray-700 mb-2">No Submitted Data Available</h3>
         <p class="text-gray-500 mb-4">
+          <span class="block mb-2 font-semibold text-gray-600">Financial Year: <%= display_financial_year(@selected_year) %></span>
           <% case current_user.role %>
           <% when "employee" %>
             You haven't submitted any quarterly achievements yet. Please submit your achievements first to view them here.
@@ -1606,7 +1652,7 @@ function updateTotalWeightage() {
 function updateAchievementTotals() {
   // Calculate Q1 achievement total
   let q1Total = 0;
-  const q1Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(7)'); // Q1 achievement column
+  const q1Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(11)'); // Q1 achievement column
   q1Cells.forEach(cell => {
     const cellText = cell.textContent.trim();
     const percentage = cellText.replace('%', '');
@@ -1624,7 +1670,7 @@ function updateAchievementTotals() {
   
   // Calculate Q2 achievement total
   let q2Total = 0;
-  const q2Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(10)'); // Q2 achievement column
+  const q2Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(14)'); // Q2 achievement column
   q2Cells.forEach(cell => {
     const cellText = cell.textContent.trim();
     const percentage = cellText.replace('%', '');
@@ -1642,7 +1688,7 @@ function updateAchievementTotals() {
   
   // Calculate Q3 achievement total
   let q3Total = 0;
-  const q3Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(13)'); // Q3 achievement column
+  const q3Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(17)'); // Q3 achievement column
   q3Cells.forEach(cell => {
     const cellText = cell.textContent.trim();
     const percentage = cellText.replace('%', '');
@@ -1660,7 +1706,7 @@ function updateAchievementTotals() {
   
   // Calculate Q4 achievement total
   let q4Total = 0;
-  const q4Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(16)'); // Q4 achievement column
+  const q4Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(20)'); // Q4 achievement column
   q4Cells.forEach(cell => {
     const cellText = cell.textContent.trim();
     const percentage = cellText.replace('%', '');
@@ -1716,4 +1762,3 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 });
 </script>
-

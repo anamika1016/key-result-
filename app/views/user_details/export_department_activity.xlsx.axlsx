@@ -22,6 +22,7 @@ wb.add_worksheet(name: "Department Activity Data") do |sheet|
 
   # Add header row first
   sheet.add_row [
+    "Financial Year",
     "Department",
     "Employee Name",
     "Employee Email",
@@ -36,8 +37,13 @@ wb.add_worksheet(name: "Department Activity Data") do |sheet|
     "Activity",
     "Theme",
     "Unit",
-    "Weightage"
+    "Total Weightage",
+    "Weightage Q1",
+    "Weightage Q2",
+    "Weightage Q3",
+    "Weightage Q4"
   ], style: [ header_style, header_style, header_style, header_style, header_style,
+             header_style, header_style, header_style, header_style, header_style,
              header_style, header_style, header_style, header_style, header_style,
              header_style, header_style, header_style, header_style, header_style ]
 
@@ -50,6 +56,7 @@ wb.add_worksheet(name: "Department Activity Data") do |sheet|
           Rails.logger.info "Department Activity Export: Processing row #{index + 1} - #{detail.employee_detail&.employee_name}"
 
           sheet.add_row [
+            display_financial_year(detail.year),
             detail.department&.department_type&.to_s || "N/A",
             detail.employee_detail&.employee_name&.to_s || "N/A",
             detail.employee_detail&.employee_email&.to_s || "N/A",
@@ -64,10 +71,15 @@ wb.add_worksheet(name: "Department Activity Data") do |sheet|
             detail.activity&.activity_name&.to_s || "N/A",
             detail.activity&.theme_name&.to_s || "No Theme",
             detail.activity&.unit&.to_s || "",
-            detail.activity&.weight&.to_s || ""
+            detail.weight&.to_s || "",
+            detail.weightage_for_quarter(:q1)&.to_s || "",
+            detail.weightage_for_quarter(:q2)&.to_s || "",
+            detail.weightage_for_quarter(:q3)&.to_s || "",
+            detail.weightage_for_quarter(:q4)&.to_s || ""
           ], style: [ text_style, text_style, text_style, text_style, text_style,
                      text_style, text_style, text_style, text_style, text_style,
-                     text_style, text_style, data_style, data_style ]
+                     text_style, text_style, data_style, data_style, data_style,
+                     data_style, data_style, data_style, data_style, data_style ]
         rescue => e
           Rails.logger.error "Error adding row to Department Activity Excel: #{e.message} - Detail ID: #{detail.id}"
           # Skip this row and continue with next
@@ -80,6 +92,7 @@ wb.add_worksheet(name: "Department Activity Data") do |sheet|
       if @activities.present?
         @activities.limit(10).each do |activity|
           sheet.add_row [
+            display_financial_year(@selected_year),
             activity.department&.department_type&.to_s || "N/A",
             "Employee Name", # Placeholder
             "Employee Email", # Placeholder
@@ -94,33 +107,37 @@ wb.add_worksheet(name: "Department Activity Data") do |sheet|
             activity.activity_name&.to_s || "N/A",
             activity.theme_name&.to_s || "No Theme",
             activity.unit&.to_s || "",
-            activity.weight&.to_s || ""
+            activity.weight&.to_s || "",
+            "", "", "", ""
           ], style: [ text_style, text_style, text_style, text_style, text_style,
                      text_style, text_style, text_style, text_style, text_style,
-                     text_style, text_style, data_style, data_style ]
+                     text_style, text_style, data_style, data_style, data_style,
+                     data_style, data_style, data_style, data_style, data_style ]
         end
       else
         # Add a message row if no data found
         sheet.add_row [
           "No data available - Please select department and employee first",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
         ], style: [ text_style, text_style, text_style, text_style, text_style,
                    text_style, text_style, text_style, text_style, text_style,
-                   text_style, text_style, data_style, data_style ]
+                   text_style, text_style, data_style, data_style, data_style,
+                   data_style, data_style, data_style, data_style, data_style ]
       end
     end
   rescue => e
     Rails.logger.error "Department Activity Excel Template Error: #{e.message}"
     sheet.add_row [
       "Error generating data",
-      "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+      "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
     ], style: [ text_style, text_style, text_style, text_style, text_style,
                text_style, text_style, text_style, text_style, text_style,
-               text_style, text_style, data_style, data_style ]
+               text_style, text_style, data_style, data_style, data_style,
+               data_style, data_style, data_style, data_style, data_style ]
   end
 
   # Set column widths
-  sheet.column_widths 15, 20, 25, 15, 15, 12, 15, 12, 15, 12, 15, 25, 20, 10, 12
+  sheet.column_widths 15, 15, 20, 25, 15, 15, 12, 15, 12, 15, 12, 15, 25, 20, 10, 15, 15, 15, 15, 15
 
   # Freeze header row
   sheet.sheet_view.pane do |pane|

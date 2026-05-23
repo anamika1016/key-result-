@@ -27,7 +27,11 @@
                   <th>Indicator</th>
                   <th>KPI</th>
                   <th>Unit</th>
-                  <th>Weightage</th>
+                  <th>Total Weightage</th>
+                  <th>Weightage Q1</th>
+                  <th>Weightage Q2</th>
+                  <th>Weightage Q3</th>
+                  <th>Weightage Q4</th>
                   <th>Q1</th>
                   <th>Q2</th>
                   <th>Q3</th>
@@ -42,7 +46,11 @@
                     <td><%= detail.activity&.activity_name %></td>
                     <td><%= detail.activity&.theme_name.presence || 'No Theme' %></td>
                     <td><%= detail.activity&.unit %></td>
-                    <td><%= detail.activity&.weight.presence || '0' %></td>
+                    <td><%= detail.weight.presence || '0' %></td>
+                    <td><%= detail.weightage_for_quarter(:q1).presence || '-' %></td>
+                    <td><%= detail.weightage_for_quarter(:q2).presence || '-' %></td>
+                    <td><%= detail.weightage_for_quarter(:q3).presence || '-' %></td>
+                    <td><%= detail.weightage_for_quarter(:q4).presence || '-' %></td>
                     <td><%= detail.q1.presence || '-' %></td>
                     <td><%= detail.q2.presence || '-' %></td>
                     <td><%= detail.q3.presence || '-' %></td>

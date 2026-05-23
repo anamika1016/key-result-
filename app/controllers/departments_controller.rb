@@ -114,7 +114,7 @@ class DepartmentsController < ApplicationController
       # Department exists, add employee and activities
       Rails.logger.info "Found existing department #{department_type} (ID: #{@department.id})"
 
-      activities_params = department_params[:activities_attributes]
+      activities_params = params.dig(:department, :activities_attributes)
       employee = EmployeeDetail.find_by(employee_code: employee_reference) if employee_reference.present?
 
       if activities_params.present? && employee
@@ -136,7 +136,7 @@ class DepartmentsController < ApplicationController
             activity_id: activity.id,
             employee_detail_id: employee.id,
             year: @selected_year_db
-          )
+          ).update!(weightage_attributes_from(activity_attrs))
         end
         success = true
         message = "Employee and activities successfully added to existing #{department_type} department for #{@selected_year}!"
@@ -153,13 +153,17 @@ class DepartmentsController < ApplicationController
       if success && employee_reference.present?
         employee = EmployeeDetail.find_by(employee_code: employee_reference)
         if employee
+          raw_activities = params.dig(:department, :activities_attributes)&.values || []
           @department.activities.each do |act|
+            source_attrs = raw_activities.find do |attrs|
+              attrs[:theme_name].to_s == act.theme_name.to_s && attrs[:activity_name].to_s == act.activity_name.to_s
+            end || act
             UserDetail.find_or_create_by!(
               department_id: @department.id,
               activity_id: act.id,
               employee_detail_id: employee.id,
               year: @selected_year_db
-            )
+            ).update!(weightage_attributes_from(source_attrs))
           end
         end
       end
@@ -266,7 +270,11 @@ class DepartmentsController < ApplicationController
             theme_name: activity.theme_name,
             activity_name: activity.activity_name,
             unit: activity.unit,
-            weight: activity.weight
+            weight: user_detail.weight,
+            weightage_q1: user_detail.weightage_q1,
+            weightage_q2: user_detail.weightage_q2,
+            weightage_q3: user_detail.weightage_q3,
+            weightage_q4: user_detail.weightage_q4
           }
         end.uniq { |activity| activity[:id] } # Remove duplicates
 
@@ -312,7 +320,11 @@ class DepartmentsController < ApplicationController
             theme_name: activity.theme_name,
             activity_name: activity.activity_name,
             unit: activity.unit,
-            weight: activity.weight
+            weight: user_detail.weight,
+            weightage_q1: user_detail.weightage_q1,
+            weightage_q2: user_detail.weightage_q2,
+            weightage_q3: user_detail.weightage_q3,
+            weightage_q4: user_detail.weightage_q4
           }
         end
 
@@ -391,13 +403,16 @@ class DepartmentsController < ApplicationController
 
                 # Ensure UserDetail record exists for this activity
                 user_detail = existing_user_details.find_by(activity_id: activity_id)
-                unless user_detail
+                if user_detail
+                  user_detail.update!(weightage_attributes_from(activity_attrs))
+                else
                   Rails.logger.info "Creating missing user_detail for activity #{activity_id}"
                   UserDetail.create!(
                     employee_detail_id: employee.id,
                     activity_id: activity_id,
                     department_id: activity.department_id,
-                    year: @selected_year_db
+                    year: @selected_year_db,
+                    **weightage_attributes_from(activity_attrs)
                   )
                 end
               else
@@ -422,7 +437,8 @@ class DepartmentsController < ApplicationController
                   employee_detail_id: employee.id,
                   activity_id: new_activity.id,
                   department_id: existing_dept.id,
-                  year: @selected_year_db
+                  year: @selected_year_db,
+                  **weightage_attributes_from(activity_attrs)
                 )
                 Rails.logger.info "Created new activity #{new_activity.id} and user_detail"
               else
@@ -691,7 +707,7 @@ class DepartmentsController < ApplicationController
                   activity_id: activity.id,
                   employee_detail_id: employee.id,
                   year: @selected_year_db
-                )
+                ).update!(weightage_attributes_from(activity_attrs))
               end
             else
               # Create new activity and UserDetail
@@ -708,7 +724,8 @@ class DepartmentsController < ApplicationController
                 department_id: department.id,
                 activity_id: new_activity.id,
                 employee_detail_id: employee.id,
-                year: @selected_year_db
+                year: @selected_year_db,
+                **weightage_attributes_from(activity_attrs)
               )
             end
           end
@@ -751,14 +768,28 @@ class DepartmentsController < ApplicationController
     header = spreadsheet.row(1)
 
     header_map = {
+      "Financial Year" => "year",
       "Year" => "year",
+      "Vertical" => "department_type",
       "Department" => "department_type",
       "Employee Name" => "employee_name",
+      "Employee Code" => "employee_code",
+      "Theme" => "theme_name",
       "Theme Name" => "theme_name",
+      "Activity" => "activity_name",
       "Activity Name" => "activity_name",
       "Unit" => "unit",
+      "Total Weightage" => "weight",
       "Weightage" => "weight",
-      "Weight" => "weight"
+      "Weight" => "weight",
+      "Weightage Q1" => "weightage_q1",
+      "Q1 Weightage" => "weightage_q1",
+      "Weightage Q2" => "weightage_q2",
+      "Q2 Weightage" => "weightage_q2",
+      "Weightage Q3" => "weightage_q3",
+      "Q3 Weightage" => "weightage_q3",
+      "Weightage Q4" => "weightage_q4",
+      "Q4 Weightage" => "weightage_q4"
     }
 
     departments_hash = {}
@@ -791,7 +822,8 @@ class DepartmentsController < ApplicationController
       end
 
       # Find employee reference by employee name
-      employee = EmployeeDetail.find_by(employee_name: mapped["employee_name"])
+      employee = EmployeeDetail.find_by(employee_code: mapped["employee_code"]) if mapped["employee_code"].present?
+      employee ||= EmployeeDetail.find_by(employee_name: mapped["employee_name"])
       if employee.nil?
         import_errors << "Row #{i}: Employee '#{mapped["employee_name"]}' not found in system"
         next
@@ -810,37 +842,18 @@ class DepartmentsController < ApplicationController
 
       # Only add activity if activity data is present
       if mapped["activity_name"].present?
-        # Process weight value similar to user_details import
-        processed_weight = if mapped["weight"].present?
-          weight_str = mapped["weight"].to_s.strip
-          Rails.logger.info "Processing weight for row #{i}: original_weight=#{mapped['weight']}, weight_str=#{weight_str}"
-
-          if weight_str.include?("%")
-            # If it contains %, remove the % and use the number as-is
-            result = weight_str.gsub("%", "").to_f
-            Rails.logger.info "Weight processing: percentage format, result=#{result}"
-            result
-          elsif weight_str.to_f < 1 && weight_str.to_f > 0
-            # If it's a decimal like 0.1, convert to percentage (0.1 -> 10)
-            result = weight_str.to_f * 100
-            Rails.logger.info "Weight processing: decimal format, result=#{result}"
-            result
-          else
-            # If it's already a whole number like 10, use as-is
-            result = weight_str.to_f
-            Rails.logger.info "Weight processing: whole number format, result=#{result}"
-            result
-          end
-        else
-          Rails.logger.info "Processing weight for row #{i}: no weight value present"
-          nil
-        end
+        processed_weight = normalize_weightage(mapped["weight"])
 
         departments_hash[key][:activities] << {
           theme_name: mapped["theme_name"],
           activity_name: mapped["activity_name"],
           unit: mapped["unit"],
-          weight: processed_weight
+          weight: processed_weight,
+          total_weightage: processed_weight,
+          weightage_q1: normalize_weightage(mapped["weightage_q1"]),
+          weightage_q2: normalize_weightage(mapped["weightage_q2"]),
+          weightage_q3: normalize_weightage(mapped["weightage_q3"]),
+          weightage_q4: normalize_weightage(mapped["weightage_q4"])
         }
       end
     end
@@ -879,7 +892,7 @@ class DepartmentsController < ApplicationController
                 activity_id: activity.id,
                 employee_detail_id: employee.id,
                 year: dept_data[:year]
-              )
+              ).update!(weightage_attributes_from(act))
             end
           end
         else
@@ -893,14 +906,20 @@ class DepartmentsController < ApplicationController
           employee = EmployeeDetail.find_by(employee_code: dept_data[:employee_reference]) if dept_data[:employee_reference].present?
 
           dept_data[:activities].each do |act|
-            activity = department.activities.create!(act.merge(year: dept_data[:year]))
+            activity = department.activities.create!(
+              year: dept_data[:year],
+              theme_name: act[:theme_name],
+              activity_name: act[:activity_name],
+              unit: act[:unit],
+              weight: act[:weight]
+            )
             if employee
               UserDetail.find_or_create_by!(
                 department_id: department.id,
                 activity_id: activity.id,
                 employee_detail_id: employee.id,
                 year: dept_data[:year]
-              )
+              ).update!(weightage_attributes_from(act))
             end
           end
         end
@@ -1205,6 +1224,42 @@ class DepartmentsController < ApplicationController
 
   private
 
+  def normalize_weightage(value)
+    return nil if value.blank?
+
+    weightage = value.to_s.strip
+    return nil if weightage.blank?
+
+    if weightage.include?("%")
+      weightage.delete("%").to_f
+    elsif weightage.to_f < 1 && weightage.to_f > 0
+      weightage.to_f * 100
+    else
+      weightage.to_f
+    end
+  end
+
+  def activity_attr_value(activity_attrs, key)
+    if activity_attrs.respond_to?(:[])
+      activity_attrs[key] || activity_attrs[key.to_s]
+    elsif activity_attrs.respond_to?(key)
+      activity_attrs.public_send(key)
+    end
+  end
+
+  def weightage_attributes_from(activity_attrs)
+    total_weightage = activity_attr_value(activity_attrs, :total_weightage) ||
+                      activity_attr_value(activity_attrs, :weight)
+
+    {
+      total_weightage: normalize_weightage(total_weightage),
+      weightage_q1: normalize_weightage(activity_attr_value(activity_attrs, :weightage_q1)),
+      weightage_q2: normalize_weightage(activity_attr_value(activity_attrs, :weightage_q2)),
+      weightage_q3: normalize_weightage(activity_attr_value(activity_attrs, :weightage_q3)),
+      weightage_q4: normalize_weightage(activity_attr_value(activity_attrs, :weightage_q4))
+    }.compact
+  end
+
   def set_department
     @department = Department.find(params[:id])
   end
@@ -1240,7 +1295,7 @@ class DepartmentsController < ApplicationController
       l3_info = representative_employee.l3_for_department(department.id)
 
       # Count unique activities for this employee in this department
-      unique_activities = dept_user_details.map(&:activity).compact.uniq
+      unique_details = dept_user_details.select(&:activity).uniq(&:activity_id)
 
       activities_hash[key] = {
         id: department.id, # Use department.id for Edit functionality
@@ -1257,14 +1312,19 @@ class DepartmentsController < ApplicationController
         l2_name: l2_info[:name],
         l3_code: l3_info[:code],
         l3_name: l3_info[:name],
-        total_activities: unique_activities.count,
-        activities: unique_activities.map do |activity|
+        total_activities: unique_details.count,
+        activities: unique_details.map do |user_detail|
+          activity = user_detail.activity
           {
             id: activity.id,
             theme_name: activity.theme_name,
             activity_name: activity.activity_name,
             unit: activity.unit,
-            weight: activity.weight,
+            weight: user_detail.weight,
+            weightage_q1: user_detail.weightage_q1,
+            weightage_q2: user_detail.weightage_q2,
+            weightage_q3: user_detail.weightage_q3,
+            weightage_q4: user_detail.weightage_q4,
             year: activity.year,
             department_type: department.department_type
           }
@@ -1345,8 +1405,7 @@ class DepartmentsController < ApplicationController
         l3_info = representative_employee.l3_for_department(department.id)
 
         # Count unique activities for this employee in this department
-        unique_activity_ids = dept_user_details.map(&:activity_id).compact.uniq
-        unique_activities = Activity.where(id: unique_activity_ids)
+        unique_details = dept_user_details.select(&:activity).uniq(&:activity_id)
 
         activities_hash[key] = {
           id: department.id, # Use department.id for Edit functionality
@@ -1363,14 +1422,19 @@ class DepartmentsController < ApplicationController
           l2_name: l2_info[:name],
           l3_code: l3_info[:code],
           l3_name: l3_info[:name],
-          total_activities: unique_activities.count,
-          activities: unique_activities.map do |activity|
+          total_activities: unique_details.count,
+          activities: unique_details.map do |user_detail|
+            activity = user_detail.activity
             {
               id: activity.id,
               theme_name: activity.theme_name,
               activity_name: activity.activity_name,
               unit: activity.unit,
-              weight: activity.weight,
+              weight: user_detail.weight,
+              weightage_q1: user_detail.weightage_q1,
+              weightage_q2: user_detail.weightage_q2,
+              weightage_q3: user_detail.weightage_q3,
+              weightage_q4: user_detail.weightage_q4,
               year: activity.year,
               department_type: department.department_type
             }

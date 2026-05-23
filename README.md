@@ -711,6 +711,341 @@ A comprehensive web application for managing employee Key Result Areas (KRAs), t
 
 ---
 
+## HELP DESK MODULE - MENU WISE ROLE & WORKFLOW
+
+Help Desk module complaint aur suggestion handling ke liye use hota hai. Isme employee request raise karta hai, escalation matrix ke according ticket reviewer ke paas jata hai, reviewer response deta hai, aur final action user ke login se close/reopen ya approve/reject hota hai.
+
+### 1. HELP DESK Menu
+**Route:** `/help-desk`
+
+**Ye menu sabhi logged-in users ko dikhta hai.**
+
+**Employee / Requester ka work:**
+- Apni complaint ya suggestion submit kar sakta hai.
+- Department/Vertical select karta hai.
+- Request Type me `Complaint` ya `Suggestion` select karta hai.
+- Common Question / Topic select kar sakta hai; agar topic available nahi hai to `Other` me custom topic likh sakta hai.
+- Complaint/Suggestion details aur supporting documents upload kar sakta hai.
+- Maximum 5 documents upload ho sakte hain, har file 10MB tak.
+- Current Requests me apne active tickets dekh sakta hai.
+- Jab support ticket complete mark karta hai, requester ke paas final action aata hai:
+  - `Close` / `Approve`: ticket close ho jayega.
+  - `Reopen` / `Reject`: ticket remark ke saath support ko wapas chala jayega.
+
+**Manager / Help Desk Reviewer ka work:**
+- Agar user escalation matrix me kisi department ke L1/L2/L3 support owner ke roop me assigned hai, to uske HELP DESK page par `Assigned Queue` dikhegi.
+- Assigned ticket par reviewer response/update add karta hai.
+- `Keep Open`: ticket support ke paas open rahega aur due time reset ho jayega.
+- `Close Ticket`: ticket requester/original submitter ke final action ke liye bheja jayega.
+- Reviewer action ke baad user ko 2 din ka action window milta hai.
+
+**HOD ka work:**
+- HOD help desk ke saare tickets dekh/handle kar sakta hai.
+- HOD kisi bhi open review ticket par response de sakta hai, kyunki HOD ko full access hai.
+- HOD ke liye current tickets, assigned/support status aur final user action tracking visible hoti hai.
+
+**Oral Complaint / Suggestion Response Ticket:**
+- HELP DESK form me `Create response ticket for an oral complaint / suggestion` option available hai.
+- Is mode me logged-in user kisi employee ke behalf par completed oral request ka response ticket create karta hai.
+- Employee ko final `Approve / Reject` action milta hai.
+- Reject karne par ticket remark ke saath reopen hota hai.
+
+**Important status flow:**
+- `submitted`: ticket submit ho gaya.
+- `in_review`: support/reviewer ke paas work in progress hai.
+- `reopened`: user ne response reject/reopen kiya.
+- `resolved`: support ne complete mark kiya, user action pending hai.
+- `closed`: user ne close/approve kiya ya 2 din tak action na dene par auto close/auto approve hua.
+
+**Time rules:**
+- Support reviewer ko response ke liye 2 din milte hain.
+- Agar response nahi aata to ticket next escalation level par move hota hai.
+- User ko final close/reopen ya approve/reject ke liye 2 din milte hain.
+- User action nahi karta to ticket automatically closed/approved ho jata hai.
+
+### 2. Help Desk Report Menu
+**Route:** `/helpdesk-report`
+
+**Ye menu sabhi logged-in users ko dikhta hai, lekin data role-wise filter hota hai.**
+
+**Employee / Requester:**
+- Apne raised tickets, apne behalf par raised tickets, assigned tickets, aur resolved-by-you tickets ka history dekh sakta hai.
+- Closed tickets HELP DESK current list se nikal kar report me saved rahte hain.
+
+**Reviewer / Manager:**
+- Jo tickets usko assigned hue, usne respond kiye, ya uske visibility scope me hain, unka report dekh sakta hai.
+
+**HOD:**
+- Sabhi departments ke all help desk tickets ka complete report dekh sakta hai.
+
+**Report features:**
+- Ticket number, requester, employee code, topic, message, support update, remark se search.
+- Department, Request Type aur Status filter.
+- Print Report.
+- Download Excel.
+- Full ticket trail: requester, submitted by, assigned owner, response, user remark, reopen count, close time.
+
+### 3. Help Desk Question Master Menu
+**Route:** `/helpdesk-question-master`
+
+**Ye menu sirf HOD ko dikhta hai.**
+
+**Iska kaam:**
+- Department/Vertical wise common help desk questions/topics create karna.
+- Request Type wise question maintain karna:
+  - Complaint questions
+  - Suggestion questions
+- Display order set karna.
+- Question active/inactive karna.
+- Existing question edit/delete karna.
+
+**HELP DESK form me iska use:**
+- Employee jab department aur request type select karta hai, to yahi master questions dropdown me show hote hain.
+- Agar matching topic nahi hai to employee custom topic type kar sakta hai.
+
+### 4. Helpdesk Escalation Matrix Menu
+**Route:** `/helpdesk-escalation-matrix`
+
+**Ye menu sirf HOD ko dikhta hai.**
+
+**Iska kaam:**
+- Har Department/Vertical ke liye escalation chain configure karna.
+- L1, L2, L3 ya jitne dynamic levels chahiye utne support owners assign karna.
+- Escalation level add/remove/reorder karna.
+- Matrix edit/delete karna.
+
+**Ticket routing me iska use:**
+- Employee self ticket submit karta hai to selected department ki matrix ke first level user ko ticket assign hota hai.
+- Agar first owner 2 din me response nahi deta, ticket next escalation level par move hota hai.
+- Har department ke liye matrix required hai. Matrix nahi hogi to us department ka help desk ticket create nahi hoga.
+
+### Role Wise Short Summary
+
+| Role | HELP DESK | Report | Question Master | Escalation Matrix |
+| --- | --- | --- | --- | --- |
+| Employee | Complaint/Suggestion raise, own current tickets, final close/reopen or approve/reject | Own visible ticket history | No access | No access |
+| L1/L2 Manager or Assigned Reviewer | Own request raise, assigned queue respond, keep open/close ticket | Assigned/responded/visible tickets | No access | No access |
+| HOD | All tickets view/respond, full support control | All tickets report | Create/edit/delete questions | Create/edit/delete escalation matrix |
+
+### Complete Help Desk Flow
+1. HOD `Helpdesk Escalation Matrix` me department wise escalation users set karega.
+2. HOD `Help Desk Question Master` me department aur complaint/suggestion wise common topics set karega.
+3. Employee `HELP DESK` menu se ticket raise karega.
+4. Ticket selected department ke first escalation user ko assign hoga.
+5. Reviewer ticket par update dega:
+   - Work pending ho to `Keep Open`.
+   - Work complete ho to `Close Ticket`.
+6. User ke login me final action aayega:
+   - Normal self ticket: `Reopen` ya `Close`.
+   - Oral response ticket: `Reject` ya `Approve`.
+7. Closed ticket current HELP DESK list se nikal kar `Help Desk Report` me saved history ke roop me dikhega.
+
+---
+
+## TRAINING MODULE - MENU WISE ROLE & WORKFLOW
+
+Training module employee learning PPT/document upload, employee-wise assignment, training completion tracking, assessment, aur certificate generation ke liye use hota hai.
+
+### 1. TRAININGS Menu
+**Route:** `/trainings`
+
+**Ye menu sabhi logged-in users ko dikhta hai.**
+
+**Employee / L1 / L2 user ka work:**
+- Assigned/visible trainings list dekh sakta hai.
+- Training cards month aur year wise grouped dikhte hain.
+- Month, Year aur Training Title se filter kar sakta hai.
+- Active training par `Start Training` karke PPT/document view kar sakta hai.
+- Required duration complete hone ke baad training complete kar sakta hai.
+- Agar training me assessment enabled hai to duration complete hone ke baad assessment dena padta hai.
+- Assessment submit hone par score save hota hai.
+- Completed training par status, completed date, time spent, score aur financial year dikhte hain.
+- Month ke saare assigned/visible trainings complete hone ke baad monthly certificate download kar sakta hai.
+- Inactive training card dikh sakta hai, lekin non-HOD user usko open/start nahi kar sakta.
+
+**HOD ka work:**
+- Training list me all trainings dekh sakta hai, active aur inactive dono.
+- `Upload New Training` button se new training create kar sakta hai.
+- Training ka title, description, required duration, month, year, status aur files upload kar sakta hai.
+- PPT/PDF/DOC/DOCX type training files attach kar sakta hai.
+- Assessment enable karke questions manually add kar sakta hai.
+- Assessment questions Excel template se upload/import kar sakta hai.
+- Existing training `View`, `Edit`, `Activate/Deactivate`, aur `Delete` kar sakta hai.
+- HOD inactive training bhi open/view kar sakta hai.
+
+**Training completion rules:**
+- User ko required duration jitna time training page par spend karna hota hai.
+- Time spent system me save hota hai.
+- Required time complete hone ke baad:
+  - Without assessment: training directly completed ho jati hai.
+  - With assessment: user assessment page par jata hai, answers submit karta hai, score save hota hai.
+- Monthly certificate tabhi generate hota hai jab us month ke saare assigned/visible trainings completed hon aur required time bhi complete ho.
+
+### 2. ASSIGN TRAININGS Menu
+**Route:** `/user_training_assignments`
+
+**Ye menu sirf HOD ko dikhta hai.**
+
+**Iska kaam:**
+- Employee-wise training assignment manage karna.
+- All employees ki training completion summary dekhna.
+- Total Training, Total Users, Total Completed aur Total Pending count dekhna.
+- Month, Year aur Training Title ke basis par dashboard stats filter karna.
+- Employee name, email ya employee code se search karna.
+- Kisi employee ke liye `Assign PPTs` button se specific trainings select/unselect karna.
+- Employee ke assigned trainings aur completion progress ko `View Progress` se dekhna.
+- All employee training data Excel me export karna.
+
+**Assignment behavior:**
+- Agar HOD ne kisi employee ke assignments explicitly manage nahi kiye hain, to employee ko default behavior ke according trainings visible rahte hain.
+- Jab HOD employee ke liye assignment save karta hai, employee `HOD-managed` ho jata hai.
+- HOD-managed employee ko sirf selected/assigned trainings hi dikhte hain.
+- New training upload hone par already HOD-managed employees ko new training auto-assign hoti hai, taki latest PPT unki assignment list me available rahe.
+
+### 3. Training Progress / Certificate View
+**Route examples:**
+- Employee detail progress: `/user_training_assignments/:employee_detail_id`
+- Monthly certificate: `/trainings/monthly_certificate/:year/:month`
+- Single training certificate: `/trainings/:id/certificate`
+
+**HOD ka work:**
+- Employee-wise assigned trainings ka progress dekh sakta hai.
+- Har training ka completed/pending status, duration, score aur completion date check kar sakta hai.
+- Employee ke monthly certificate ko view/download kar sakta hai, agar month ke saare required trainings complete hain.
+
+**Employee ka work:**
+- Apne login se completed month ka certificate download kar sakta hai.
+- Completed training ko `View Again` se dobara open kar sakta hai.
+
+### Role Wise Short Summary
+
+| Role | TRAININGS | ASSIGN TRAININGS | Progress / Certificate |
+| --- | --- | --- | --- |
+| Employee | Assigned/visible trainings start, complete, assessment submit, monthly certificate download | No access | Own completion status and certificate |
+| L1/L2 Manager | Employee jaise apne assigned/visible trainings complete kar sakta hai | No access | Own completion status and certificate |
+| HOD | Upload, edit, view, activate/deactivate, delete trainings, manage assessment | Full access, employee-wise assignment and export | All employees progress and certificate view |
+
+### Complete Training Flow
+1. HOD `TRAININGS` menu me training upload karega.
+2. HOD training files, duration, month, year aur assessment questions set karega.
+3. HOD `ASSIGN TRAININGS` menu se employee-wise PPT/training assign karega.
+4. Employee `TRAININGS` menu me assigned/visible training open karega.
+5. Employee required duration complete karega.
+6. Agar assessment enabled hai to employee assessment submit karega.
+7. Training completed status me save hogi.
+8. Month ke sabhi assigned/visible trainings complete hone ke baad monthly certificate available hoga.
+9. HOD `ASSIGN TRAININGS` menu se employee-wise completion report aur Excel export dekh sakta hai.
+
+---
+
+## QUIZ MODULE - MENU WISE ROLE & WORKFLOW
+
+Quiz module assessment create karne, QR/public link se employee quiz conduct karne, score save karne, aur completed quiz history track karne ke liye use hota hai.
+
+### 1. Quiz Details Menu
+**Route:** `/quizzes`
+
+**Ye menu sirf HOD ko dikhta hai.**
+
+**HOD ka work:**
+- All quizzes list dekh sakta hai.
+- Total quizzes, active quizzes aur total questions count dekh sakta hai.
+- `Add New Quiz` se naya quiz create kar sakta hai.
+- Quiz title, description, duration aur status set kar sakta hai.
+- Status `active` ya `inactive` rakh sakta hai.
+- Har quiz me multiple questions add kar sakta hai.
+- Har question ke 4 options set kar sakta hai: Option A, Option B, Option C, Option D.
+- Correct answer select/set kar sakta hai.
+- Existing quiz ko `View QR`, `Edit`, aur `Delete` kar sakta hai.
+- Excel upload se quiz aur questions import kar sakta hai.
+- Quiz list/questions Excel me export kar sakta hai.
+
+**Quiz duration:**
+- Duration seconds, minutes, ya hours me set ho sakta hai.
+- Example: `30 seconds`, `5 minutes`, `1 hour`.
+- Public quiz screen par timer show hota hai.
+
+**QR / Public Link ka use:**
+- Quiz create hone ke baad `View QR` page par QR code generate hota hai.
+- Same page par public quiz link bhi show hota hai.
+- Employee QR scan karke ya link open karke quiz login screen par jata hai.
+
+**Active / Inactive rule:**
+- `active` quiz QR/public link se open hota hai.
+- `inactive` quiz public side par unavailable show hota hai.
+
+### 2. User Quiz Details Menu
+**Route:** `/user_quizzes`
+
+**Ye menu sirf HOD ko dikhta hai.**
+
+**Iska kaam:**
+- Quiz attempt ke liye employee access records maintain karna.
+- Employee Code, Name, Email, Mobile Number, Designation, Branch, Sub Branch aur Password save karna.
+- Employee quiz entry manually add/edit/delete karna.
+- Excel se employee quiz users bulk import karna.
+- User quiz template download karna.
+- User quiz entries Excel me export karna.
+- Employee code, name, email, mobile, branch ya sub-branch se search karna.
+- Saved User Quiz Entries me employee password aur linked user details dekhna.
+- Completed Quiz History me submitted quiz score aur status dekhna.
+
+**Important fields:**
+- `Employee Code`: quiz login ke liye required.
+- `Password`: quiz login ke liye required.
+- `Name` aur `Email`: report/history ke liye required.
+- Employee code unique hota hai; same code par record update ho sakta hai.
+
+**Completed Quiz History:**
+- QR/public link se submit hua quiz yahan save hota hai.
+- Quiz title, employee code, name, designation, score, status aur submitted time show hota hai.
+- Export Excel me user entries aur completed quiz history dono sheets me aate hain.
+
+### 3. Public Quiz Access
+**Route:** `/quiz_access/:qr_token`
+
+**Ye normal sidebar menu nahi hai. Ye QR code/public link se open hota hai.**
+
+**Employee / Participant ka work:**
+- QR scan ya public quiz link open karega.
+- ESS Employee Code aur Password enter karega.
+- Password wahi hota hai jo HOD ne `User Quiz Details` me set kiya hai.
+- Login successful hone par quiz questions open honge.
+- Questions random order me show hote hain.
+- Har question ke 4 options me se ek answer select karna hota hai.
+- Timer enabled hai to remaining time screen par dikhta hai.
+- `Submit Quiz` par score calculate hoke save hota hai.
+
+**Attempt rule:**
+- Ek employee code ek quiz ko ek baar submit kar sakta hai.
+- Submit ke baad same employee ko "already submitted" message aur score dikh sakta hai.
+
+**Score rule:**
+- System selected answer ko question ke correct answer se compare karta hai.
+- Score total correct answers ke basis par save hota hai.
+- Submission ke saath answers, score, status aur submitted time save hote hain.
+
+### Role Wise Short Summary
+
+| Role | Quiz Details | User Quiz Details | Public Quiz Access |
+| --- | --- | --- | --- |
+| Employee / Participant | No sidebar access | No access | QR/link se login, quiz attempt, submit, score view |
+| L1/L2 Manager | No sidebar access unless HOD role nahi hai | No access | Participant ki tarah quiz de sakta hai agar user quiz entry bani hai |
+| HOD | Create/edit/delete/import/export quiz, QR generate | User access records manage, import/export, completed history view | QR/link test kar sakta hai with valid employee code/password |
+
+### Complete Quiz Flow
+1. HOD `Quiz Details` menu me quiz create karega.
+2. HOD quiz duration, status, questions, options aur correct answers set karega.
+3. HOD `View QR` se QR code/public quiz link generate/share karega.
+4. HOD `User Quiz Details` menu me eligible employees ke employee code aur password add/import karega.
+5. Employee QR scan ya public link open karega.
+6. Employee ESS Employee Code aur Password se quiz login karega.
+7. Employee questions attempt karke quiz submit karega.
+8. System score calculate karke submission save karega.
+9. HOD `User Quiz Details` me completed quiz history aur Excel export se results dekh sakta hai.
+
+---
+
 ## 🚀 SERVER UPDATE & DEPLOYMENT (Hinglish Guide)
 
 Agar aapko server me code update karna hai ya koi changes deploy karne hain, toh ye steps follow karein:

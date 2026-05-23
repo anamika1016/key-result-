@@ -145,7 +145,11 @@
                     <th>Indicator</th>
                     <th>KPI</th>
                     <th>Unit</th>
-                    <th>Weightage</th>
+                    <th>Total Weightage</th>
+                    <th>Weightage Q1</th>
+                    <th>Weightage Q2</th>
+                    <th>Weightage Q3</th>
+                    <th>Weightage Q4</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -164,7 +168,11 @@
                       <td><%= activity.activity_name %></td>
                       <td><%= activity.theme_name.present? ? activity.theme_name : 'No Theme' %></td>
                       <td><%= activity.unit.present? ? activity.unit : "" %></td>
-                      <td><%= activity.weight.present? ? "#{activity.weight.to_i}%" : "0%" %></td>
+                      <td><%= detail&.weight.present? ? "#{detail.weight.to_f.to_i}%" : "0%" %></td>
+                      <td><%= detail&.weightage_for_quarter(:q1).present? ? "#{detail.weightage_for_quarter(:q1).to_f.to_i}%" : "-" %></td>
+                      <td><%= detail&.weightage_for_quarter(:q2).present? ? "#{detail.weightage_for_quarter(:q2).to_f.to_i}%" : "-" %></td>
+                      <td><%= detail&.weightage_for_quarter(:q3).present? ? "#{detail.weightage_for_quarter(:q3).to_f.to_i}%" : "-" %></td>
+                      <td><%= detail&.weightage_for_quarter(:q4).present? ? "#{detail.weightage_for_quarter(:q4).to_f.to_i}%" : "-" %></td>
                       <td>
                         <% if detail %>
                           <%= link_to "Edit", edit_user_detail_path(detail), class: "btn btn-sm btn-outline-primary me-1" %>

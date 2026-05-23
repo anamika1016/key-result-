@@ -14,7 +14,7 @@ class UserDetail < ApplicationRecord
   # Delegate useful methods
   delegate :employee_name, :employee_code, :employee_email, to: :employee_detail, allow_nil: true
   delegate :department_type, to: :department, allow_nil: true
-  delegate :activity_name, :theme_name, :weight, :unit, to: :activity, allow_nil: true
+  delegate :activity_name, :theme_name, :unit, to: :activity, allow_nil: true
 
   # Get department-specific L1/L2 for this user detail
   def l1_info
@@ -36,6 +36,14 @@ class UserDetail < ApplicationRecord
   scope :for_department_type, ->(dept_type) {
     joins(:department).where(departments: { department_type: dept_type })
   }
+
+  def weight
+    total_weightage.presence || activity&.weight
+  end
+
+  def weightage_for_quarter(quarter)
+    public_send("weightage_#{quarter.to_s.downcase}").presence || weight
+  end
 
   # Check if this user detail belongs to specific L1/L2
   def belongs_to_l1?(user_code_or_email)

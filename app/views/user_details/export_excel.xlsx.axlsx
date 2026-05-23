@@ -30,6 +30,7 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
 
   # Add header row
   sheet.add_row [
+    "Financial Year",
     "Department",
     "Employee Name",
     "Employee Email",
@@ -38,14 +39,20 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
     "Activity",
     "Theme",
     "Unit",
-    "Weightage"
+    "Total Weightage",
+    "Weightage Q1",
+    "Weightage Q2",
+    "Weightage Q3",
+    "Weightage Q4"
   ], style: [ header_style, header_style, header_style, header_style, header_style,
-             header_style, header_style, header_style, header_style ]
+             header_style,
+             header_style, header_style, header_style, header_style, header_style,
+             header_style, header_style, header_style ]
 
   # Add data rows
   begin
     # Force load the data directly in template
-    user_details_direct = UserDetail.includes(:department, :activity, :employee_detail).all
+    user_details_direct = UserDetail.includes(:department, :activity, :employee_detail).where(year: @selected_year_db)
 
     # Use direct query for now to bypass any instance variable issues
     data_to_use = @user_details.present? ? @user_details : user_details_direct
@@ -57,6 +64,7 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
           Rails.logger.info "Excel Template: Processing row #{index + 1} - #{detail.employee_detail&.employee_name}"
 
           sheet.add_row [
+            display_financial_year(detail.year),
             detail.department&.department_type&.to_s || "N/A",
             detail.employee_detail&.employee_name&.to_s || "N/A",
             detail.employee_detail&.employee_email&.to_s || "N/A",
@@ -65,9 +73,15 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
             detail.activity&.activity_name&.to_s || "N/A",
             detail.activity&.theme_name&.to_s || "No Theme",
             detail.activity&.unit&.to_s || "",
-            detail.activity&.weight&.to_s || ""
+            detail.weight&.to_s || "",
+            detail.weightage_for_quarter(:q1)&.to_s || "",
+            detail.weightage_for_quarter(:q2)&.to_s || "",
+            detail.weightage_for_quarter(:q3)&.to_s || "",
+            detail.weightage_for_quarter(:q4)&.to_s || ""
           ], style: [ text_style, text_style, text_style, text_style, text_style,
-                     text_style, text_style, data_style, data_style ]
+                     text_style,
+                     text_style, text_style, data_style, data_style, data_style,
+                     data_style, data_style, data_style ]
         rescue => e
           Rails.logger.error "Error adding row to Excel: #{e.message} - Detail ID: #{detail.id}"
           # Skip this row and continue with next
@@ -79,21 +93,25 @@ wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
       # Add a message row if no data found
       sheet.add_row [
         "No data available",
-        "", "", "", "", "", "", "", ""
+        "", "", "", "", "", "", "", "", "", "", "", "", ""
       ], style: [ text_style, text_style, text_style, text_style, text_style,
-                 data_style, data_style, data_style, data_style ]
+                 text_style,
+                 data_style, data_style, data_style, data_style, data_style,
+                 data_style, data_style, data_style ]
     end
   rescue => e
     Rails.logger.error "Excel Template Error: #{e.message}"
     sheet.add_row [
       "Error generating data",
-      "", "", "", "", "", "", "", ""
+      "", "", "", "", "", "", "", "", "", "", "", "", ""
     ], style: [ text_style, text_style, text_style, text_style, text_style,
-               data_style, data_style, data_style, data_style ]
+               text_style,
+               data_style, data_style, data_style, data_style, data_style,
+               data_style, data_style, data_style ]
   end
 
   # Set column widths
-  sheet.column_widths 15, 20, 25, 15, 15, 25, 20, 10, 12
+  sheet.column_widths 15, 15, 20, 25, 15, 15, 25, 20, 10, 15, 15, 15, 15, 15
 
   # Freeze header row
   sheet.sheet_view.pane do |pane|
