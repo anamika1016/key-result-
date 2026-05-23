@@ -5,8 +5,11 @@ class EmployeeDetail < ApplicationRecord
   belongs_to :user, optional: true
   has_many :user_training_assignments, dependent: :destroy
   has_many :assigned_trainings, through: :user_training_assignments, source: :training
+  before_validation :normalize_employee_code
   after_initialize :set_default_status, if: :new_record?
   after_create :create_user_account
+
+  validates :employee_code, uniqueness: { case_sensitive: false }, allow_blank: true
 
   # Support for multiple departments through user_details
   has_many :departments, through: :user_details
@@ -141,6 +144,10 @@ scope :with_l2_approved_achievements, -> {
   end
 
   private
+
+  def normalize_employee_code
+    self.employee_code = employee_code.to_s.strip.presence
+  end
 
   def create_user_account
     # Only create user account if we have required data

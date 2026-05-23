@@ -551,38 +551,106 @@ class EmployeeDetailsController < ApplicationController
     end
 
     spreadsheet = Roo::Spreadsheet.open(file.path)
-    header = spreadsheet.row(1)
 
+    normalize_header = ->(value) { value.to_s.strip.downcase.gsub(/[^a-z0-9]+/, "_").gsub(/\A_+|_+\z/, "") }
     header_map = {
-      "Name" => "employee_name",
-      "Email" => "employee_email",
-      "Employee Code" => "employee_code",
-      "Mobile Number" => "mobile_number",
-      "L1 Code" => "l1_code",
-      "L2 Code" => "l2_code",
-      "L3 Code" => "l3_code",
-      "L1 Name" => "l1_employer_name",
-      "L2 Name" => "l2_employer_name",
-      "L3 Name" => "l3_employer_name",
-      "Post" => "post",
-      "Department" => "department"
+      "name" => "employee_name",
+      "employee_name" => "employee_name",
+      "email" => "employee_email",
+      "employee_email" => "employee_email",
+      "employee_code" => "employee_code",
+      "mobile_number" => "mobile_number",
+      "mobile_no" => "mobile_number",
+      "mobile" => "mobile_number",
+      "l1_code" => "l1_code",
+      "l2_code" => "l2_code",
+      "l3_code" => "l3_code",
+      "l1_name" => "l1_employer_name",
+      "l1_manager" => "l1_employer_name",
+      "l1_employer" => "l1_employer_name",
+      "l2_name" => "l2_employer_name",
+      "l2_manager" => "l2_employer_name",
+      "l2_employer" => "l2_employer_name",
+      "l3_name" => "l3_employer_name",
+      "l3_manager" => "l3_employer_name",
+      "l3_employer" => "l3_employer_name",
+      "post" => "post",
+      "designation" => "post",
+      "department" => "department",
+      "vertical" => "department"
     }
 
     imported_count = 0
+    created_count = 0
+    skipped_count = 0
+    duplicate_count = 0
+    existing_count = 0
+    missing_code_count = 0
+    total_rows_detected = 0
+    errors = []
     user_creation_results = { created: 0, existing: 0, errors: 0 }
     excel_data = []
+    sheet_summaries = spreadsheet.sheets.map do |sheet_name|
+      spreadsheet.default_sheet = sheet_name
+      "#{sheet_name}: #{[ spreadsheet.last_row.to_i - 1, 0 ].max}"
+    end
+    import_sheet_name = spreadsheet.sheets.max_by do |sheet_name|
+      spreadsheet.default_sheet = sheet_name
+      [ spreadsheet.last_row.to_i - 1, 0 ].max
+    end
+    spreadsheet.default_sheet = import_sheet_name
+    last_row = spreadsheet.last_row.to_i
+    total_rows_detected = [ last_row - 1, 0 ].max
+    existing_employee_codes = EmployeeDetail.where.not(employee_code: [ nil, "" ]).pluck(:employee_code).map { |code| code.to_s.strip.downcase }.to_set
+    uploaded_employee_codes = Set.new
 
-    (2..spreadsheet.last_row).each do |i|
-      row = Hash[[ header, spreadsheet.row(i) ].transpose]
-      mapped_row = row.transform_keys { |key| header_map[key] }.compact
+    if last_row >= 2
+      header = spreadsheet.row(1)
 
-      begin
-        employee_detail = EmployeeDetail.create!(mapped_row)
-        imported_count += 1
-        excel_data << mapped_row
-      rescue => e
-        puts "Import failed for row #{i}: #{e.message}"
-        next
+      (2..last_row).each do |i|
+        row = Hash[[ header, spreadsheet.row(i) ].transpose]
+        mapped_row = row.each_with_object({}) do |(key, value), result|
+          attribute = header_map[normalize_header.call(key)]
+          next if attribute.blank?
+
+          result[attribute] = value.to_s.strip.presence
+        end.compact
+
+        if mapped_row.values.all?(&:blank?)
+          skipped_count += 1
+          next
+        end
+
+        employee_code = mapped_row["employee_code"].to_s.strip
+        employee_code_key = employee_code.downcase
+
+        if employee_code.blank?
+          missing_code_count += 1
+          next
+        end
+
+        if uploaded_employee_codes.include?(employee_code_key)
+          duplicate_count += 1
+          next
+        end
+
+        if existing_employee_codes.include?(employee_code_key)
+          existing_count += 1
+          next
+        end
+
+        begin
+          employee_detail = EmployeeDetail.create!(mapped_row)
+          existing_employee_codes.add(employee_code_key)
+          uploaded_employee_codes.add(employee_code_key)
+          imported_count += 1
+          created_count += 1
+          excel_data << mapped_row
+        rescue => e
+          errors << "#{import_sheet_name} row #{i}: #{e.message}"
+          Rails.logger.warn "Employee import failed for #{import_sheet_name} row #{i}: #{e.message}"
+          next
+        end
       end
     end
 
@@ -595,7 +663,13 @@ class EmployeeDetailsController < ApplicationController
     end
 
     # Create success message
-    success_message = "Excel file imported successfully! #{imported_count} records processed."
+    success_message = "Excel file imported successfully! Imported sheet '#{import_sheet_name}' with #{total_rows_detected} data rows. Workbook sheets: #{sheet_summaries.join(', ')}. #{imported_count} records processed (#{created_count} created"
+    success_message += ", #{skipped_count} blank skipped" if skipped_count.positive?
+    success_message += ", #{duplicate_count} duplicate employee codes skipped" if duplicate_count.positive?
+    success_message += ", #{existing_count} already existing employee codes skipped" if existing_count.positive?
+    success_message += ", #{missing_code_count} rows without employee code skipped" if missing_code_count.positive?
+    success_message += ")."
+    success_message += " #{errors.count} rows failed: #{errors.first(5).join('; ')}" if errors.any?
     if user_creation_results[:created] > 0
       success_message += " User accounts have been automatically created for all employees with default password '123456'."
     end
