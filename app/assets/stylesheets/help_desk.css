@@ -391,6 +391,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
+  max-width: 100%;
 }
 
 .helpdesk-badge--info {
@@ -428,6 +429,18 @@
   color: #475569;
   font-size: 14px;
   line-height: 1.7;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.helpdesk-ticket__message p,
+.helpdesk-response-box__text p {
+  margin: 0;
+}
+
+.helpdesk-ticket__message p + p,
+.helpdesk-response-box__text p + p {
+  margin-top: 8px;
 }
 
 .helpdesk-ticket__layout {
@@ -440,6 +453,7 @@
   border: 1px solid #bbf7d0;
   border-radius: 16px;
   background: #ecfdf5;
+  min-width: 0;
 }
 
 .helpdesk-response-box__label {
@@ -456,6 +470,16 @@
   color: #064e3b;
   font-size: 14px;
   line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.helpdesk-inline-link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+  word-break: break-all;
 }
 
 .helpdesk-response-form {
@@ -498,6 +522,7 @@
   padding: 16px 18px;
   border-top: 1px solid #e5edf5;
   background: #ffffff;
+  min-width: 0;
 }
 
 .helpdesk-data-table__cell:first-child {
@@ -539,6 +564,8 @@
   color: #0f172a;
   font-size: 14px;
   line-height: 1.6;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .helpdesk-action-panel {
@@ -547,6 +574,7 @@
   border: 1px solid #dbe4ee;
   border-radius: 18px;
   background: #ffffff;
+  min-width: 0;
 }
 
 .helpdesk-action-panel__title {
@@ -652,6 +680,7 @@
 .helpdesk-doc-link {
   display: inline-flex;
   align-items: center;
+  max-width: 100%;
   padding: 8px 12px;
   border: 1px solid #dbe4ee;
   border-radius: 999px;
@@ -660,10 +689,31 @@
   font-size: 12px;
   font-weight: 700;
   text-decoration: none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .helpdesk-doc-link:hover {
   background: #f8fafc;
+}
+
+.helpdesk-attachment-groups {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.helpdesk-attachment-group {
+  min-width: 0;
+}
+
+.helpdesk-attachment-group__label {
+  margin: 0 0 6px;
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .helpdesk-empty {

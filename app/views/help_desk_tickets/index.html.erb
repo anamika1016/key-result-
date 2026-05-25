@@ -233,7 +233,6 @@
                 <%= form.file_field :documents,
                                     multiple: true,
                                     direct_upload: false,
-                                    accept: ".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.txt",
                                     class: "helpdesk-file-input" %>
                 <p class="helpdesk-muted">Maximum 5 files, 10MB each.</p>
               </div>
@@ -383,33 +382,23 @@
                     <% end %>
                   </div>
 
-                  <p class="helpdesk-ticket__message"><%= ticket.message %></p>
+                  <div class="helpdesk-ticket__message"><%= help_desk_format_text(ticket.message) %></div>
 
                   <% if ticket.requester_remark.present? %>
                     <div class="helpdesk-response-box" style="margin-top: 12px; border-color: #fed7aa; background: #fff7ed;">
                       <p class="helpdesk-response-box__label" style="color: #c2410c;">User Remark</p>
-                      <p class="helpdesk-response-box__text" style="color: #9a3412;"><%= ticket.requester_remark %></p>
+                      <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(ticket.requester_remark) %></div>
                     </div>
                   <% end %>
 
                   <% if ticket.response_message.present? %>
                     <div class="helpdesk-response-box" style="margin-top: 12px;">
                       <p class="helpdesk-response-box__label">Latest Support Update</p>
-                      <p class="helpdesk-response-box__text"><%= ticket.response_message %></p>
+                      <div class="helpdesk-response-box__text"><%= help_desk_format_text(ticket.response_message) %></div>
                     </div>
                   <% end %>
 
-                  <% if ticket.documents.attached? %>
-                    <div class="helpdesk-doc-row" style="margin-top: 12px;">
-                      <% ticket.documents.each do |document| %>
-                        <%= link_to document.filename.to_s,
-                                    url_for(document),
-                                    target: "_blank",
-                                    rel: "noopener",
-                                    class: "helpdesk-doc-link" %>
-                      <% end %>
-                    </div>
-                  <% end %>
+                  <%= render "help_desk_tickets/attachment_groups", ticket: ticket %>
                 </div>
 
                 <div class="helpdesk-data-table__cell">
@@ -443,7 +432,7 @@
 
                 <div class="helpdesk-data-table__cell helpdesk-data-table__cell--action">
                   <p class="helpdesk-cell-title">Resolution</p>
-                  <%= form_with model: ticket, url: respond_help_desk_ticket_path(ticket), method: :patch, local: true, class: "helpdesk-action-panel" do |form| %>
+                  <%= form_with model: ticket, url: respond_help_desk_ticket_path(ticket), method: :patch, local: true, html: { multipart: true }, class: "helpdesk-action-panel" do |form| %>
                     <p class="helpdesk-action-panel__title">Choose next status</p>
                     <p class="helpdesk-action-panel__copy">
                       Use <strong>Keep Open</strong> if work is still in progress. Use <strong>Close Ticket</strong> when the issue is done and the selected user should get final action options from their login.
@@ -471,6 +460,15 @@
                                        class: "helpdesk-input" %>
                         <p class="helpdesk-context">Choose who should receive the final user-side action for this ticket.</p>
                       <% end %>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                      <%= form.label :support_documents, "Support Attachments", class: "helpdesk-field-label" %>
+                      <%= form.file_field :support_documents,
+                                          multiple: true,
+                                          direct_upload: false,
+                                          class: "helpdesk-file-input" %>
+                      <p class="helpdesk-muted">Optional proof, screenshot, file, or solution document. Maximum 5 files, 10MB each.</p>
                     </div>
 
                     <% if ticket.errors[:approval_user].present? && @assigned_ticket&.id == ticket.id %>
@@ -574,33 +572,23 @@
                   <% end %>
                 </div>
 
-                <p class="helpdesk-ticket__message"><%= ticket.message %></p>
+                <div class="helpdesk-ticket__message"><%= help_desk_format_text(ticket.message) %></div>
 
                 <% if ticket.requester_remark.present? %>
                   <div class="helpdesk-response-box" style="margin-top: 12px; border-color: #fed7aa; background: #fff7ed;">
                     <p class="helpdesk-response-box__label" style="color: #c2410c;">User Remark</p>
-                    <p class="helpdesk-response-box__text" style="color: #9a3412;"><%= ticket.requester_remark %></p>
+                    <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(ticket.requester_remark) %></div>
                   </div>
                 <% end %>
 
                 <% if ticket.response_message.present? %>
                   <div class="helpdesk-response-box" style="margin-top: 12px;">
                     <p class="helpdesk-response-box__label">Latest Response</p>
-                    <p class="helpdesk-response-box__text"><%= ticket.response_message %></p>
+                    <div class="helpdesk-response-box__text"><%= help_desk_format_text(ticket.response_message) %></div>
                   </div>
                 <% end %>
 
-                <% if ticket.documents.attached? %>
-                  <div class="helpdesk-doc-row" style="margin-top: 12px;">
-                    <% ticket.documents.each do |document| %>
-                      <%= link_to document.filename.to_s,
-                                  url_for(document),
-                                  target: "_blank",
-                                  rel: "noopener",
-                                  class: "helpdesk-doc-link" %>
-                    <% end %>
-                  </div>
-                <% end %>
+                <%= render "help_desk_tickets/attachment_groups", ticket: ticket %>
               </div>
 
               <div class="helpdesk-data-table__cell">
@@ -668,7 +656,7 @@
                     requester_remark_label = approving_response_ticket ? "Reject Remark" : "Reopen Remark"
                     requester_remark_placeholder = approving_response_ticket ? "Write why this response ticket should be rejected." : "Write why the issue still needs support if you want to reopen this ticket."
                   %>
-                  <%= form_with model: ticket, url: finalize_resolution_help_desk_ticket_path(ticket), method: :patch, local: true, class: "helpdesk-action-panel" do |form| %>
+                  <%= form_with model: ticket, url: finalize_resolution_help_desk_ticket_path(ticket), method: :patch, local: true, html: { multipart: true }, class: "helpdesk-action-panel" do |form| %>
                     <p class="helpdesk-action-panel__title"><%= approving_response_ticket ? "Response ticket is waiting for your approval" : "Support has closed this ticket" %></p>
                     <p class="helpdesk-action-panel__copy">
                       <% if approving_response_ticket %>
@@ -684,6 +672,15 @@
                                          rows: 4,
                                          class: "helpdesk-textarea",
                                          placeholder: requester_remark_placeholder %>
+                    </div>
+
+                    <div style="margin-top: 12px;">
+                      <%= form.label :requester_followup_documents, "Reopen Attachments", class: "helpdesk-field-label" %>
+                      <%= form.file_field :requester_followup_documents,
+                                          multiple: true,
+                                          direct_upload: false,
+                                          class: "helpdesk-file-input" %>
+                      <p class="helpdesk-muted">Optional screenshot, proof, or updated file for support. Add it only when reopening or rejecting.</p>
                     </div>
 
                     <% if @requester_action_ticket&.id == ticket.id && ticket.errors.any? %>

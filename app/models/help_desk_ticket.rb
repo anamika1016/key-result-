@@ -6,18 +6,6 @@ class HelpDeskTicket < ApplicationRecord
   ESCALATION_RESPONSE_WINDOW = 2.days
   REQUESTER_RESPONSE_WINDOW = 2.days
   REVIEW_OPEN_STATUSES = %w[submitted in_review reopened].freeze
-  ALLOWED_DOCUMENT_TYPES = %w[
-    application/pdf
-    application/msword
-    application/vnd.openxmlformats-officedocument.wordprocessingml.document
-    application/vnd.ms-excel
-    application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
-    image/jpeg
-    image/jpg
-    image/png
-    image/webp
-    text/plain
-  ].freeze
   MAX_DOCUMENTS = 5
   MAX_DOCUMENT_SIZE = 10.megabytes
 
@@ -33,6 +21,8 @@ class HelpDeskTicket < ApplicationRecord
   attr_accessor :requester_user_id, :on_behalf_requested, :request_received_on, :request_received_time
 
   has_many_attached :documents
+  has_many_attached :support_documents
+  has_many_attached :requester_followup_documents
 
   enum :request_type, {
     complaint: "complaint",
@@ -277,7 +267,7 @@ class HelpDeskTicket < ApplicationRecord
     true
   end
 
-  def mark_resolved_by(reviewer:, response_message:, approval_user: nil, final_action_mode: "reopen_close")
+  def mark_resolved_by(reviewer:, response_message:, approval_user: nil, final_action_mode: "reopen_close", support_documents: [])
     self.response_message = response_message.to_s.strip.presence
     if response_message.blank? || self.response_message.blank?
       errors.add(:response_message, "can't be blank")
@@ -311,13 +301,14 @@ class HelpDeskTicket < ApplicationRecord
     self.closed_at = nil if has_attribute?(:closed_at)
     self.closed_by_user = nil if has_attribute?(:closed_by_user_id)
     self.closed_automatically = false if has_attribute?(:closed_automatically)
+    attach_documents_to(:support_documents, support_documents)
 
     saved = save
     schedule_requester_response_check! if saved
     saved
   end
 
-  def keep_open_by(reviewer:, response_message:)
+  def keep_open_by(reviewer:, response_message:, support_documents: [])
     self.response_message = response_message.to_s.strip.presence
     if response_message.blank? || self.response_message.blank?
       errors.add(:response_message, "can't be blank")
@@ -338,13 +329,14 @@ class HelpDeskTicket < ApplicationRecord
     self.closed_at = nil if has_attribute?(:closed_at)
     self.closed_by_user = nil if has_attribute?(:closed_by_user_id)
     self.closed_automatically = false if has_attribute?(:closed_automatically)
+    attach_documents_to(:support_documents, support_documents)
 
     saved = save
     schedule_next_escalation_check! if saved
     saved
   end
 
-  def reopen_by!(actor:, remark:)
+  def reopen_by!(actor:, remark:, requester_followup_documents: [])
     unless can_be_finalized_by?(actor)
       errors.add(:base, "You are not authorized to reopen this ticket.")
       return false
@@ -383,6 +375,7 @@ class HelpDeskTicket < ApplicationRecord
     self.closed_at = nil if has_attribute?(:closed_at)
     self.closed_by_user = nil if has_attribute?(:closed_by_user_id)
     self.closed_automatically = false if has_attribute?(:closed_automatically)
+    attach_documents_to(:requester_followup_documents, requester_followup_documents)
 
     saved = save
     schedule_next_escalation_check! if saved
@@ -409,8 +402,8 @@ class HelpDeskTicket < ApplicationRecord
     close_by!(actor: actor)
   end
 
-  def reject_by!(actor:, remark:)
-    reopen_by!(actor: actor, remark: remark)
+  def reject_by!(actor:, remark:, requester_followup_documents: [])
+    reopen_by!(actor: actor, remark: remark, requester_followup_documents: requester_followup_documents)
   end
 
   def auto_close_if_requester_inactive!(reference_time: Time.current)
@@ -618,23 +611,32 @@ class HelpDeskTicket < ApplicationRecord
   end
 
   def documents_are_allowed
-    return unless documents.attached?
+    validate_attachment_set(documents, "documents")
+    validate_attachment_set(support_documents, "support attachments")
+    validate_attachment_set(requester_followup_documents, "reopen attachments")
+  end
 
-    if documents.attachments.size > MAX_DOCUMENTS
-      errors.add(:documents, "allow a maximum of #{MAX_DOCUMENTS} files per submission")
+  def validate_attachment_set(attachment_set, label)
+    return unless attachment_set.attached?
+
+    if attachment_set.attachments.size > MAX_DOCUMENTS
+      errors.add(:documents, "#{label} allow a maximum of #{MAX_DOCUMENTS} files")
     end
 
-    documents.each do |document|
+    attachment_set.each do |document|
       next unless document.blob.present?
 
       if document.blob.byte_size > MAX_DOCUMENT_SIZE
         errors.add(:documents, "#{document.filename} is larger than 10MB")
       end
-
-      next if ALLOWED_DOCUMENT_TYPES.include?(document.blob.content_type)
-
-      errors.add(:documents, "#{document.filename} has an unsupported file format")
     end
+  end
+
+  def attach_documents_to(attachment_name, files)
+    files = Array(files).reject(&:blank?)
+    return if files.blank?
+
+    public_send(attachment_name).attach(files)
   end
 
   def department_has_escalation_matrix

@@ -39,13 +39,18 @@ class HelpDeskTicketsController < ApplicationController
       else
         case decision
         when "keep_open"
-          @assigned_ticket.keep_open_by(reviewer: current_user, response_message: response_message_param)
+          @assigned_ticket.keep_open_by(
+            reviewer: current_user,
+            response_message: response_message_param,
+            support_documents: support_documents_param
+          )
         when "send_for_approval", "close", "close_ticket"
           @assigned_ticket.mark_resolved_by(
             reviewer: current_user,
             response_message: response_message_param,
             approval_user: selected_approval_user,
-            final_action_mode: @assigned_ticket.assisted_request? ? "approve_reject" : "reopen_close"
+            final_action_mode: @assigned_ticket.assisted_request? ? "approve_reject" : "reopen_close",
+            support_documents: support_documents_param
           )
         else
           @assigned_ticket.errors.add(:base, "Choose whether you want to keep this ticket open or close it.")
@@ -77,7 +82,11 @@ class HelpDeskTicketsController < ApplicationController
     success =
       case decision
       when "reject", "reopen", "reverse"
-        @requester_action_ticket.reject_by!(actor: current_user, remark: requester_remark_param)
+        @requester_action_ticket.reject_by!(
+          actor: current_user,
+          remark: requester_remark_param,
+          requester_followup_documents: requester_followup_documents_param
+        )
       when "approve", "close"
         @requester_action_ticket.approve_by!(actor: current_user)
       else
@@ -135,6 +144,14 @@ class HelpDeskTicketsController < ApplicationController
     params.fetch(:help_desk_ticket, {}).fetch(:requester_remark, "")
   end
 
+  def support_documents_param
+    params.fetch(:help_desk_ticket, {}).fetch(:support_documents, [])
+  end
+
+  def requester_followup_documents_param
+    params.fetch(:help_desk_ticket, {}).fetch(:requester_followup_documents, [])
+  end
+
   def approval_user_param
     selected_id = params[:approval_user_id].to_s.presence
     return @assigned_ticket.approval_pending_user if selected_id.blank?
@@ -146,7 +163,16 @@ class HelpDeskTicketsController < ApplicationController
     return HelpDeskTicket.none unless @can_review_help_desk_tickets
 
     scope = HelpDeskTicket.open_for_review
-                          .includes(:department, :submitted_by_user, { user: :employee_detail }, { assigned_to_user: :employee_detail }, { approval_user: :employee_detail }, documents_attachments: :blob)
+                          .includes(
+                            :department,
+                            :submitted_by_user,
+                            { user: :employee_detail },
+                            { assigned_to_user: :employee_detail },
+                            { approval_user: :employee_detail },
+                            documents_attachments: :blob,
+                            support_documents_attachments: :blob,
+                            requester_followup_documents_attachments: :blob
+                          )
                           .recent_first
 
     scope.assigned_to(current_user).limit(12)
@@ -161,7 +187,9 @@ class HelpDeskTicketsController < ApplicationController
       { responded_by_user: :employee_detail },
       { closed_by_user: :employee_detail },
       { user: :employee_detail },
-      documents_attachments: :blob
+      documents_attachments: :blob,
+      support_documents_attachments: :blob,
+      requester_followup_documents_attachments: :blob
     ]
 
     current_statuses = HelpDeskTicket::REVIEW_OPEN_STATUSES + ["resolved"]
@@ -176,12 +204,12 @@ class HelpDeskTicketsController < ApplicationController
   end
 
   def set_assigned_ticket
-    @assigned_ticket = HelpDeskTicket.includes(:department, :submitted_by_user, { user: :employee_detail }, { assigned_to_user: :employee_detail }, { responded_by_user: :employee_detail }, { approval_user: :employee_detail }, documents_attachments: :blob)
+    @assigned_ticket = HelpDeskTicket.includes(:department, :submitted_by_user, { user: :employee_detail }, { assigned_to_user: :employee_detail }, { responded_by_user: :employee_detail }, { approval_user: :employee_detail }, documents_attachments: :blob, support_documents_attachments: :blob, requester_followup_documents_attachments: :blob)
                                      .find(params[:id])
   end
 
   def set_requester_action_ticket
-    @requester_action_ticket = HelpDeskTicket.includes(:department, :submitted_by_user, { user: :employee_detail }, { assigned_to_user: :employee_detail }, { responded_by_user: :employee_detail }, { closed_by_user: :employee_detail }, { approval_user: :employee_detail }, documents_attachments: :blob)
+    @requester_action_ticket = HelpDeskTicket.includes(:department, :submitted_by_user, { user: :employee_detail }, { assigned_to_user: :employee_detail }, { responded_by_user: :employee_detail }, { closed_by_user: :employee_detail }, { approval_user: :employee_detail }, documents_attachments: :blob, support_documents_attachments: :blob, requester_followup_documents_attachments: :blob)
                                              .find(params[:id])
   end
 

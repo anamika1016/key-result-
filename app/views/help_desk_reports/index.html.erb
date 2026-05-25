@@ -167,19 +167,9 @@
                   </div>
                 </div>
 
-                <p class="helpdesk-ticket__message"><%= truncate(ticket.message, length: 220) %></p>
+                <div class="helpdesk-ticket__message"><%= help_desk_format_text(truncate(ticket.message, length: 220)) %></div>
 
-                <% if ticket.documents.attached? %>
-                  <div class="helpdesk-doc-row">
-                    <% ticket.documents.each do |document| %>
-                      <%= link_to document.filename.to_s,
-                                  url_for(document),
-                                  target: "_blank",
-                                  rel: "noopener",
-                                  class: "helpdesk-doc-link" %>
-                    <% end %>
-                  </div>
-                <% end %>
+                <%= render "help_desk_tickets/attachment_groups", ticket: ticket %>
               </div>
 
               <div class="helpdesk-data-table__cell">
@@ -272,7 +262,7 @@
                 <% if ticket.response_message.present? %>
                   <div class="helpdesk-response-box">
                     <p class="helpdesk-response-box__label">Support Update</p>
-                    <p class="helpdesk-response-box__text"><%= ticket.response_message %></p>
+                    <div class="helpdesk-response-box__text"><%= help_desk_format_text(ticket.response_message) %></div>
                   </div>
                 <% else %>
                   <div class="helpdesk-action-panel">
@@ -284,7 +274,7 @@
                 <% if ticket.requester_remark.present? %>
                   <div class="helpdesk-response-box" style="margin-top: 12px; border-color: #fed7aa; background: #fff7ed;">
                     <p class="helpdesk-response-box__label" style="color: #c2410c;">User Remark</p>
-                    <p class="helpdesk-response-box__text" style="color: #9a3412;"><%= ticket.requester_remark %></p>
+                    <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(ticket.requester_remark) %></div>
                   </div>
                 <% elsif ticket.closed? %>
                   <div class="helpdesk-action-panel" style="margin-top: 12px;">

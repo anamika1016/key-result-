@@ -83,6 +83,19 @@ module ApplicationHelper
     end
   end
 
+  def help_desk_format_text(text)
+    url_pattern = %r{(https?://[^\s<]+)}
+    linked_text = safe_join(text.to_s.split(url_pattern).map do |part|
+      if part.match?(/\Ahttps?:\/\//)
+        link_to(part, part, target: "_blank", rel: "noopener", class: "helpdesk-inline-link")
+      else
+        h(part)
+      end
+    end)
+
+    simple_format(linked_text, {}, sanitize: false)
+  end
+
   def help_desk_menu_notification_count
     return 0 unless current_user.present?
 

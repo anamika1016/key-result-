@@ -35,7 +35,9 @@ class HelpDeskReportsController < ApplicationController
                             { responded_by_user: :employee_detail },
                             { closed_by_user: :employee_detail },
                             { user: :employee_detail },
-                            documents_attachments: :blob
+                            documents_attachments: :blob,
+                            support_documents_attachments: :blob,
+                            requester_followup_documents_attachments: :blob
                           )
 
     filters = report_filter_params

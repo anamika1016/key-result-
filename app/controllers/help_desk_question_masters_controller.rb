@@ -46,7 +46,7 @@ class HelpDeskQuestionMastersController < ApplicationController
   end
 
   def help_desk_question_master_params
-    params.require(:help_desk_question_master).permit(:department_id, :request_type, :question_text, :position, :active)
+    params.require(:help_desk_question_master).permit(:department_id, :request_type, :question_text, :active)
   end
 
   def ensure_hod!

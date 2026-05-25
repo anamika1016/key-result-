@@ -84,11 +84,6 @@
                                  placeholder: "Example: Internet not working, Printer issue, Salary slip needed, Leave balance clarification." %>
             </div>
 
-            <div>
-              <%= form.label :position, "Display Order", class: "helpdesk-field-label" %>
-              <%= form.number_field :position, min: 1, class: "helpdesk-input", placeholder: "1" %>
-            </div>
-
             <div class="helpdesk-form-span">
               <div class="helpdesk-panel helpdesk-panel--soft">
                 <div class="helpdesk-check-row">
@@ -159,7 +154,7 @@
           <div class="helpdesk-data-table__head helpdesk-data-table__head--question-master">
             <div>Department</div>
             <div>Question</div>
-            <div>Status & Order</div>
+            <div>Status</div>
             <div>Action</div>
           </div>
 
@@ -180,12 +175,11 @@
               </div>
 
               <div class="helpdesk-data-table__cell">
-                <p class="helpdesk-cell-title">Status & Order</p>
+                <p class="helpdesk-cell-title">Status</p>
                 <div class="helpdesk-badge-row">
                   <span class="helpdesk-badge <%= question_master.active? ? 'helpdesk-badge--success' : 'helpdesk-badge--neutral' %>">
                     <%= question_master.active? ? "Active" : "Inactive" %>
                   </span>
-                  <span class="helpdesk-badge">Order <%= question_master.position %></span>
                 </div>
 
                 <div class="helpdesk-kv" style="margin-top: 14px;">
@@ -204,7 +198,7 @@
                 <p class="helpdesk-cell-title">Action</p>
                 <div class="helpdesk-action-panel">
                   <p class="helpdesk-action-panel__title">Manage Question</p>
-                  <p class="helpdesk-action-panel__copy">Edit the wording, change its order, or deactivate/delete it when it is no longer relevant.</p>
+                  <p class="helpdesk-action-panel__copy">Edit the wording or deactivate/delete it when it is no longer relevant.</p>
 
                   <div class="helpdesk-response-form__actions">
                     <%= link_to "Edit", edit_help_desk_question_master_path(question_master), class: "helpdesk-secondary-btn" %>
