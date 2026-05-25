@@ -113,6 +113,57 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
     get employee_code_user_session_path(employee_code: "EMPLINK")
 
     assert_redirected_to settings_path
+    assert_signed_in_as requested_user
+  end
+
+  test "employee code sign in link ignores mismatched employee detail user association" do
+    admin = User.create!(
+      email: "session.link.admin@example.com",
+      employee_code: "ASA",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "hod"
+    )
+    requested_user = User.create!(
+      email: "session.link.requested.901@example.com",
+      employee_code: "901",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "employee"
+    )
+    EmployeeDetail.create!(
+      employee_name: "Employee 901",
+      employee_email: requested_user.email,
+      employee_code: requested_user.employee_code,
+      user: admin
+    )
+
+    get employee_code_user_session_path(employee_code: "901")
+
+    assert_redirected_to settings_path
+    assert_signed_in_as requested_user
+  end
+
+  test "employee code sign in link does not sign in mismatched email user" do
+    admin = User.create!(
+      email: "session.link.admin.email@example.com",
+      employee_code: "ASA",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "hod"
+    )
+    EmployeeDetail.create!(
+      employee_name: "Employee 901",
+      employee_email: admin.email,
+      employee_code: "901",
+      user: admin
+    )
+
+    get employee_code_user_session_path(employee_code: "901")
+
+    assert_redirected_to new_user_session_path(employee_code: "901", auto_sign_in: "0")
+    assert_nil session["warden.user.user.key"]
+    assert_equal "No account found with that employee code. Please check your employee code and try again.", flash[:alert]
   end
 
   test "employee code sign in link opens login page when code is not in employee list" do
@@ -130,6 +181,11 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
         password: "password123",
         password_confirmation: "password123",
         role: "employee"
+      )
+      EmployeeDetail.create!(
+        employee_name: "Signed Employee",
+        employee_email: user.email,
+        employee_code: user.employee_code
       )
       year = "25-26"
       expires_at = 10.minutes.from_now.to_i.to_s
@@ -154,6 +210,11 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
         password_confirmation: "password123",
         role: "employee"
       )
+      EmployeeDetail.create!(
+        employee_name: "Signed Employee",
+        employee_email: user.email,
+        employee_code: user.employee_code
+      )
       expires_at = 10.minutes.from_now.to_i.to_s
       signature = OpenSSL::HMAC.hexdigest("SHA256", secret, "#{user.employee_code}:#{expires_at}")
 
@@ -166,14 +227,55 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "valid external sign in link opens login page when code is not in employee list" do
+    with_sso_secret do |secret|
+      admin = User.create!(
+        email: "session.link.sso.admin@example.com",
+        employee_code: "ASA",
+        password: "password123",
+        password_confirmation: "password123",
+        role: "hod"
+      )
+      user = User.create!(
+        email: "session.link.sso.only.user@example.com",
+        employee_code: "1025",
+        password: "password123",
+        password_confirmation: "password123",
+        role: "employee"
+      )
+      expires_at = 10.minutes.from_now.to_i.to_s
+      signature = OpenSSL::HMAC.hexdigest("SHA256", secret, "#{user.employee_code}:#{expires_at}")
+      sign_in admin, scope: :user
+
+      get employee_code_user_session_path(employee_code: user.employee_code), params: {
+        expires_at: expires_at,
+        signature: signature
+      }
+
+      assert_redirected_to new_user_session_path(employee_code: user.employee_code, auto_sign_in: "0")
+      assert_nil session["warden.user.user.key"]
+      assert_equal "No account found with that employee code. Please check your employee code and try again.", flash[:alert]
+    end
+  end
+
   test "employee code sign in link opens login page with invalid external signature" do
     with_sso_secret do
+      admin = User.create!(
+        email: "session.link.invalid.admin@example.com",
+        employee_code: "ASA",
+        password: "password123",
+        password_confirmation: "password123",
+        role: "hod"
+      )
+      sign_in admin, scope: :user
+
       get employee_code_user_session_path(employee_code: "109"), params: {
         expires_at: 10.minutes.from_now.to_i,
         signature: "wrong"
       }
 
       assert_redirected_to new_user_session_path(employee_code: "109", auto_sign_in: "0")
+      assert_nil session["warden.user.user.key"]
       assert_equal "Invalid or expired sign in link. Please sign in again.", flash[:alert]
     end
   end
@@ -187,5 +289,9 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
     yield secret
   ensure
     ENV["ESS_SSO_SECRET"] = old_secret
+  end
+
+  def assert_signed_in_as(user)
+    assert_equal user.id, session["warden.user.user.key"].first.first
   end
 end

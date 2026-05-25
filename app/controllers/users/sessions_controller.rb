@@ -19,8 +19,9 @@ class Users::SessionsController < Devise::SessionsController
     normalized_current_code = normalize_employee_code(current_user&.employee_code)
 
     if valid_external_sign_in_request?(requested_code)
-      sign_in_with_employee_code(requested_code)
+      sign_in_with_employee_code_from_employee_list(requested_code)
     elsif external_sign_in_params_present?
+      sign_out(resource_name) if user_signed_in?
       flash[:alert] = "Invalid or expired sign in link. Please sign in again."
       redirect_to new_session_path(resource_name, employee_code: requested_code, auto_sign_in: "0")
     elsif user_signed_in? && normalized_requested_code.present? && normalized_current_code == normalized_requested_code
@@ -94,20 +95,6 @@ class Users::SessionsController < Devise::SessionsController
     false
   end
 
-  def sign_in_with_employee_code(employee_code)
-    user = User.where("lower(employee_code) = ?", employee_code.downcase).first
-
-    if user
-      sign_out(resource_name) if user_signed_in?
-      sign_in(resource_name, user)
-      flash[:notice] = "Welcome back, #{user.display_name}!"
-      redirect_to external_sign_in_redirect_path(user)
-    else
-      flash[:alert] = "No account found with that employee code. Please check your employee code and try again."
-      redirect_to new_session_path(resource_name, employee_code: employee_code)
-    end
-  end
-
   def sign_in_with_employee_code_from_employee_list(employee_code)
     employee_detail = employee_detail_for_code(employee_code)
     user = user_for_employee_detail(employee_detail)
@@ -118,6 +105,7 @@ class Users::SessionsController < Devise::SessionsController
       flash[:notice] = "Welcome back, #{user.display_name}!"
       redirect_to external_sign_in_redirect_path(user)
     else
+      sign_out(resource_name) if user_signed_in?
       flash[:alert] = "No account found with that employee code. Please check your employee code and try again."
       redirect_to new_session_path(resource_name, employee_code: employee_code, auto_sign_in: "0")
     end
@@ -133,10 +121,26 @@ class Users::SessionsController < Devise::SessionsController
   def user_for_employee_detail(employee_detail)
     return if employee_detail.blank?
 
-    employee_detail.user ||
-      User.where("LOWER(TRIM(employee_code)) = ?", normalize_employee_code(employee_detail.employee_code)).first ||
-      user_for_employee_email(employee_detail.employee_email) ||
+    normalized_code = normalize_employee_code(employee_detail.employee_code)
+    return if normalized_code.blank?
+
+    user_for_employee_code(normalized_code) ||
+      matching_employee_user(employee_detail.user, normalized_code) ||
+      matching_employee_user(user_for_employee_email(employee_detail.employee_email), normalized_code) ||
       create_user_for_employee_detail(employee_detail)
+  end
+
+  def user_for_employee_code(employee_code)
+    normalized_code = normalize_employee_code(employee_code)
+    return if normalized_code.blank?
+
+    User.where("LOWER(TRIM(employee_code)) = ?", normalized_code).first
+  end
+
+  def matching_employee_user(user, employee_code)
+    return if user.blank?
+
+    user if normalize_employee_code(user.employee_code) == normalize_employee_code(employee_code)
   end
 
   def user_for_employee_email(employee_email)
@@ -147,13 +151,22 @@ class Users::SessionsController < Devise::SessionsController
   end
 
   def create_user_for_employee_detail(employee_detail)
-    result = UserCreationService.create_user_from_employee_data(
-      employee_email: employee_detail.employee_email,
-      employee_code: employee_detail.employee_code,
-      employee_name: employee_detail.employee_name
-    )
+    normalized_email = employee_detail.employee_email.to_s.strip.downcase
+    return if normalized_email.blank? || normalize_employee_code(employee_detail.employee_code).blank?
 
-    result[:user] if result[:success]
+    existing_email_user = user_for_employee_email(normalized_email)
+    return if existing_email_user.present?
+
+    User.create!(
+      email: normalized_email,
+      employee_code: employee_detail.employee_code,
+      password: UserCreationService::DEFAULT_PASSWORD,
+      password_confirmation: UserCreationService::DEFAULT_PASSWORD,
+      role: UserCreationService::DEFAULT_ROLE
+    )
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error "Failed to create user for employee #{employee_detail.employee_code}: #{e.message}"
+    nil
   end
 
   def employee_code_auto_sign_in_allowed?
