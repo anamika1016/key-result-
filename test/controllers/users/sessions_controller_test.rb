@@ -207,6 +207,26 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "No account found with that employee code. Please check your employee code and try again.", flash[:alert]
   end
 
+  test "sign in page signs in directly with auto sign in disabled when exact employee user exists" do
+    user = User.create!(
+      email: "session.query.auto.disabled@example.com",
+      employee_code: "901",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "employee"
+    )
+    EmployeeDetail.create!(
+      employee_name: "Employee 901",
+      employee_email: user.email,
+      employee_code: user.employee_code
+    )
+
+    get new_user_session_path, params: { employee_code: "901", auto_sign_in: "0" }
+
+    assert_redirected_to settings_path
+    assert_signed_in_as user
+  end
+
   test "employee code sign in link signs in requested user with valid external signature" do
     with_sso_secret do |secret|
       user = User.create!(
@@ -289,6 +309,33 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
       assert_redirected_to new_user_session_path(employee_code: user.employee_code, auto_sign_in: "0")
       assert_nil session["warden.user.user.key"]
       assert_equal "No account found with that employee code. Please check your employee code and try again.", flash[:alert]
+    end
+  end
+
+  test "expired external sign in link falls back to exact employee code login" do
+    with_sso_secret do |secret|
+      user = User.create!(
+        email: "session.link.expired.sso@example.com",
+        employee_code: "901",
+        password: "password123",
+        password_confirmation: "password123",
+        role: "employee"
+      )
+      EmployeeDetail.create!(
+        employee_name: "Expired Link Employee",
+        employee_email: user.email,
+        employee_code: user.employee_code
+      )
+      expires_at = 5.minutes.ago.to_i.to_s
+      signature = OpenSSL::HMAC.hexdigest("SHA256", secret, "#{user.employee_code}:#{expires_at}")
+
+      get employee_code_user_session_path(employee_code: user.employee_code), params: {
+        expires_at: expires_at,
+        signature: signature
+      }
+
+      assert_redirected_to settings_path
+      assert_signed_in_as user
     end
   end
 

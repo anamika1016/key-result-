@@ -21,9 +21,13 @@ class Users::SessionsController < Devise::SessionsController
     if valid_external_sign_in_request?(requested_code)
       sign_in_with_employee_code_from_employee_list(requested_code)
     elsif external_sign_in_params_present?
-      sign_out(resource_name) if user_signed_in?
-      flash[:alert] = "Invalid or expired sign in link. Please sign in again."
-      redirect_to new_session_path(resource_name, employee_code: requested_code, auto_sign_in: "0")
+      if employee_code_sign_in_available?(requested_code)
+        sign_in_with_employee_code_from_employee_list(requested_code)
+      else
+        sign_out(resource_name) if user_signed_in?
+        flash[:alert] = "Invalid or expired sign in link. Please sign in again."
+        redirect_to new_session_path(resource_name, employee_code: requested_code, auto_sign_in: "0")
+      end
     elsif user_signed_in? && normalized_requested_code.present? && normalized_current_code == normalized_requested_code
       redirect_to after_sign_in_path_for(current_user)
     elsif requested_code.present?
@@ -129,6 +133,11 @@ class Users::SessionsController < Devise::SessionsController
       matching_employee_user(user_for_employee_email(employee_detail.employee_email), normalized_code)
   end
 
+  def employee_code_sign_in_available?(employee_code)
+    employee_detail = employee_detail_for_code(employee_code)
+    user_for_employee_detail(employee_detail).present?
+  end
+
   def user_for_employee_code(employee_code)
     normalized_code = normalize_employee_code(employee_code)
     return if normalized_code.blank?
@@ -150,7 +159,8 @@ class Users::SessionsController < Devise::SessionsController
   end
 
   def employee_code_auto_sign_in_allowed?
-    params[:auto_sign_in].to_s != "0" && !external_sign_in_params_present?
+    !external_sign_in_params_present? &&
+      (params[:auto_sign_in].to_s != "0" || employee_code_sign_in_available?(params[:employee_code]))
   end
 
   def external_sign_in_params_present?
