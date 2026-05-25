@@ -126,8 +126,7 @@ class Users::SessionsController < Devise::SessionsController
 
     user_for_employee_code(normalized_code) ||
       matching_employee_user(employee_detail.user, normalized_code) ||
-      matching_employee_user(user_for_employee_email(employee_detail.employee_email), normalized_code) ||
-      create_user_for_employee_detail(employee_detail)
+      matching_employee_user(user_for_employee_email(employee_detail.employee_email), normalized_code)
   end
 
   def user_for_employee_code(employee_code)
@@ -148,25 +147,6 @@ class Users::SessionsController < Devise::SessionsController
     return if normalized_email.blank?
 
     User.where("LOWER(TRIM(email)) = ?", normalized_email).first
-  end
-
-  def create_user_for_employee_detail(employee_detail)
-    normalized_email = employee_detail.employee_email.to_s.strip.downcase
-    return if normalized_email.blank? || normalize_employee_code(employee_detail.employee_code).blank?
-
-    existing_email_user = user_for_employee_email(normalized_email)
-    return if existing_email_user.present?
-
-    User.create!(
-      email: normalized_email,
-      employee_code: employee_detail.employee_code,
-      password: UserCreationService::DEFAULT_PASSWORD,
-      password_confirmation: UserCreationService::DEFAULT_PASSWORD,
-      role: UserCreationService::DEFAULT_ROLE
-    )
-  rescue ActiveRecord::RecordInvalid => e
-    Rails.logger.error "Failed to create user for employee #{employee_detail.employee_code}: #{e.message}"
-    nil
   end
 
   def employee_code_auto_sign_in_allowed?

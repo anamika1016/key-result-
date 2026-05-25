@@ -144,7 +144,7 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_signed_in_as requested_user
   end
 
-  test "employee code sign in link does not sign in mismatched email user" do
+  test "employee code sign in link opens login page when employee email belongs to admin" do
     admin = User.create!(
       email: "session.link.admin.email@example.com",
       employee_code: "ASA",
@@ -163,6 +163,7 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
 
     assert_redirected_to new_user_session_path(employee_code: "901", auto_sign_in: "0")
     assert_nil session["warden.user.user.key"]
+    assert_nil User.find_by(employee_code: "901")
     assert_equal "No account found with that employee code. Please check your employee code and try again.", flash[:alert]
   end
 
@@ -170,6 +171,39 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
     get employee_code_user_session_path(employee_code: "EMPLINK")
 
     assert_redirected_to new_user_session_path(employee_code: "EMPLINK", auto_sign_in: "0")
+    assert_equal "No account found with that employee code. Please check your employee code and try again.", flash[:alert]
+  end
+
+  test "employee code sign in link opens login page when employee list record has no user" do
+    EmployeeDetail.create!(
+      employee_name: "Employee 902",
+      employee_code: "902"
+    )
+
+    get employee_code_user_session_path(employee_code: "902")
+
+    assert_redirected_to new_user_session_path(employee_code: "902", auto_sign_in: "0")
+    assert_nil session["warden.user.user.key"]
+    assert_nil User.find_by(employee_code: "902")
+    assert_equal "No account found with that employee code. Please check your employee code and try again.", flash[:alert]
+  end
+
+  test "employee code sign in link opens login page when l1 code has no user" do
+    EmployeeDetail.create!(
+      employee_name: "L1 Manager",
+      employee_code: "901"
+    )
+    EmployeeDetail.create!(
+      employee_name: "Assigned Employee",
+      employee_code: "903",
+      l1_code: "901"
+    )
+
+    get employee_code_user_session_path(employee_code: "901")
+
+    assert_redirected_to new_user_session_path(employee_code: "901", auto_sign_in: "0")
+    assert_nil session["warden.user.user.key"]
+    assert_nil User.find_by(employee_code: "901")
     assert_equal "No account found with that employee code. Please check your employee code and try again.", flash[:alert]
   end
 
