@@ -589,7 +589,7 @@
       <h1 class="welcome-title">Welcome Back!</h1>
       <p class="welcome-subtitle">Sign in to access your account and continue your journey with us</p>
       
-      <button class="signin-btn" onclick="window.location.href='<%= new_user_registration_path %>'">
+      <button class="signin-btn" onclick="openRegistrationWithConfirmation()">
         Switch to Register
       </button>
     </div>
@@ -620,21 +620,15 @@
 
       <%= form_for(resource, as: resource_name, url: session_path(resource_name), html: { data: { turbo: false }, id: "signin-form" }) do |f| %>
         <div class="form-group">
-          <%= f.label :email, class: "form-label" %>
-          <%= f.email_field :email, autofocus: true, autocomplete: "email", class: "form-control", placeholder: "Enter your email", required: true %>
-          <div class="field-error" id="email-error" style="display: none; color: #dc2626; font-size: 0.875rem; margin-top: 0.25rem;"></div>
+          <%= f.label :employee_code, "Employee Code", class: "form-label" %>
+          <%= f.text_field :employee_code, value: params[:employee_code], autofocus: true, autocomplete: "username", class: "form-control", placeholder: "Enter your employee code", required: true %>
+          <div class="field-error" id="employee-code-error" style="display: none; color: #dc2626; font-size: 0.875rem; margin-top: 0.25rem;"></div>
         </div>
 
         <div class="form-group">
           <%= f.label :password, class: "form-label" %>
           <%= f.password_field :password, autocomplete: "current-password", class: "form-control", placeholder: "Enter password", required: true %>
           <div class="field-error" id="password-error" style="display: none; color: #dc2626; font-size: 0.875rem; margin-top: 0.25rem;"></div>
-        </div>
-
-        <div class="form-group">
-          <%= f.label :employee_code, "Employee Code", class: "form-label" %>
-          <%= f.text_field :employee_code, class: "form-control", placeholder: "Enter your employee code", required: true %>
-          <div class="field-error" id="employee-code-error" style="display: none; color: #dc2626; font-size: 0.875rem; margin-top: 0.25rem;"></div>
         </div>
 
         <% if devise_mapping.rememberable? %>
@@ -655,6 +649,14 @@
 </div>
 
 <script>
+function openRegistrationWithConfirmation() {
+    alert('Are you want to open register page?');
+
+    if (confirm('Please confirm: do you want to open registration?')) {
+        window.location.href = '<%= new_user_registration_path %>';
+    }
+}
+
 // Global function to hide persistent error
 function hidePersistentError() {
     const persistentError = document.getElementById('persistent-error');
@@ -709,16 +711,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Form validation
     const form = document.getElementById('signin-form');
-    const emailField = document.querySelector('input[name="user[email]"]');
     const passwordField = document.querySelector('input[name="user[password]"]');
     const employeeCodeField = document.querySelector('input[name="user[employee_code]"]');
 
     // Real-time validation
-    function validateEmail(email) {
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return emailRegex.test(email);
-    }
-
     function showFieldError(fieldId, message) {
         const errorDiv = document.getElementById(fieldId);
         errorDiv.textContent = message;
@@ -737,18 +733,6 @@ document.addEventListener('DOMContentLoaded', function() {
             field.style.borderColor = '#e5e7eb';
         }
     }
-
-    // Email validation
-    emailField.addEventListener('blur', function() {
-        const email = this.value.trim();
-        if (email === '') {
-            showFieldError('email-error', 'Email is required');
-        } else if (!validateEmail(email)) {
-            showFieldError('email-error', 'Please enter a valid email address');
-        } else {
-            clearFieldError('email-error');
-        }
-    });
 
     // Password validation
     passwordField.addEventListener('blur', function() {
@@ -777,19 +761,8 @@ document.addEventListener('DOMContentLoaded', function() {
         let hasErrors = false;
         
         // Clear previous errors
-        clearFieldError('email-error');
         clearFieldError('password-error');
         clearFieldError('employee-code-error');
-
-        // Validate email
-        const email = emailField.value.trim();
-        if (email === '') {
-            showFieldError('email-error', 'Email is required');
-            hasErrors = true;
-        } else if (!validateEmail(email)) {
-            showFieldError('email-error', 'Please enter a valid email address');
-            hasErrors = true;
-        }
 
         // Validate password
         const password = passwordField.value;

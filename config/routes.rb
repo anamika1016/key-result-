@@ -95,6 +95,11 @@ Rails.application.routes.draw do
     end
   end
 
+  devise_scope :user do
+    get "/users/sign_in/:employee_code", to: "users/sessions#employee_code_sign_in", as: :employee_code_user_session
+    post "/users/sign_in/:employee_code", to: "users/sessions#employee_code_sign_in"
+  end
+
   devise_for :users, controllers: {
     sessions: "users/sessions",
     registrations: "users/registrations",
