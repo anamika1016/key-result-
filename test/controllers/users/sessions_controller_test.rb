@@ -50,7 +50,45 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to settings_path
   end
 
-  test "employee code sign in link opens login page when current user does not match requested code" do
+  test "sign in page signs in directly when employee code exists in employee list" do
+    user = User.create!(
+      email: "session.query.employee@example.com",
+      employee_code: "1025",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "employee"
+    )
+    EmployeeDetail.create!(
+      employee_name: "Query Employee",
+      employee_email: user.email,
+      employee_code: user.employee_code
+    )
+
+    get new_user_session_path, params: { employee_code: "1025" }
+
+    assert_redirected_to settings_path
+  end
+
+  test "employee code sign in link signs in directly when employee code exists in employee list" do
+    user = User.create!(
+      email: "session.link.employee.list@example.com",
+      employee_code: "EMPLINK",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "employee"
+    )
+    EmployeeDetail.create!(
+      employee_name: "Link Employee",
+      employee_email: user.email,
+      employee_code: user.employee_code
+    )
+
+    get employee_code_user_session_path(employee_code: " emplink ")
+
+    assert_redirected_to settings_path
+  end
+
+  test "employee code sign in link signs in requested employee when current user does not match requested code" do
     user = User.create!(
       email: "session.link.mismatch@example.com",
       employee_code: "EMPOTHER",
@@ -58,19 +96,30 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
       password_confirmation: "password123",
       role: "employee"
     )
+    requested_user = User.create!(
+      email: "session.link.requested@example.com",
+      employee_code: "EMPLINK",
+      password: "password123",
+      password_confirmation: "password123",
+      role: "employee"
+    )
+    EmployeeDetail.create!(
+      employee_name: "Requested Employee",
+      employee_email: requested_user.email,
+      employee_code: requested_user.employee_code
+    )
     sign_in user, scope: :user
 
     get employee_code_user_session_path(employee_code: "EMPLINK")
 
-    assert_redirected_to new_user_session_path(employee_code: "EMPLINK")
-    assert_equal "Employee code does not match. Please sign in with the correct employee code.", flash[:alert]
+    assert_redirected_to settings_path
   end
 
-  test "employee code sign in link opens login page when no user is signed in" do
+  test "employee code sign in link opens login page when code is not in employee list" do
     get employee_code_user_session_path(employee_code: "EMPLINK")
 
-    assert_redirected_to new_user_session_path(employee_code: "EMPLINK")
-    assert_nil flash[:alert]
+    assert_redirected_to new_user_session_path(employee_code: "EMPLINK", auto_sign_in: "0")
+    assert_equal "No account found with that employee code. Please check your employee code and try again.", flash[:alert]
   end
 
   test "employee code sign in link signs in requested user with valid external signature" do
@@ -124,7 +173,8 @@ class Users::SessionsControllerTest < ActionDispatch::IntegrationTest
         signature: "wrong"
       }
 
-      assert_redirected_to new_user_session_path(employee_code: "109")
+      assert_redirected_to new_user_session_path(employee_code: "109", auto_sign_in: "0")
+      assert_equal "Invalid or expired sign in link. Please sign in again.", flash[:alert]
     end
   end
 

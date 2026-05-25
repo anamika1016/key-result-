@@ -3,6 +3,16 @@ require "openssl"
 class Users::SessionsController < Devise::SessionsController
   skip_before_action :verify_authenticity_token, only: [ :create, :employee_code_sign_in ] # only for testing, enable CSRF later
 
+  def new
+    requested_code = params[:employee_code].to_s.strip
+
+    if employee_code_auto_sign_in_allowed? && requested_code.present?
+      sign_in_with_employee_code_from_employee_list(requested_code) and return
+    end
+
+    super
+  end
+
   def employee_code_sign_in
     requested_code = params[:employee_code].to_s.strip
     normalized_requested_code = normalize_employee_code(requested_code)
@@ -10,8 +20,13 @@ class Users::SessionsController < Devise::SessionsController
 
     if valid_external_sign_in_request?(requested_code)
       sign_in_with_employee_code(requested_code)
+    elsif external_sign_in_params_present?
+      flash[:alert] = "Invalid or expired sign in link. Please sign in again."
+      redirect_to new_session_path(resource_name, employee_code: requested_code, auto_sign_in: "0")
     elsif user_signed_in? && normalized_requested_code.present? && normalized_current_code == normalized_requested_code
       redirect_to after_sign_in_path_for(current_user)
+    elsif requested_code.present?
+      sign_in_with_employee_code_from_employee_list(requested_code)
     else
       if user_signed_in?
         sign_out(resource_name)
@@ -91,6 +106,62 @@ class Users::SessionsController < Devise::SessionsController
       flash[:alert] = "No account found with that employee code. Please check your employee code and try again."
       redirect_to new_session_path(resource_name, employee_code: employee_code)
     end
+  end
+
+  def sign_in_with_employee_code_from_employee_list(employee_code)
+    employee_detail = employee_detail_for_code(employee_code)
+    user = user_for_employee_detail(employee_detail)
+
+    if user
+      sign_out(resource_name) if user_signed_in? && current_user != user
+      sign_in(resource_name, user)
+      flash[:notice] = "Welcome back, #{user.display_name}!"
+      redirect_to external_sign_in_redirect_path(user)
+    else
+      flash[:alert] = "No account found with that employee code. Please check your employee code and try again."
+      redirect_to new_session_path(resource_name, employee_code: employee_code, auto_sign_in: "0")
+    end
+  end
+
+  def employee_detail_for_code(employee_code)
+    normalized_code = normalize_employee_code(employee_code)
+    return if normalized_code.blank?
+
+    EmployeeDetail.where("LOWER(TRIM(employee_code)) = ?", normalized_code).first
+  end
+
+  def user_for_employee_detail(employee_detail)
+    return if employee_detail.blank?
+
+    employee_detail.user ||
+      User.where("LOWER(TRIM(employee_code)) = ?", normalize_employee_code(employee_detail.employee_code)).first ||
+      user_for_employee_email(employee_detail.employee_email) ||
+      create_user_for_employee_detail(employee_detail)
+  end
+
+  def user_for_employee_email(employee_email)
+    normalized_email = employee_email.to_s.strip.downcase
+    return if normalized_email.blank?
+
+    User.where("LOWER(TRIM(email)) = ?", normalized_email).first
+  end
+
+  def create_user_for_employee_detail(employee_detail)
+    result = UserCreationService.create_user_from_employee_data(
+      employee_email: employee_detail.employee_email,
+      employee_code: employee_detail.employee_code,
+      employee_name: employee_detail.employee_name
+    )
+
+    result[:user] if result[:success]
+  end
+
+  def employee_code_auto_sign_in_allowed?
+    params[:auto_sign_in].to_s != "0" && !external_sign_in_params_present?
+  end
+
+  def external_sign_in_params_present?
+    params[:expires_at].present? || params[:signature].present?
   end
 
   def secure_compare(signature, expected_signature)
