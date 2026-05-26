@@ -2,6 +2,7 @@ require "test_helper"
 
 class HelpDeskReportsControllerTest < ActionDispatch::IntegrationTest
   include Devise::Test::IntegrationHelpers
+  include ActiveSupport::Testing::TimeHelpers
 
   setup do
     @department = Department.create!(
@@ -74,6 +75,41 @@ class HelpDeskReportsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, current_ticket.ticket_reference
     assert_includes response.body, closed_ticket.ticket_reference
     assert_includes response.body, "Saved Ticket History"
+  end
+
+  test "help desk report shows every support update with its date and time" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "complaint",
+      question_subject: "Repeated internet issue",
+      message: "Internet is disconnecting again."
+    )
+
+    travel_to(Time.zone.local(2026, 5, 25, 15, 13, 0)) do
+      assert ticket.keep_open_by(
+        reviewer: @l1_user,
+        response_message: "Initial check is done."
+      )
+    end
+
+    travel_to(Time.zone.local(2026, 5, 25, 15, 21, 0)) do
+      assert ticket.mark_resolved_by(
+        reviewer: @l1_user,
+        response_message: "Cable replacement is done."
+      )
+    end
+
+    sign_in @user
+
+    get help_desk_reports_url
+
+    assert_response :success
+    assert_includes response.body, "Support Updates"
+    assert_includes response.body, "Initial check is done."
+    assert_includes response.body, "Cable replacement is done."
+    assert_includes response.body, "25 May 2026, 03:13 PM"
+    assert_includes response.body, "25 May 2026, 03:21 PM"
   end
 
   test "help desk current page hides closed tickets but report keeps them" do

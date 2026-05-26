@@ -83,6 +83,30 @@ wb.styles do |styles|
     ], style: Array.new(24, header_style), height: 30
 
     @report_tickets.each do |ticket|
+      support_update_history = ticket.support_update_history_latest_first
+      latest_support_update = ticket.latest_support_update
+      requester_remark_history = ticket.requester_remark_history_latest_first
+      support_update_text =
+        if support_update_history.any?
+          support_update_history.map do |support_update|
+            update_time = support_update.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p")
+            update_user = support_update.user.present? ? user_display_name(support_update.user) : "Support"
+            "#{update_time} - #{update_user}: #{support_update.message}"
+          end.join("\n")
+        else
+          "-"
+        end
+      requester_remark_text =
+        if requester_remark_history.any?
+          requester_remark_history.map do |requester_remark|
+            remark_time = requester_remark.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p")
+            remark_user = requester_remark.user.present? ? user_display_name(requester_remark.user) : "User"
+            "#{remark_time} - #{remark_user}: #{requester_remark.message}"
+          end.join("\n")
+        else
+          "-"
+        end
+
       status_style =
         if ticket.closed?
           status_closed_style
@@ -110,13 +134,13 @@ wb.styles do |styles|
         help_desk_status_label(ticket),
         ticket.current_escalation_label,
         ticket.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p"),
-        (ticket.responded_by_user.present? ? user_display_name(ticket.responded_by_user) : "-"),
-        (ticket.responded_at.present? ? ticket.responded_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : "-"),
+        (latest_support_update&.user.present? ? user_display_name(latest_support_update.user) : (ticket.responded_by_user.present? ? user_display_name(ticket.responded_by_user) : "-")),
+        (latest_support_update.present? ? latest_support_update.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : (ticket.responded_at.present? ? ticket.responded_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : "-")),
         (ticket.requester_response_due_at.present? ? ticket.requester_response_due_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : "-"),
         (ticket.closed_at.present? ? ticket.closed_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : "-"),
         (ticket.closed? ? (ticket.closed_automatically? && ticket.final_action_mode_approve_reject? ? "Auto Approved" : (ticket.closed_automatically? ? "Auto Closed" : "Manually Closed")) : "-"),
-        ticket.response_message.presence || "-",
-        ticket.requester_remark.presence || "-"
+        support_update_text,
+        requester_remark_text
       ], style: [
         text_style,
         text_style,

@@ -17,6 +17,8 @@ class HelpDeskTicket < ApplicationRecord
   belongs_to :submitted_by_user, class_name: "User", optional: true
   belongs_to :approval_user, class_name: "User", optional: true
   belongs_to :help_desk_question_master, optional: true
+  has_many :support_updates, class_name: "HelpDeskSupportUpdate", dependent: :destroy
+  has_many :requester_remarks, class_name: "HelpDeskRequesterRemark", dependent: :destroy
 
   attr_accessor :requester_user_id, :on_behalf_requested, :request_received_on, :request_received_time
 
@@ -77,6 +79,7 @@ class HelpDeskTicket < ApplicationRecord
   before_validation :set_default_submitter, on: :create
   before_validation :assign_initial_escalation_details, on: :create
   after_commit :schedule_initial_escalation_check, on: :create
+  after_commit :record_initial_support_update, on: :create
   after_commit :send_assignment_notifications, on: :create
   after_commit :send_assignment_notifications_for_reassignment, on: :update
   after_commit :send_resolution_notifications, on: :update
@@ -162,6 +165,50 @@ class HelpDeskTicket < ApplicationRecord
 
   def total_reopens
     reopen_count.to_i
+  end
+
+  def support_update_history
+    updates = support_updates.oldest_first.to_a
+    return updates if updates.any?
+    return [] if response_message.blank?
+
+    [
+      SupportUpdateSnapshot.new(
+        message: response_message,
+        user: responded_by_user,
+        created_at: responded_at.presence || updated_at.presence || created_at
+      )
+    ]
+  end
+
+  def support_update_history_latest_first
+    support_update_history.reverse
+  end
+
+  def latest_support_update
+    support_updates.latest_first.first || support_update_history.last
+  end
+
+  def requester_remark_history
+    remarks = requester_remarks.oldest_first.to_a
+    return remarks if remarks.any?
+    return [] if requester_remark.blank?
+
+    [
+      RequesterRemarkSnapshot.new(
+        message: requester_remark,
+        user: approval_pending_user,
+        created_at: updated_at.presence || created_at
+      )
+    ]
+  end
+
+  def requester_remark_history_latest_first
+    requester_remark_history.reverse
+  end
+
+  def latest_requester_remark
+    requester_remarks.latest_first.first || requester_remark_history.last
   end
 
   def overdue_for_response?(reference_time = Time.current)
@@ -268,8 +315,8 @@ class HelpDeskTicket < ApplicationRecord
   end
 
   def mark_resolved_by(reviewer:, response_message:, approval_user: nil, final_action_mode: "reopen_close", support_documents: [])
-    self.response_message = response_message.to_s.strip.presence
-    if response_message.blank? || self.response_message.blank?
+    new_response_message = response_message.to_s.strip.presence
+    if response_message.blank? || new_response_message.blank?
       errors.add(:response_message, "can't be blank")
       return false
     end
@@ -291,29 +338,39 @@ class HelpDeskTicket < ApplicationRecord
       return false
     end
 
+    ensure_legacy_support_update!
+    self.response_message = new_response_message
+
+    update_time = Time.current
+
     self.responded_by_user = reviewer
     self.approval_user = selected_approval_user
     self.final_action_mode = selected_final_action_mode
-    self.responded_at = Time.current
+    self.responded_at = update_time
     self.status = "resolved"
     self.escalation_due_at = nil
-    self.requester_response_due_at = Time.current + REQUESTER_RESPONSE_WINDOW
+    self.requester_response_due_at = update_time + REQUESTER_RESPONSE_WINDOW
     self.closed_at = nil if has_attribute?(:closed_at)
     self.closed_by_user = nil if has_attribute?(:closed_by_user_id)
     self.closed_automatically = false if has_attribute?(:closed_automatically)
     attach_documents_to(:support_documents, support_documents)
 
     saved = save
-    schedule_requester_response_check! if saved
+    if saved
+      record_support_update!(reviewer: reviewer, message: self.response_message, created_at: update_time)
+      schedule_requester_response_check!
+    end
     saved
   end
 
   def keep_open_by(reviewer:, response_message:, support_documents: [])
-    self.response_message = response_message.to_s.strip.presence
-    if response_message.blank? || self.response_message.blank?
+    new_response_message = response_message.to_s.strip.presence
+    if response_message.blank? || new_response_message.blank?
       errors.add(:response_message, "can't be blank")
       return false
     end
+    ensure_legacy_support_update!
+    self.response_message = new_response_message
 
     update_time = Time.current
 
@@ -332,7 +389,10 @@ class HelpDeskTicket < ApplicationRecord
     attach_documents_to(:support_documents, support_documents)
 
     saved = save
-    schedule_next_escalation_check! if saved
+    if saved
+      record_support_update!(reviewer: reviewer, message: self.response_message, created_at: update_time)
+      schedule_next_escalation_check!
+    end
     saved
   end
 
@@ -342,11 +402,13 @@ class HelpDeskTicket < ApplicationRecord
       return false
     end
 
-    self.requester_remark = remark.to_s.strip.presence
-    if requester_remark.blank?
+    new_requester_remark = remark.to_s.strip.presence
+    if new_requester_remark.blank?
       errors.add(:requester_remark, "can't be blank")
       return false
     end
+    ensure_legacy_requester_remark!
+    self.requester_remark = new_requester_remark
 
     assignment_time = Time.current
     return_user = responded_by_user.presence || assigned_to_user
@@ -378,7 +440,10 @@ class HelpDeskTicket < ApplicationRecord
     attach_documents_to(:requester_followup_documents, requester_followup_documents)
 
     saved = save
-    schedule_next_escalation_check! if saved
+    if saved
+      record_requester_remark!(actor: actor, message: requester_remark, created_at: assignment_time)
+      schedule_next_escalation_check!
+    end
     saved
   end
 
@@ -439,6 +504,9 @@ class HelpDeskTicket < ApplicationRecord
   end
 
   private
+
+  SupportUpdateSnapshot = Struct.new(:message, :user, :created_at, keyword_init: true)
+  RequesterRemarkSnapshot = Struct.new(:message, :user, :created_at, keyword_init: true)
 
   def final_action_user_ids
     if approval_user_id.present?
@@ -637,6 +705,59 @@ class HelpDeskTicket < ApplicationRecord
     return if files.blank?
 
     public_send(attachment_name).attach(files)
+  end
+
+  def ensure_legacy_support_update!
+    return if new_record?
+    return if response_message.blank?
+    return if support_updates.exists?
+
+    record_support_update!(
+      reviewer: responded_by_user,
+      message: response_message,
+      created_at: responded_at.presence || updated_at.presence || Time.current
+    )
+  end
+
+  def record_initial_support_update
+    return if response_message.blank?
+    return if support_updates.exists?
+
+    record_support_update!(
+      reviewer: responded_by_user,
+      message: response_message,
+      created_at: responded_at.presence || created_at
+    )
+  end
+
+  def record_support_update!(reviewer:, message:, created_at:)
+    support_updates.create!(
+      user: reviewer,
+      message: message,
+      created_at: created_at,
+      updated_at: created_at
+    )
+  end
+
+  def ensure_legacy_requester_remark!
+    return if new_record?
+    return if requester_remark.blank?
+    return if requester_remarks.exists?
+
+    record_requester_remark!(
+      actor: approval_pending_user,
+      message: requester_remark,
+      created_at: updated_at.presence || Time.current
+    )
+  end
+
+  def record_requester_remark!(actor:, message:, created_at:)
+    requester_remarks.create!(
+      user: actor,
+      message: message,
+      created_at: created_at,
+      updated_at: created_at
+    )
   end
 
   def department_has_escalation_matrix

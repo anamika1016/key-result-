@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_05_21_090000) do
+ActiveRecord::Schema[8.0].define(version: 2026_05_26_091000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -145,6 +145,28 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_21_090000) do
     t.index ["department_id", "request_type", "active"], name: "index_help_desk_question_masters_on_context_and_active"
     t.index ["department_id", "request_type", "position"], name: "index_help_desk_question_masters_on_context_and_position"
     t.index ["department_id"], name: "index_help_desk_question_masters_on_department_id"
+  end
+
+  create_table "help_desk_requester_remarks", force: :cascade do |t|
+    t.bigint "help_desk_ticket_id", null: false
+    t.bigint "user_id"
+    t.text "message", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["help_desk_ticket_id", "created_at"], name: "index_help_desk_requester_remarks_on_ticket_and_created_at"
+    t.index ["help_desk_ticket_id"], name: "index_help_desk_requester_remarks_on_ticket_id"
+    t.index ["user_id"], name: "index_help_desk_requester_remarks_on_user_id"
+  end
+
+  create_table "help_desk_support_updates", force: :cascade do |t|
+    t.bigint "help_desk_ticket_id", null: false
+    t.bigint "user_id"
+    t.text "message", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["help_desk_ticket_id", "created_at"], name: "index_help_desk_support_updates_on_ticket_and_created_at"
+    t.index ["help_desk_ticket_id"], name: "index_help_desk_support_updates_on_ticket_id"
+    t.index ["user_id"], name: "index_help_desk_support_updates_on_user_id"
   end
 
   create_table "help_desk_tickets", force: :cascade do |t|
@@ -573,6 +595,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_21_090000) do
   add_foreign_key "activities", "departments"
   add_foreign_key "employee_details", "users"
   add_foreign_key "help_desk_question_masters", "departments"
+  add_foreign_key "help_desk_requester_remarks", "help_desk_tickets"
+  add_foreign_key "help_desk_requester_remarks", "users"
+  add_foreign_key "help_desk_support_updates", "help_desk_tickets"
+  add_foreign_key "help_desk_support_updates", "users"
   add_foreign_key "help_desk_tickets", "departments"
   add_foreign_key "help_desk_tickets", "help_desk_question_masters", on_delete: :nullify
   add_foreign_key "help_desk_tickets", "users"

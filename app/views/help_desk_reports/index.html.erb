@@ -134,15 +134,7 @@
       </div>
 
       <% if @report_tickets.any? %>
-        <div class="helpdesk-data-table">
-          <div class="helpdesk-data-table__head helpdesk-data-table__head--report">
-            <div>Ticket</div>
-            <div>Complaint Details</div>
-            <div>Raised By / Department</div>
-            <div>Handling & Timeline</div>
-            <div>Resolution Notes</div>
-          </div>
-
+        <div class="helpdesk-report-list">
           <% @report_tickets.each do |ticket| %>
             <%
               raised_for_identifier = ticket.requester_employee_code.presence || ticket.requester_email
@@ -160,171 +152,173 @@
               elsif ticket.closed?
                 "Closed manually"
               end
+              support_update_history = ticket.support_update_history_latest_first
+              latest_support_update = ticket.latest_support_update
+              requester_remark_history = ticket.requester_remark_history_latest_first
+              latest_requester_remark = ticket.latest_requester_remark
+              latest_note = latest_support_update&.message.presence || latest_requester_remark&.message.presence || "No support update yet"
+              latest_note_time = latest_support_update&.created_at || latest_requester_remark&.created_at || ticket.created_at
             %>
-            <article class="helpdesk-data-table__row helpdesk-data-table__row--report">
-              <div class="helpdesk-data-table__cell">
-                <p class="helpdesk-cell-title">Ticket</p>
-                <div class="helpdesk-badge-row">
-                  <span class="helpdesk-badge"><%= ticket.ticket_reference %></span>
-                  <span class="helpdesk-badge helpdesk-badge--neutral"><%= ticket.request_label %></span>
-                  <% if ticket.assisted_request? %>
-                    <span class="helpdesk-badge helpdesk-badge--neutral"><%= ticket.submission_mode_label %></span>
-                  <% elsif self_raised %>
-                    <span class="helpdesk-badge helpdesk-badge--success">Self Raised</span>
-                  <% end %>
+            <details class="helpdesk-report-card">
+              <summary class="helpdesk-report-card__summary">
+                <div class="helpdesk-report-card__ticket">
+                  <div class="helpdesk-badge-row">
+                    <span class="helpdesk-badge"><%= ticket.ticket_reference %></span>
+                    <span class="helpdesk-badge helpdesk-badge--neutral"><%= ticket.request_label %></span>
+                    <span class="helpdesk-badge <%= help_desk_status_badge_tone(ticket) %>"><%= help_desk_status_label(ticket) %></span>
+                  </div>
+                  <h3 class="helpdesk-report-card__title"><%= ticket.request_subject %></h3>
+                  <p class="helpdesk-report-card__message"><%= truncate(ticket.message, length: 120) %></p>
                 </div>
-                <h3 class="helpdesk-ticket__title" style="margin-top: 14px;"><%= ticket.request_subject %></h3>
-                <p class="helpdesk-ticket__copy"><%= ticket.current_escalation_label %></p>
-              </div>
 
-              <div class="helpdesk-data-table__cell">
-                <p class="helpdesk-cell-title">Complaint Details</p>
-                <div class="helpdesk-kv">
-                  <div class="helpdesk-kv__row">
-                    <span class="helpdesk-kv__label">Topic</span>
-                    <span class="helpdesk-kv__value"><%= ticket.request_subject %></span>
+                <div class="helpdesk-report-card__main-grid">
+                  <div>
+                    <p class="helpdesk-field-label">Raised By</p>
+                    <p class="helpdesk-report-card__value"><%= ticket.requester_name %></p>
+                    <p class="helpdesk-report-card__muted"><%= raised_for_identifier %></p>
+                  </div>
+                  <div>
+                    <p class="helpdesk-field-label"><%= ticket.complaint? ? "Complaint Department" : "Suggestion Department" %></p>
+                    <p class="helpdesk-report-card__value"><%= ticket.department.department_type %></p>
+                    <p class="helpdesk-report-card__muted"><%= ticket.current_escalation_label %></p>
+                  </div>
+                  <div>
+                    <p class="helpdesk-field-label">Owner / Resolver</p>
+                    <p class="helpdesk-report-card__value"><%= owner_name %></p>
+                    <p class="helpdesk-report-card__muted"><%= resolver_name %></p>
+                  </div>
+                  <div>
+                    <p class="helpdesk-field-label">Latest Note</p>
+                    <p class="helpdesk-report-card__value"><%= truncate(latest_note, length: 70) %></p>
+                    <p class="helpdesk-report-card__muted"><%= latest_note_time.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></p>
                   </div>
                 </div>
 
-                <div class="helpdesk-ticket__message"><%= help_desk_format_text(truncate(ticket.message, length: 220)) %></div>
+                <span class="helpdesk-report-card__toggle">Show details</span>
+              </summary>
 
-                <%= render "help_desk_tickets/attachment_groups", ticket: ticket %>
-              </div>
+              <div class="helpdesk-report-card__details">
+                <div class="helpdesk-report-card__detail-grid">
+                  <section class="helpdesk-person-card">
+                    <p class="helpdesk-person-card__label">Request Details</p>
+                    <p class="helpdesk-person-card__name"><%= ticket.request_subject %></p>
+                    <div class="helpdesk-ticket__message"><%= help_desk_format_text(ticket.message) %></div>
+                    <%= render "help_desk_tickets/attachment_groups", ticket: ticket %>
+                  </section>
 
-              <div class="helpdesk-data-table__cell">
-                <p class="helpdesk-cell-title">Raised By / Department</p>
-                <div class="helpdesk-person-stack">
-                  <div class="helpdesk-person-card">
-                    <p class="helpdesk-person-card__label">Raised By Employee</p>
-                    <p class="helpdesk-person-card__name"><%= ticket.requester_name %></p>
-                    <p class="helpdesk-person-card__meta"><%= raised_for_identifier %></p>
-                    <p class="helpdesk-person-card__meta"><%= self_raised ? "Self submitted" : ticket.submission_mode_label %></p>
-                  </div>
-
-                  <div class="helpdesk-person-card <%= ticket.complaint? ? 'helpdesk-person-card--complaint-target' : 'helpdesk-person-card--suggestion-target' %>">
+                  <section class="helpdesk-person-card <%= ticket.complaint? ? 'helpdesk-person-card--complaint-target' : 'helpdesk-person-card--suggestion-target' %>">
                     <div class="helpdesk-person-card__header">
-                      <p class="helpdesk-person-card__label"><%= ticket.complaint? ? "Complaint Department" : "Suggestion Department" %></p>
+                      <p class="helpdesk-person-card__label">People & Department</p>
                       <span class="helpdesk-person-card__pill"><%= ticket.request_label %></span>
                     </div>
-                    <p class="helpdesk-person-card__name"><%= ticket.department.department_type %></p>
-                    <p class="helpdesk-person-card__meta">This ticket is routed to this department.</p>
-                  </div>
+                    <div class="helpdesk-kv">
+                      <div class="helpdesk-kv__row">
+                        <span class="helpdesk-kv__label">Raised By Employee</span>
+                        <span class="helpdesk-kv__value"><%= ticket.requester_name %> (<%= raised_for_identifier %>)</span>
+                      </div>
+                      <div class="helpdesk-kv__row">
+                        <span class="helpdesk-kv__label">Submitted By</span>
+                        <span class="helpdesk-kv__value"><%= self_raised ? "Self submitted" : "#{raised_by_name} (#{raised_by_identifier})" %></span>
+                      </div>
+                      <div class="helpdesk-kv__row">
+                        <span class="helpdesk-kv__label">Department</span>
+                        <span class="helpdesk-kv__value"><%= ticket.department.department_type %></span>
+                      </div>
+                    </div>
+                  </section>
 
-                  <% if self_raised %>
-                    <div class="helpdesk-person-card helpdesk-person-card--self">
-                      <p class="helpdesk-person-card__label">Submission</p>
-                      <p class="helpdesk-person-card__name">Self raised by the same employee</p>
-                      <p class="helpdesk-person-card__meta"><%= raised_by_name %> (<%= raised_by_identifier %>)</p>
+                  <section class="helpdesk-person-card">
+                    <p class="helpdesk-person-card__label">Timeline</p>
+                    <div class="helpdesk-kv">
+                      <div class="helpdesk-kv__row">
+                        <span class="helpdesk-kv__label">Current Ticket Status</span>
+                        <span class="helpdesk-kv__value"><%= help_desk_status_label(ticket) %></span>
+                      </div>
+                      <% if ticket.responded_at.present? %>
+                        <div class="helpdesk-kv__row">
+                          <span class="helpdesk-kv__label">Latest Support Update</span>
+                          <span class="helpdesk-kv__value"><%= ticket.responded_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                        </div>
+                      <% end %>
+                      <% if ticket.closed_at.present? %>
+                        <div class="helpdesk-kv__row">
+                          <span class="helpdesk-kv__label"><%= ticket.closed_automatically? && ticket.final_action_mode_approve_reject? ? "Auto Approved" : (ticket.closed_automatically? ? "Auto Closed" : "Closed") %></span>
+                          <span class="helpdesk-kv__value"><%= ticket.closed_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                        </div>
+                      <% end %>
+                      <div class="helpdesk-kv__row">
+                        <span class="helpdesk-kv__label">Created</span>
+                        <span class="helpdesk-kv__value"><%= ticket.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                      </div>
+                      <div class="helpdesk-kv__row">
+                        <span class="helpdesk-kv__label">Assigned / Last Owner</span>
+                        <span class="helpdesk-kv__value"><%= owner_name %></span>
+                      </div>
+                      <div class="helpdesk-kv__row">
+                        <span class="helpdesk-kv__label">Solved / Updated By</span>
+                        <span class="helpdesk-kv__value"><%= resolver_name %></span>
+                      </div>
+                      <% if ticket.resolved? %>
+                        <div class="helpdesk-kv__row">
+                          <span class="helpdesk-kv__label">User Action With</span>
+                          <span class="helpdesk-kv__value"><%= final_action_name %></span>
+                        </div>
+                      <% end %>
+                      <% if closed_by_name.present? %>
+                        <div class="helpdesk-kv__row">
+                          <span class="helpdesk-kv__label">Closed By</span>
+                          <span class="helpdesk-kv__value"><%= closed_by_name %></span>
+                        </div>
+                      <% end %>
+                      <div class="helpdesk-kv__row">
+                        <span class="helpdesk-kv__label">Reopen Count</span>
+                        <span class="helpdesk-kv__value"><%= ticket.total_reopens %></span>
+                      </div>
                     </div>
-                  <% else %>
-                    <div class="helpdesk-person-card">
-                      <p class="helpdesk-person-card__label">Submitted By</p>
-                      <p class="helpdesk-person-card__name"><%= raised_by_name %></p>
-                      <p class="helpdesk-person-card__meta"><%= raised_by_identifier %></p>
-                      <p class="helpdesk-person-card__meta"><%= ticket.submission_mode_label %></p>
-                    </div>
-                  <% end %>
+                  </section>
+
+                  <section>
+                    <% if support_update_history.any? %>
+                      <div class="helpdesk-response-box">
+                        <p class="helpdesk-response-box__label">Support Updates</p>
+                        <% support_update_history.each do |support_update| %>
+                          <div class="helpdesk-kv__row" style="margin-top: 10px;">
+                            <span class="helpdesk-kv__label"><%= support_update.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                            <span class="helpdesk-kv__value"><%= support_update.user.present? ? user_display_name(support_update.user) : "Support" %></span>
+                          </div>
+                          <div class="helpdesk-response-box__text"><%= help_desk_format_text(support_update.message) %></div>
+                        <% end %>
+                      </div>
+                    <% else %>
+                      <div class="helpdesk-action-panel">
+                        <p class="helpdesk-action-panel__title">No support update yet</p>
+                        <p class="helpdesk-action-panel__copy">This ticket is saved in the report, but no response message has been added so far.</p>
+                      </div>
+                    <% end %>
+
+                    <% if requester_remark_history.any? %>
+                      <div class="helpdesk-response-box" style="margin-top: 12px; border-color: #fed7aa; background: #fff7ed;">
+                        <p class="helpdesk-response-box__label" style="color: #c2410c;">All User Remarks</p>
+                        <% requester_remark_history.each do |requester_remark| %>
+                          <div class="helpdesk-kv__row" style="margin-top: 10px;">
+                            <span class="helpdesk-kv__label"><%= requester_remark.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                            <span class="helpdesk-kv__value"><%= requester_remark.user.present? ? user_display_name(requester_remark.user) : "User" %></span>
+                          </div>
+                          <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(requester_remark.message) %></div>
+                        <% end %>
+                      </div>
+                    <% elsif ticket.closed? %>
+                      <div class="helpdesk-action-panel" style="margin-top: 12px;">
+                        <p class="helpdesk-action-panel__title">Closure Summary</p>
+                        <p class="helpdesk-action-panel__copy">
+                          <%= ticket.closed_automatically? && ticket.final_action_mode_approve_reject? ? "Approved automatically after no user action." : (ticket.closed_automatically? ? "Closed automatically after no user action." : "Closed manually after user action.") %>
+                        </p>
+                      </div>
+                    <% end %>
+                  </section>
                 </div>
               </div>
-
-              <div class="helpdesk-data-table__cell">
-                <p class="helpdesk-cell-title">Handling & Timeline</p>
-                <div class="helpdesk-badge-row">
-                  <span class="helpdesk-badge <%= help_desk_status_badge_tone(ticket) %>"><%= help_desk_status_label(ticket) %></span>
-                  <span class="helpdesk-badge"><%= ticket.current_escalation_label %></span>
-                </div>
-
-                <div class="helpdesk-kv" style="margin-top: 14px;">
-                  <div class="helpdesk-kv__row">
-                    <span class="helpdesk-kv__label">Assigned / Last Owner</span>
-                    <span class="helpdesk-kv__value"><%= owner_name %></span>
-                  </div>
-                  <div class="helpdesk-kv__row">
-                    <span class="helpdesk-kv__label">Solved / Updated By</span>
-                    <span class="helpdesk-kv__value"><%= resolver_name %></span>
-                  </div>
-                  <% if ticket.resolved? %>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">User Action With</span>
-                      <span class="helpdesk-kv__value"><%= final_action_name %></span>
-                    </div>
-                  <% end %>
-                  <% if closed_by_name.present? %>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">Closed By</span>
-                      <span class="helpdesk-kv__value"><%= closed_by_name %></span>
-                    </div>
-                  <% end %>
-                  <div class="helpdesk-kv__row">
-                    <span class="helpdesk-kv__label">Reopen Count</span>
-                    <span class="helpdesk-kv__value"><%= ticket.total_reopens %></span>
-                  </div>
-                  <div class="helpdesk-kv__row">
-                    <span class="helpdesk-kv__label">Created</span>
-                    <span class="helpdesk-kv__value"><%= ticket.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                  </div>
-                  <% if ticket.request_received_at.present? %>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">Complaint Received</span>
-                      <span class="helpdesk-kv__value"><%= ticket.request_received_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                    </div>
-                  <% end %>
-                  <% if ticket.responded_at.present? %>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">Last Support Update</span>
-                      <span class="helpdesk-kv__value"><%= ticket.responded_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                    </div>
-                  <% end %>
-                  <% if ticket.requester_response_due_at.present? %>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">User Action Window</span>
-                      <span class="helpdesk-kv__value"><%= ticket.requester_response_due_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                    </div>
-                  <% end %>
-                  <% if ticket.closed_at.present? %>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label"><%= ticket.closed_automatically? && ticket.final_action_mode_approve_reject? ? "Auto Approved" : (ticket.closed_automatically? ? "Auto Closed" : "Closed") %></span>
-                      <span class="helpdesk-kv__value"><%= ticket.closed_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                    </div>
-                  <% elsif ticket.escalation_due_at.present? && ticket.open_for_review_status? %>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label"><%= ticket.overdue_for_response? ? "Overdue Since" : "Support Due" %></span>
-                      <span class="helpdesk-kv__value"><%= ticket.escalation_due_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                    </div>
-                  <% end %>
-                </div>
-              </div>
-
-              <div class="helpdesk-data-table__cell helpdesk-data-table__cell--action">
-                <p class="helpdesk-cell-title">Resolution Notes</p>
-
-                <% if ticket.response_message.present? %>
-                  <div class="helpdesk-response-box">
-                    <p class="helpdesk-response-box__label">Support Update</p>
-                    <div class="helpdesk-response-box__text"><%= help_desk_format_text(ticket.response_message) %></div>
-                  </div>
-                <% else %>
-                  <div class="helpdesk-action-panel">
-                    <p class="helpdesk-action-panel__title">No support update yet</p>
-                    <p class="helpdesk-action-panel__copy">This ticket is saved in the report, but no response message has been added so far.</p>
-                  </div>
-                <% end %>
-
-                <% if ticket.requester_remark.present? %>
-                  <div class="helpdesk-response-box" style="margin-top: 12px; border-color: #fed7aa; background: #fff7ed;">
-                    <p class="helpdesk-response-box__label" style="color: #c2410c;">User Remark</p>
-                    <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(ticket.requester_remark) %></div>
-                  </div>
-                <% elsif ticket.closed? %>
-                  <div class="helpdesk-action-panel" style="margin-top: 12px;">
-                    <p class="helpdesk-action-panel__title">Closure Summary</p>
-                    <p class="helpdesk-action-panel__copy">
-                      <%= ticket.closed_automatically? && ticket.final_action_mode_approve_reject? ? "Approved automatically after no user action." : (ticket.closed_automatically? ? "Closed automatically after no user action." : "Closed manually after user action.") %>
-                    </p>
-                  </div>
-                <% end %>
-              </div>
-            </article>
+            </details>
           <% end %>
         </div>
       <% else %>

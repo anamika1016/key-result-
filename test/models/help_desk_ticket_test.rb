@@ -194,7 +194,85 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
       assert_equal @l1_user.id, ticket.assigned_to_user_id
       assert_equal Time.current + 2.days, ticket.escalation_due_at
       assert_nil ticket.requester_response_due_at
+      assert_equal 1, ticket.support_updates.count
+      assert_equal "We are still working on the dashboard updates.", ticket.support_updates.last.message
     end
+  end
+
+  test "support updates are kept as dated history instead of being overwritten" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "suggestion",
+      question_subject: "Dashboard improvement",
+      message: "Please improve the support request dashboard."
+    )
+
+    travel_to(Time.zone.local(2026, 5, 25, 10, 30, 0)) do
+      assert ticket.keep_open_by(
+        reviewer: @l1_user,
+        response_message: "First support update."
+      )
+    end
+
+    travel_to(Time.zone.local(2026, 5, 25, 11, 45, 0)) do
+      assert ticket.mark_resolved_by(
+        reviewer: @l1_user,
+        response_message: "Final support update."
+      )
+    end
+
+    ticket.reload
+
+    assert_equal "Final support update.", ticket.response_message
+    assert_equal [ "First support update.", "Final support update." ], ticket.support_update_history.map(&:message)
+    assert_equal Time.zone.local(2026, 5, 25, 11, 45, 0), ticket.latest_support_update.created_at
+  end
+
+  test "requester remarks are kept as dated history instead of being overwritten" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "complaint",
+      question_subject: "Printer issue",
+      message: "Printer is still not working."
+    )
+
+    travel_to(Time.zone.local(2026, 5, 25, 10, 30, 0)) do
+      assert ticket.mark_resolved_by(
+        reviewer: @l1_user,
+        response_message: "Printer has been checked.",
+        final_action_mode: "reopen_close"
+      )
+    end
+
+    travel_to(Time.zone.local(2026, 5, 25, 11, 0, 0)) do
+      assert ticket.reopen_by!(
+        actor: @user,
+        remark: "Still not resolved."
+      )
+    end
+
+    travel_to(Time.zone.local(2026, 5, 25, 11, 30, 0)) do
+      assert ticket.mark_resolved_by(
+        reviewer: @l1_user,
+        response_message: "Printer spooler has been reset.",
+        final_action_mode: "reopen_close"
+      )
+    end
+
+    travel_to(Time.zone.local(2026, 5, 25, 12, 0, 0)) do
+      assert ticket.reopen_by!(
+        actor: @user,
+        remark: "Still not resolved yet."
+      )
+    end
+
+    ticket.reload
+
+    assert_equal "Still not resolved yet.", ticket.requester_remark
+    assert_equal [ "Still not resolved.", "Still not resolved yet." ], ticket.requester_remark_history.map(&:message)
+    assert_equal [ "Still not resolved yet.", "Still not resolved." ], ticket.requester_remark_history_latest_first.map(&:message)
   end
 
   test "selected action user can reopen a resolved ticket and send it back to the support level that completed it" do

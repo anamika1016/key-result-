@@ -270,6 +270,94 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Issue has been fixed and verified."
   end
 
+  test "current help desk page shows all support responses with date and time" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "complaint",
+      question_subject: "Internet issue",
+      message: "Internet keeps disconnecting."
+    )
+
+    travel_to(Time.zone.local(2026, 5, 25, 15, 13, 0)) do
+      assert ticket.keep_open_by(
+        reviewer: @l1_user,
+        response_message: "First response is done."
+      )
+    end
+
+    travel_to(Time.zone.local(2026, 5, 25, 15, 21, 0)) do
+      assert ticket.mark_resolved_by(
+        reviewer: @l1_user,
+        response_message: "Second response is done.",
+        final_action_mode: "reopen_close"
+      )
+    end
+
+    sign_in @user, scope: :user
+
+    get help_desk_tickets_url
+
+    assert_response :success
+    assert_includes response.body, "All Responses"
+    assert_includes response.body, "First response is done."
+    assert_includes response.body, "Second response is done."
+    assert_includes response.body, "25 May 2026, 03:13 PM"
+    assert_includes response.body, "25 May 2026, 03:21 PM"
+  end
+
+  test "assigned help desk page shows all user remarks with latest first" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "complaint",
+      question_subject: "Printer issue",
+      message: "Printer is not working."
+    )
+
+    travel_to(Time.zone.local(2026, 5, 26, 10, 30, 0)) do
+      assert ticket.mark_resolved_by(
+        reviewer: @l1_user,
+        response_message: "Printer has been checked.",
+        final_action_mode: "reopen_close"
+      )
+    end
+
+    travel_to(Time.zone.local(2026, 5, 26, 11, 0, 0)) do
+      assert ticket.reopen_by!(
+        actor: @user,
+        remark: "no resolved yet"
+      )
+    end
+
+    travel_to(Time.zone.local(2026, 5, 26, 11, 30, 0)) do
+      assert ticket.mark_resolved_by(
+        reviewer: @l1_user,
+        response_message: "Printer queue has been reset.",
+        final_action_mode: "reopen_close"
+      )
+    end
+
+    travel_to(Time.zone.local(2026, 5, 26, 11, 52, 0)) do
+      assert ticket.reopen_by!(
+        actor: @user,
+        remark: "not fixed yet"
+      )
+    end
+
+    sign_in @l1_user, scope: :user
+
+    get assigned_queue_help_desk_tickets_url
+
+    assert_response :success
+    assert_includes response.body, "All User Remarks"
+    assert_includes response.body, "not fixed yet"
+    assert_includes response.body, "no resolved yet"
+    assert_includes response.body, "26 May 2026, 11:52 AM"
+    assert_includes response.body, "26 May 2026, 11:00 AM"
+    assert_operator response.body.index("not fixed yet"), :<, response.body.index("no resolved yet")
+  end
+
   test "selected action user can reopen a completed ticket back to the support level that completed it" do
     ticket = HelpDeskTicket.create!(
       user: @user,

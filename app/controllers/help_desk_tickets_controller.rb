@@ -190,6 +190,7 @@ class HelpDeskTicketsController < ApplicationController
                             { user: :employee_detail },
                             { assigned_to_user: :employee_detail },
                             { approval_user: :employee_detail },
+                            { requester_remarks: { user: :employee_detail } },
                             documents_attachments: :blob,
                             support_documents_attachments: :blob,
                             requester_followup_documents_attachments: :blob
@@ -208,6 +209,8 @@ class HelpDeskTicketsController < ApplicationController
       { responded_by_user: :employee_detail },
       { closed_by_user: :employee_detail },
       { user: :employee_detail },
+      { support_updates: { user: :employee_detail } },
+      { requester_remarks: { user: :employee_detail } },
       documents_attachments: :blob,
       support_documents_attachments: :blob,
       requester_followup_documents_attachments: :blob

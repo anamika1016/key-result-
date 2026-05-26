@@ -408,17 +408,31 @@
 
                 <div class="helpdesk-ticket__message"><%= help_desk_format_text(ticket.message) %></div>
 
-                <% if ticket.requester_remark.present? %>
+                <% requester_remark_history = ticket.requester_remark_history_latest_first %>
+                <% if requester_remark_history.any? %>
                   <div class="helpdesk-response-box" style="margin-top: 12px; border-color: #fed7aa; background: #fff7ed;">
-                    <p class="helpdesk-response-box__label" style="color: #c2410c;">User Remark</p>
-                    <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(ticket.requester_remark) %></div>
+                    <p class="helpdesk-response-box__label" style="color: #c2410c;">All User Remarks</p>
+                    <% requester_remark_history.each do |requester_remark| %>
+                      <div class="helpdesk-kv__row" style="margin-top: 10px;">
+                        <span class="helpdesk-kv__label"><%= requester_remark.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                        <span class="helpdesk-kv__value"><%= requester_remark.user.present? ? user_display_name(requester_remark.user) : "User" %></span>
+                      </div>
+                      <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(requester_remark.message) %></div>
+                    <% end %>
                   </div>
                 <% end %>
 
-                <% if ticket.response_message.present? %>
+                <% support_update_history = ticket.support_update_history_latest_first %>
+                <% if support_update_history.any? %>
                   <div class="helpdesk-response-box" style="margin-top: 12px;">
-                    <p class="helpdesk-response-box__label">Latest Response</p>
-                    <div class="helpdesk-response-box__text"><%= help_desk_format_text(ticket.response_message) %></div>
+                    <p class="helpdesk-response-box__label">All Responses</p>
+                    <% support_update_history.each do |support_update| %>
+                      <div class="helpdesk-kv__row" style="margin-top: 10px;">
+                        <span class="helpdesk-kv__label"><%= support_update.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                        <span class="helpdesk-kv__value"><%= support_update.user.present? ? user_display_name(support_update.user) : "Support" %></span>
+                      </div>
+                      <div class="helpdesk-response-box__text"><%= help_desk_format_text(support_update.message) %></div>
+                    <% end %>
                   </div>
                 <% end %>
 

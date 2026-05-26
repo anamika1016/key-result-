@@ -745,6 +745,116 @@
   background: #f8fafc;
 }
 
+.helpdesk-report-list {
+  display: grid;
+  gap: 12px;
+}
+
+.helpdesk-report-card {
+  border: 1px solid #dbe4ee;
+  border-radius: 16px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.helpdesk-report-card[open] {
+  border-color: #bfdbfe;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+}
+
+.helpdesk-report-card__summary {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.helpdesk-report-card__summary::-webkit-details-marker {
+  display: none;
+}
+
+.helpdesk-report-card__ticket,
+.helpdesk-report-card__main-grid {
+  min-width: 0;
+}
+
+.helpdesk-report-card__title {
+  margin: 12px 0 0;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.helpdesk-report-card__message {
+  margin: 8px 0 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.helpdesk-report-card__main-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.helpdesk-report-card__value {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.helpdesk-report-card__muted {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.helpdesk-report-card__toggle {
+  align-self: center;
+  justify-self: start;
+  padding: 9px 12px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.helpdesk-report-card[open] .helpdesk-report-card__toggle {
+  background: #ffffff;
+}
+
+.helpdesk-report-card[open] .helpdesk-report-card__toggle::before {
+  content: "Hide details";
+  font: inherit;
+}
+
+.helpdesk-report-card[open] .helpdesk-report-card__toggle {
+  font-size: 0;
+}
+
+.helpdesk-report-card__details {
+  padding: 0 18px 18px;
+  border-top: 1px solid #e5edf5;
+  background: #f8fafc;
+}
+
+.helpdesk-report-card__detail-grid {
+  display: grid;
+  gap: 12px;
+  padding-top: 16px;
+}
+
 .helpdesk-form-grid--report {
   align-items: end;
 }
@@ -1039,6 +1149,19 @@
   }
 
   .helpdesk-assigned-card__meta-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .helpdesk-report-card__summary {
+    grid-template-columns: minmax(220px, 0.9fr) minmax(0, 1.7fr) auto;
+    align-items: center;
+  }
+
+  .helpdesk-report-card__main-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .helpdesk-report-card__detail-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
