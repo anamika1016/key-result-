@@ -14,11 +14,8 @@
       <div class="helpdesk-toolbar__main">
         <span class="helpdesk-eyebrow">Assigned Work Queue</span>
         <h1 class="helpdesk-title">Assigned Help Desk</h1>
-        <p class="helpdesk-subtitle">
-          These are the active complaints and suggestions assigned to you for support action. Use this page for resolution work; the report remains only for history and audit.
-        </p>
 
-        <div class="helpdesk-badge-row" style="margin-top: 14px;">
+        <div class="helpdesk-badge-row helpdesk-toolbar-badges">
           <span class="helpdesk-badge helpdesk-badge--info">Only your assigned tickets</span>
           <span class="helpdesk-badge helpdesk-badge--warning">Open and reopened work</span>
           <span class="helpdesk-badge helpdesk-badge--neutral">Report stays separate</span>
@@ -45,9 +42,8 @@
       <div class="helpdesk-card__header helpdesk-card__header--split">
         <div>
           <h2 class="helpdesk-section-title">Tickets To Resolve</h2>
-          <p class="helpdesk-section-copy">Each card shows who raised it, which department it belongs to, the issue, attachments, and the support action box.</p>
         </div>
-        <div class="helpdesk-response-form__actions" style="margin-top: 0;">
+        <div class="helpdesk-response-form__actions helpdesk-toolbar-actions">
           <%= link_to "Raise New Ticket", help_desk_tickets_path, class: "helpdesk-secondary-btn" %>
           <%= link_to "Open Report", help_desk_reports_path, class: "helpdesk-ghost-btn" %>
         </div>
@@ -97,15 +93,19 @@
 
                 <% requester_remark_history = ticket.requester_remark_history_latest_first %>
                 <% if requester_remark_history.any? %>
-                  <div class="helpdesk-response-box" style="border-color: #fed7aa; background: #fff7ed;">
-                    <p class="helpdesk-response-box__label" style="color: #c2410c;">All User Remarks</p>
-                    <% requester_remark_history.each do |requester_remark| %>
-                      <div class="helpdesk-kv__row" style="margin-top: 10px;">
-                        <span class="helpdesk-kv__label"><%= requester_remark.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                        <span class="helpdesk-kv__value"><%= requester_remark.user.present? ? user_display_name(requester_remark.user) : "User" %></span>
-                      </div>
-                      <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(requester_remark.message) %></div>
-                    <% end %>
+                  <div class="helpdesk-response-box helpdesk-response-box--remark">
+                    <p class="helpdesk-response-box__label">All User Remarks</p>
+                    <div class="helpdesk-thread">
+                      <% requester_remark_history.each do |requester_remark| %>
+                        <div class="helpdesk-thread__item">
+                          <div class="helpdesk-thread__meta">
+                            <span><%= requester_remark.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                            <span><%= requester_remark.user.present? ? user_display_name(requester_remark.user) : "User" %></span>
+                          </div>
+                          <div class="helpdesk-response-box__text helpdesk-thread__body"><%= help_desk_format_text(requester_remark.message) %></div>
+                        </div>
+                      <% end %>
+                    </div>
                   </div>
                 <% end %>
 
@@ -132,7 +132,7 @@
                   <%= hidden_field_tag :return_to_assigned_queue, true %>
                   <p class="helpdesk-action-panel__title">Support Action</p>
 
-                  <div style="margin-top: 12px;">
+                  <div class="helpdesk-form-section">
                     <%= form.label :response_message, "Update / Resolution", class: "helpdesk-field-label" %>
                     <%= form.text_area :response_message,
                                        rows: 4,
@@ -140,7 +140,7 @@
                                        placeholder: "Write the work done, fix, pending detail, or next step." %>
                   </div>
 
-                  <div style="margin-top: 12px;">
+                  <div class="helpdesk-form-section">
                     <label for="assigned-approval-user-<%= ticket.id %>" class="helpdesk-field-label">Final Action User</label>
                     <% if approval_target_options.one? %>
                       <%= hidden_field_tag :approval_user_id, approval_target_options.first.last %>
@@ -153,7 +153,7 @@
                     <% end %>
                   </div>
 
-                  <div style="margin-top: 12px;">
+                  <div class="helpdesk-form-section">
                     <%= form.label :support_documents, "Attach Proof / File", class: "helpdesk-field-label" %>
                     <%= form.file_field :support_documents,
                                         multiple: true,
@@ -163,7 +163,7 @@
                   </div>
 
                   <% if @assigned_ticket&.id == ticket.id && ticket.errors.any? %>
-                    <p class="helpdesk-context" style="color: #b91c1c; margin-top: 8px;"><%= ticket.errors.full_messages.to_sentence %></p>
+                    <p class="helpdesk-context helpdesk-error-text"><%= ticket.errors.full_messages.to_sentence %></p>
                   <% end %>
 
                   <div class="helpdesk-response-form__actions">
@@ -186,7 +186,6 @@
       <% else %>
         <div class="helpdesk-empty">
           <h3>No assigned help desk tickets</h3>
-          <p>Your department/support queue is clear right now. New complaints assigned to you will appear here automatically.</p>
         </div>
       <% end %>
     </section>

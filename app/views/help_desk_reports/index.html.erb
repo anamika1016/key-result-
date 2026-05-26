@@ -20,9 +20,8 @@
       <div class="helpdesk-toolbar__main">
         <span class="helpdesk-eyebrow">Archive & Status</span>
         <h1 class="helpdesk-title">Help Desk Report</h1>
-        <p class="helpdesk-subtitle"><%= @report_scope_copy %></p>
 
-        <div class="helpdesk-badge-row" style="margin-top: 14px;">
+        <div class="helpdesk-badge-row helpdesk-toolbar-badges">
           <span class="helpdesk-badge helpdesk-badge--info">Full history saved</span>
           <span class="helpdesk-badge helpdesk-badge--success">Filter by status</span>
           <span class="helpdesk-badge helpdesk-badge--neutral">Ticket no, topic, remark search</span>
@@ -52,10 +51,9 @@
     <section class="helpdesk-card">
       <div class="helpdesk-card__header helpdesk-card__header--split">
         <div>
-          <h2 class="helpdesk-section-title">Report Filters</h2>
-          <p class="helpdesk-section-copy">Find tickets by ticket number, topic, status, request type, or department. Older closed records stay here even after they leave the current help desk page.</p>
+          <h2 class="helpdesk-section-title">Saved Ticket History</h2>
         </div>
-        <div class="helpdesk-response-form__actions helpdesk-no-print" style="margin-top: 0;">
+        <div class="helpdesk-response-form__actions helpdesk-toolbar-actions helpdesk-no-print">
           <%= button_tag "Print Report",
                          type: "button",
                          class: "helpdesk-secondary-btn",
@@ -65,22 +63,9 @@
         </div>
       </div>
 
-      <div class="helpdesk-panel helpdesk-panel--soft helpdesk-report-meta">
-        <div class="helpdesk-mini-grid">
-          <div>
-            <p class="helpdesk-field-label">Generated At</p>
-            <p class="helpdesk-context"><%= @report_generated_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></p>
-          </div>
-          <div>
-            <p class="helpdesk-field-label">Active Filters</p>
-            <p class="helpdesk-context"><%= @active_filter_labels.any? ? @active_filter_labels.join(" | ") : "No filters applied. Full visible history is shown." %></p>
-          </div>
-        </div>
-      </div>
-
-      <%= form_with url: help_desk_reports_path, method: :get, local: true, html: { class: "helpdesk-no-print" } do %>
+      <%= form_with url: help_desk_reports_path, method: :get, local: true, html: { class: "helpdesk-report-filters helpdesk-no-print" } do %>
         <div class="helpdesk-form-grid helpdesk-form-grid--report">
-          <div class="helpdesk-form-span">
+          <div class="helpdesk-report-query">
             <label for="helpdesk-report-query" class="helpdesk-field-label">Search</label>
             <%= text_field_tag :query,
                                search_query,
@@ -115,21 +100,15 @@
                            id: "helpdesk-report-status",
                            class: "helpdesk-input" %>
           </div>
-        </div>
 
-        <div class="helpdesk-actions">
-          <%= submit_tag "Apply Filters", class: "helpdesk-primary-btn" %>
-          <%= link_to "Reset", help_desk_reports_path, class: "helpdesk-ghost-btn" %>
+          <div class="helpdesk-report-filter-actions">
+            <%= submit_tag "Apply Filters", class: "helpdesk-primary-btn" %>
+            <%= link_to "Reset", help_desk_reports_path, class: "helpdesk-ghost-btn" %>
+          </div>
         </div>
       <% end %>
-    </section>
 
-    <section class="helpdesk-card">
-      <div class="helpdesk-card__header helpdesk-card__header--split">
-        <div>
-          <h2 class="helpdesk-section-title">Saved Ticket History</h2>
-          <p class="helpdesk-section-copy">This report keeps every visible help desk ticket with its latest status, support updates, user remarks, follow-up mode, and closure trail.</p>
-        </div>
+      <div class="helpdesk-report-count">
         <span class="helpdesk-inline-note"><%= pluralize(total_tickets, "ticket") %> found</span>
       </div>
 
@@ -279,15 +258,19 @@
 
                   <section>
                     <% if support_update_history.any? %>
-                      <div class="helpdesk-response-box">
+                      <div class="helpdesk-response-box helpdesk-response-box--support">
                         <p class="helpdesk-response-box__label">Support Updates</p>
-                        <% support_update_history.each do |support_update| %>
-                          <div class="helpdesk-kv__row" style="margin-top: 10px;">
-                            <span class="helpdesk-kv__label"><%= support_update.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                            <span class="helpdesk-kv__value"><%= support_update.user.present? ? user_display_name(support_update.user) : "Support" %></span>
-                          </div>
-                          <div class="helpdesk-response-box__text"><%= help_desk_format_text(support_update.message) %></div>
-                        <% end %>
+                        <div class="helpdesk-thread">
+                          <% support_update_history.each do |support_update| %>
+                            <div class="helpdesk-thread__item">
+                              <div class="helpdesk-thread__meta">
+                                <span><%= support_update.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                                <span><%= support_update.user.present? ? user_display_name(support_update.user) : "Support" %></span>
+                              </div>
+                              <div class="helpdesk-response-box__text helpdesk-thread__body"><%= help_desk_format_text(support_update.message) %></div>
+                            </div>
+                          <% end %>
+                        </div>
                       </div>
                     <% else %>
                       <div class="helpdesk-action-panel">
@@ -297,18 +280,22 @@
                     <% end %>
 
                     <% if requester_remark_history.any? %>
-                      <div class="helpdesk-response-box" style="margin-top: 12px; border-color: #fed7aa; background: #fff7ed;">
-                        <p class="helpdesk-response-box__label" style="color: #c2410c;">All User Remarks</p>
-                        <% requester_remark_history.each do |requester_remark| %>
-                          <div class="helpdesk-kv__row" style="margin-top: 10px;">
-                            <span class="helpdesk-kv__label"><%= requester_remark.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                            <span class="helpdesk-kv__value"><%= requester_remark.user.present? ? user_display_name(requester_remark.user) : "User" %></span>
-                          </div>
-                          <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(requester_remark.message) %></div>
-                        <% end %>
+                      <div class="helpdesk-response-box helpdesk-response-box--remark">
+                        <p class="helpdesk-response-box__label">All User Remarks</p>
+                        <div class="helpdesk-thread">
+                          <% requester_remark_history.each do |requester_remark| %>
+                            <div class="helpdesk-thread__item">
+                              <div class="helpdesk-thread__meta">
+                                <span><%= requester_remark.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+                                <span><%= requester_remark.user.present? ? user_display_name(requester_remark.user) : "User" %></span>
+                              </div>
+                              <div class="helpdesk-response-box__text helpdesk-thread__body"><%= help_desk_format_text(requester_remark.message) %></div>
+                            </div>
+                          <% end %>
+                        </div>
                       </div>
                     <% elsif ticket.closed? %>
-                      <div class="helpdesk-action-panel" style="margin-top: 12px;">
+                      <div class="helpdesk-action-panel">
                         <p class="helpdesk-action-panel__title">Closure Summary</p>
                         <p class="helpdesk-action-panel__copy">
                           <%= ticket.closed_automatically? && ticket.final_action_mode_approve_reject? ? "Approved automatically after no user action." : (ticket.closed_automatically? ? "Closed automatically after no user action." : "Closed manually after user action.") %>
