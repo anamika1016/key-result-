@@ -9,6 +9,13 @@ class HelpDeskTicketsController < ApplicationController
     @help_desk_ticket = current_user.help_desk_tickets.new
   end
 
+  def assigned_queue
+    unless @can_review_help_desk_tickets
+      redirect_to help_desk_tickets_path, alert: "You are not authorized to access assigned help desk tickets."
+      return
+    end
+  end
+
   def create
     @help_desk_ticket = build_help_desk_ticket
 
@@ -68,11 +75,15 @@ class HelpDeskTicketsController < ApplicationController
           "Ticket marked as completed and shared with #{approval_name}. They can #{action_label} within 2 days."
         end
 
-      redirect_to help_desk_tickets_path, notice: notice
+      redirect_to response_redirect_path, notice: notice
     else
       @help_desk_ticket = current_user.help_desk_tickets.new
       @assigned_tickets = @assigned_tickets.map { |ticket| ticket.id == @assigned_ticket.id ? @assigned_ticket : ticket }
-      render :index, status: :unprocessable_entity
+      if return_to_assigned_queue?
+        render :assigned_queue, status: :unprocessable_entity
+      else
+        render :index, status: :unprocessable_entity
+      end
     end
   end
 
@@ -150,6 +161,16 @@ class HelpDeskTicketsController < ApplicationController
 
   def requester_followup_documents_param
     params.fetch(:help_desk_ticket, {}).fetch(:requester_followup_documents, [])
+  end
+
+  def return_to_assigned_queue?
+    ActiveModel::Type::Boolean.new.cast(params[:return_to_assigned_queue])
+  end
+
+  def response_redirect_path
+    return assigned_queue_help_desk_tickets_path if return_to_assigned_queue?
+
+    help_desk_tickets_path
   end
 
   def approval_user_param

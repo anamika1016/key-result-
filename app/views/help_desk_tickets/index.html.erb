@@ -52,6 +52,9 @@
 
         <div class="helpdesk-actions" style="margin-top: 16px;">
           <%= link_to "Open Help Desk Report", help_desk_reports_path, class: "helpdesk-secondary-btn" %>
+          <% if @can_review_help_desk_tickets %>
+            <%= link_to "Open Assigned Queue", assigned_queue_help_desk_tickets_path, class: "helpdesk-primary-btn" %>
+          <% end %>
         </div>
       </div>
 
@@ -283,15 +286,15 @@
 
           <div class="helpdesk-summary-grid">
             <div class="helpdesk-summary-item">
-              <p class="helpdesk-field-label"><%= summary_label %></p>
+              <p class="helpdesk-field-label"><%= @can_review_help_desk_tickets ? "Current" : "Requests" %></p>
               <p class="helpdesk-context"><strong><%= recent_ticket_count %></strong></p>
             </div>
             <div class="helpdesk-summary-item">
-              <p class="helpdesk-field-label">Assigned Queue</p>
+              <p class="helpdesk-field-label">Assigned</p>
               <p class="helpdesk-context"><strong><%= assigned_queue_count %></strong></p>
             </div>
             <div class="helpdesk-summary-item">
-              <p class="helpdesk-field-label">Awaiting You</p>
+              <p class="helpdesk-field-label">Awaiting</p>
               <p class="helpdesk-context"><strong><%= pending_requester_action_count %></strong></p>
             </div>
           </div>
@@ -315,193 +318,24 @@
         <div class="helpdesk-card__header helpdesk-card__header--split">
           <div>
             <h2 class="helpdesk-section-title">Assigned Queue</h2>
-            <p class="helpdesk-section-copy">Tickets assigned to you are shown in compact rows with the response box on the right.</p>
+            <p class="helpdesk-section-copy">Resolution work is kept on a separate focused page so this Help Desk screen stays clean.</p>
           </div>
           <span class="helpdesk-inline-note"><%= pluralize(assigned_queue_count, "open ticket") %></span>
         </div>
 
-        <% if @assigned_tickets.any? %>
-          <div class="helpdesk-data-table">
-            <div class="helpdesk-data-table__head">
-              <div>Ticket</div>
-              <div>Request Details</div>
-              <div>Status & Timeline</div>
-              <div>Resolution</div>
+        <div class="helpdesk-panel helpdesk-panel--highlight">
+          <div class="helpdesk-card__header helpdesk-card__header--split" style="margin-bottom: 0;">
+            <div>
+              <p class="helpdesk-action-panel__title">Open your focused support workspace</p>
+              <p class="helpdesk-action-panel__copy">
+                Review assigned complaints, add support updates, upload proof files, and mark tickets resolved from one dedicated screen.
+              </p>
             </div>
-
-            <% @assigned_tickets.each do |ticket| %>
-              <%
-                approval_target_options = ticket.approval_candidate_users.map do |candidate|
-                  candidate_role = candidate.id == ticket.user_id ? "Requester" : "Original submitter"
-                  [ "#{user_display_name(candidate)} (#{candidate_role})", candidate.id ]
-                end
-                selected_approval_target_id = ticket.approval_user_id.presence || ticket.user_id
-              %>
-              <article class="helpdesk-data-table__row">
-                <div class="helpdesk-data-table__cell">
-                  <p class="helpdesk-cell-title">Ticket</p>
-                  <div class="helpdesk-badge-row">
-                    <span class="helpdesk-badge"><%= ticket.ticket_reference %></span>
-                    <span class="helpdesk-badge <%= ticket.complaint? ? 'helpdesk-badge--danger' : 'helpdesk-badge--info' %>"><%= ticket.request_label %></span>
-                    <% if ticket.assisted_request? %>
-                      <span class="helpdesk-badge helpdesk-badge--neutral"><%= ticket.submission_mode_label %></span>
-                    <% end %>
-                  </div>
-                  <h3 class="helpdesk-ticket__title" style="margin-top: 14px;"><%= ticket.department.department_type %></h3>
-                  <p class="helpdesk-ticket__copy"><%= ticket.current_escalation_label %></p>
-                </div>
-
-                <div class="helpdesk-data-table__cell">
-                  <p class="helpdesk-cell-title">Request Details</p>
-                  <div class="helpdesk-kv">
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">Requester</span>
-                      <span class="helpdesk-kv__value"><%= ticket.requester_name %> (<%= ticket.requester_employee_code.presence || ticket.requester_email %>)</span>
-                    </div>
-                    <% if ticket.submitted_by_user.present? && ticket.submitted_by_user_id != ticket.user_id %>
-                      <div class="helpdesk-kv__row">
-                        <span class="helpdesk-kv__label">Submitted By</span>
-                        <span class="helpdesk-kv__value"><%= user_display_name(ticket.submitted_by_user) %></span>
-                      </div>
-                    <% end %>
-                    <% if ticket.request_received_at.present? %>
-                      <div class="helpdesk-kv__row">
-                        <span class="helpdesk-kv__label">Complaint Received</span>
-                        <span class="helpdesk-kv__value"><%= ticket.request_received_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                      </div>
-                    <% end %>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">Reopen Count</span>
-                      <span class="helpdesk-kv__value"><%= ticket.total_reopens %></span>
-                    </div>
-                    <% if ticket.question_subject.present? %>
-                      <div class="helpdesk-kv__row">
-                        <span class="helpdesk-kv__label">Question / Topic</span>
-                        <span class="helpdesk-kv__value"><%= ticket.question_subject %></span>
-                      </div>
-                    <% end %>
-                  </div>
-
-                  <div class="helpdesk-ticket__message"><%= help_desk_format_text(ticket.message) %></div>
-
-                  <% if ticket.requester_remark.present? %>
-                    <div class="helpdesk-response-box" style="margin-top: 12px; border-color: #fed7aa; background: #fff7ed;">
-                      <p class="helpdesk-response-box__label" style="color: #c2410c;">User Remark</p>
-                      <div class="helpdesk-response-box__text" style="color: #9a3412;"><%= help_desk_format_text(ticket.requester_remark) %></div>
-                    </div>
-                  <% end %>
-
-                  <% if ticket.response_message.present? %>
-                    <div class="helpdesk-response-box" style="margin-top: 12px;">
-                      <p class="helpdesk-response-box__label">Latest Support Update</p>
-                      <div class="helpdesk-response-box__text"><%= help_desk_format_text(ticket.response_message) %></div>
-                    </div>
-                  <% end %>
-
-                  <%= render "help_desk_tickets/attachment_groups", ticket: ticket %>
-                </div>
-
-                <div class="helpdesk-data-table__cell">
-                  <p class="helpdesk-cell-title">Status & Timeline</p>
-                  <div class="helpdesk-badge-row">
-                    <span class="helpdesk-badge helpdesk-badge--warning"><%= ticket.current_escalation_label %></span>
-                    <span class="helpdesk-badge <%= ticket.overdue_for_response? ? 'helpdesk-badge--danger' : help_desk_status_badge_tone(ticket) %>"><%= help_desk_status_label(ticket) %></span>
-                  </div>
-
-                  <div class="helpdesk-kv" style="margin-top: 14px;">
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">Created</span>
-                      <span class="helpdesk-kv__value"><%= ticket.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
-                    </div>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">Assigned</span>
-                      <span class="helpdesk-kv__value"><%= ticket.assigned_at&.in_time_zone("Asia/Kolkata")&.strftime("%d %b %Y, %I:%M %p") || "Now" %></span>
-                    </div>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">Respond By</span>
-                      <span class="helpdesk-kv__value">
-                        <%= ticket.escalation_due_at.present? ? ticket.escalation_due_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") : "Not set" %>
-                      </span>
-                    </div>
-                    <div class="helpdesk-kv__row">
-                      <span class="helpdesk-kv__label">Assigned To</span>
-                      <span class="helpdesk-kv__value"><%= ticket.assigned_to_user.present? ? user_display_name(ticket.assigned_to_user) : "Assignment pending" %></span>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="helpdesk-data-table__cell helpdesk-data-table__cell--action">
-                  <p class="helpdesk-cell-title">Resolution</p>
-                  <%= form_with model: ticket, url: respond_help_desk_ticket_path(ticket), method: :patch, local: true, html: { multipart: true }, class: "helpdesk-action-panel" do |form| %>
-                    <p class="helpdesk-action-panel__title">Choose next status</p>
-                    <p class="helpdesk-action-panel__copy">
-                      Use <strong>Keep Open</strong> if work is still in progress. Use <strong>Close Ticket</strong> when the issue is done and the selected user should get final action options from their login.
-                    </p>
-
-                    <div style="margin-top: 12px;">
-                      <%= form.label :response_message, "Completion / Support Update", class: "helpdesk-field-label" %>
-                      <%= form.text_area :response_message,
-                                         rows: 5,
-                                         class: "helpdesk-textarea",
-                                         placeholder: "Add the latest update, progress note, fix, or next steps for this help desk ticket." %>
-                    </div>
-
-                    <div style="margin-top: 12px;">
-                      <label for="helpdesk-approval-user-<%= ticket.id %>" class="helpdesk-field-label">Action User</label>
-                      <% if approval_target_options.one? %>
-                        <%= hidden_field_tag :approval_user_id, approval_target_options.first.last %>
-                        <div class="helpdesk-panel helpdesk-panel--soft">
-                          <p class="helpdesk-context" style="margin-top: 0;">Final user action will go to <strong><%= approval_target_options.first.first %></strong>.</p>
-                        </div>
-                      <% else %>
-                        <%= select_tag :approval_user_id,
-                                       options_for_select(approval_target_options, selected_approval_target_id),
-                                       id: "helpdesk-approval-user-#{ticket.id}",
-                                       class: "helpdesk-input" %>
-                        <p class="helpdesk-context">Choose who should receive the final user-side action for this ticket.</p>
-                      <% end %>
-                    </div>
-
-                    <div style="margin-top: 12px;">
-                      <%= form.label :support_documents, "Support Attachments", class: "helpdesk-field-label" %>
-                      <%= form.file_field :support_documents,
-                                          multiple: true,
-                                          direct_upload: false,
-                                          class: "helpdesk-file-input" %>
-                      <p class="helpdesk-muted">Optional proof, screenshot, file, or solution document. Maximum 5 files, 10MB each.</p>
-                    </div>
-
-                    <% if ticket.errors[:approval_user].present? && @assigned_ticket&.id == ticket.id %>
-                      <p class="helpdesk-context" style="color: #b91c1c; margin-top: 8px;"><%= ticket.errors[:approval_user].to_sentence %></p>
-                    <% end %>
-
-                    <% if ticket.errors[:response_message].present? && @assigned_ticket&.id == ticket.id %>
-                      <p class="helpdesk-context" style="color: #b91c1c; margin-top: 8px;"><%= ticket.errors[:response_message].to_sentence %></p>
-                    <% end %>
-
-                    <div class="helpdesk-response-form__actions">
-                      <%= button_tag "Keep Open",
-                                     type: "submit",
-                                     name: "review_decision",
-                                     value: "keep_open",
-                                     class: "helpdesk-secondary-btn" %>
-                      <%= button_tag "Close Ticket",
-                                     type: "submit",
-                                     name: "review_decision",
-                                     value: "close",
-                                     class: "helpdesk-primary-btn" %>
-                    </div>
-                  <% end %>
-                </div>
-              </article>
-            <% end %>
+            <%= link_to assigned_queue_count.positive? ? "Resolve #{pluralize(assigned_queue_count, 'ticket')}" : "Open Assigned Queue",
+                        assigned_queue_help_desk_tickets_path,
+                        class: "helpdesk-primary-btn" %>
           </div>
-        <% else %>
-          <div class="helpdesk-empty">
-            <h3>No assigned tickets right now</h3>
-            <p>When a request reaches your escalation level, it will appear here automatically.</p>
-          </div>
-        <% end %>
+        </div>
       </section>
     <% end %>
 

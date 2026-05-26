@@ -97,24 +97,26 @@ module ApplicationHelper
   end
 
   def help_desk_menu_notification_count
+    help_desk_user_action_count + help_desk_assigned_count
+  end
+
+  def help_desk_user_action_count
     return 0 unless current_user.present?
 
-    @help_desk_menu_notification_count ||= begin
-      reviewer_count =
-        if helpdesk_reviewer?
-          HelpDeskTicket.open_for_review.where(assigned_to_user_id: current_user.id).count
-        else
-          0
-        end
+    @help_desk_user_action_count ||= HelpDeskTicket.pending_user_action_for(current_user).count
+  end
 
-      pending_user_action_count = HelpDeskTicket.pending_user_action_for(current_user).count
+  def help_desk_assigned_count
+    return 0 unless current_user.present? && helpdesk_reviewer?
 
-      reviewer_count + pending_user_action_count
-    end
+    @help_desk_assigned_count ||= HelpDeskTicket.open_for_review.where(assigned_to_user_id: current_user.id).count
+  end
+
+  def help_desk_notification_label(count)
+    count > 99 ? "99+" : count.to_s
   end
 
   def help_desk_menu_notification_label
-    count = help_desk_menu_notification_count
-    count > 99 ? "99+" : count.to_s
+    help_desk_notification_label(help_desk_menu_notification_count)
   end
 end
