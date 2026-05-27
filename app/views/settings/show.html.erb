@@ -103,6 +103,27 @@
       </div>
     </div>
 
+    <div class="mt-8 pt-8 border-t border-gray-200">
+      <h3 class="text-xl font-bold text-gray-900 mb-6">Reporting Manager Details</h3>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-5">
+          <label class="text-base font-medium text-gray-500">L1 Manager</label>
+          <p class="mt-2 text-lg text-gray-900 font-medium"><%= @employee_detail&.l1_employer_name.presence || 'Not assigned' %></p>
+          <p class="mt-1 text-sm text-gray-600">Code: <%= @employee_detail&.l1_code.presence || 'Not assigned' %></p>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-5">
+          <label class="text-base font-medium text-gray-500">L2 Manager</label>
+          <p class="mt-2 text-lg text-gray-900 font-medium"><%= @employee_detail&.l2_employer_name.presence || 'Not assigned' %></p>
+          <p class="mt-1 text-sm text-gray-600">Code: <%= @employee_detail&.l2_code.presence || 'Not assigned' %></p>
+        </div>
+        <div class="rounded-lg border border-gray-200 bg-gray-50 p-5">
+          <label class="text-base font-medium text-gray-500">L3 Manager</label>
+          <p class="mt-2 text-lg text-gray-900 font-medium"><%= @employee_detail&.l3_employer_name.presence || 'Not assigned' %></p>
+          <p class="mt-1 text-sm text-gray-600">Code: <%= @employee_detail&.l3_code.presence || 'Not assigned' %></p>
+        </div>
+      </div>
+    </div>
+
     <!-- Edit Profile Form (Hidden by default) -->
     <div id="editProfileForm" class="hidden mt-8 pt-8 border-t border-gray-200">
       <%= form_with model: @user, url: settings_profile_path, method: :patch, local: true, class: "space-y-6" do |form| %>

@@ -43,6 +43,7 @@ class SettingsController < ApplicationController
 
   def set_user
     @user = current_user
+    @employee_detail = @user.mapped_employee_detail
   end
 
   def user_params
