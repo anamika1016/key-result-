@@ -86,7 +86,7 @@
           <div>
             <label for="helpdesk-report-request-type" class="helpdesk-field-label">Request Type</label>
             <%= select_tag :request_type,
-                           options_for_select([["Complaint", "complaint"], ["Suggestion", "suggestion"]], selected_request_type),
+                           options_for_select([["Ticket", "ticket"], ["Complaint", "complaint"], ["Suggestion", "suggestion"]], selected_request_type),
                            include_blank: "All request types",
                            id: "helpdesk-report-request-type",
                            class: "helpdesk-input" %>
@@ -157,7 +157,7 @@
                     <p class="helpdesk-report-card__muted"><%= raised_for_identifier %></p>
                   </div>
                   <div>
-                    <p class="helpdesk-field-label"><%= ticket.complaint? ? "Complaint Department" : "Suggestion Department" %></p>
+                    <p class="helpdesk-field-label"><%= ticket.request_label %> Department</p>
                     <p class="helpdesk-report-card__value"><%= ticket.department.department_type %></p>
                     <p class="helpdesk-report-card__muted"><%= ticket.current_escalation_label %></p>
                   </div>

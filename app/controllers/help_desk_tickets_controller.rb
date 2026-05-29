@@ -37,10 +37,10 @@ class HelpDeskTicketsController < ApplicationController
 
   def respond
     decision = review_decision_param
-    selected_approval_user = approval_user_param unless decision == "keep_open"
+    selected_approval_user = approval_user_param if %w[send_for_approval close close_ticket].include?(decision)
 
     success =
-      if decision != "keep_open" && params[:approval_user_id].present? && selected_approval_user.blank?
+      if %w[send_for_approval close close_ticket].include?(decision) && params[:approval_user_id].present? && selected_approval_user.blank?
         @assigned_ticket.errors.add(:approval_user, "must be requester or original submitter")
         false
       else
@@ -48,6 +48,13 @@ class HelpDeskTicketsController < ApplicationController
         when "keep_open"
           @assigned_ticket.keep_open_by(
             reviewer: current_user,
+            response_message: response_message_param,
+            support_documents: support_documents_param
+          )
+        when "forward"
+          @assigned_ticket.forward_to_department_by(
+            reviewer: current_user,
+            department: forward_department_param,
             response_message: response_message_param,
             support_documents: support_documents_param
           )
@@ -67,7 +74,9 @@ class HelpDeskTicketsController < ApplicationController
 
     if success
       notice =
-        if decision == "keep_open"
+        if decision == "forward"
+          "Ticket forwarded to #{@assigned_ticket.department.department_type}. The new department has been notified."
+        elsif decision == "keep_open"
           "Update shared successfully. The ticket is still open with support and can continue without any user action yet."
         else
           approval_name = @assigned_ticket.approval_pending_user&.display_name.presence || "the selected user"
@@ -136,7 +145,7 @@ class HelpDeskTicketsController < ApplicationController
   end
 
   def help_desk_ticket_params
-    params.require(:help_desk_ticket).permit(:department_id, :request_type, :question_subject, :help_desk_question_master_id, :message, :requester_user_id, :on_behalf_requested, :request_received_on, :request_received_time, documents: [])
+    params.require(:help_desk_ticket).permit(:department_id, :request_type, :initial_escalation_position, :question_subject, :help_desk_question_master_id, :message, :requester_user_id, :on_behalf_requested, :request_received_on, :request_received_time, documents: [])
   end
 
   def response_message_param
@@ -157,6 +166,10 @@ class HelpDeskTicketsController < ApplicationController
 
   def support_documents_param
     params.fetch(:help_desk_ticket, {}).fetch(:support_documents, [])
+  end
+
+  def forward_department_param
+    Department.find_by(id: params[:forward_department_id])
   end
 
   def requester_followup_documents_param

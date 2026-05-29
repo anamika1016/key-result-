@@ -59,7 +59,7 @@
             <div>
               <%= form.label :request_type, "Request Type", class: "helpdesk-field-label" %>
               <%= form.select :request_type,
-                              options_for_select([ [ "Complaint", "complaint" ], [ "Suggestion", "suggestion" ] ], @help_desk_question_master.request_type),
+                              options_for_select([ [ "Ticket", "ticket" ], [ "Complaint", "complaint" ], [ "Suggestion", "suggestion" ] ], @help_desk_question_master.request_type),
                               { include_blank: "Select request type" },
                               class: "helpdesk-input" %>
             </div>

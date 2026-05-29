@@ -57,6 +57,7 @@
                 candidate_role = candidate.id == ticket.user_id ? "Requester" : "Original submitter"
                 [ "#{user_display_name(candidate)} (#{candidate_role})", candidate.id ]
               end
+              forward_department_options = @departments.reject { |department| department.id == ticket.department_id }.map { |department| [ department.department_type, department.id ] }
               selected_approval_target_id = ticket.approval_user_id.presence || ticket.user_id
               raised_identifier = ticket.requester_employee_code.presence || ticket.requester_email
             %>
@@ -78,7 +79,7 @@
                   </div>
                   <div class="helpdesk-person-card <%= ticket.complaint? ? 'helpdesk-person-card--complaint-target' : 'helpdesk-person-card--suggestion-target' %>">
                     <div class="helpdesk-person-card__header">
-                      <p class="helpdesk-person-card__label"><%= ticket.complaint? ? "Complaint Department" : "Suggestion Department" %></p>
+                      <p class="helpdesk-person-card__label"><%= ticket.request_label %> Department</p>
                       <span class="helpdesk-person-card__pill"><%= ticket.current_escalation_label %></span>
                     </div>
                     <p class="helpdesk-person-card__name"><%= ticket.department.department_type %></p>
@@ -154,6 +155,15 @@
                   </div>
 
                   <div class="helpdesk-form-section">
+                    <label for="forward-department-<%= ticket.id %>" class="helpdesk-field-label">Forward To Department</label>
+                    <%= select_tag :forward_department_id,
+                                   options_for_select(forward_department_options),
+                                   include_blank: "Select department",
+                                   id: "forward-department-#{ticket.id}",
+                                   class: "helpdesk-input" %>
+                  </div>
+
+                  <div class="helpdesk-form-section">
                     <%= form.label :support_documents, "Attach Proof / File", class: "helpdesk-field-label" %>
                     <%= form.file_field :support_documents,
                                         multiple: true,
@@ -171,6 +181,11 @@
                                    type: "submit",
                                    name: "review_decision",
                                    value: "keep_open",
+                                   class: "helpdesk-secondary-btn" %>
+                    <%= button_tag "Forward",
+                                   type: "submit",
+                                   name: "review_decision",
+                                   value: "forward",
                                    class: "helpdesk-secondary-btn" %>
                     <%= button_tag "Mark Resolved",
                                    type: "submit",

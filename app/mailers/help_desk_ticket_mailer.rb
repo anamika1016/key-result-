@@ -18,4 +18,14 @@ class HelpDeskTicketMailer < ApplicationMailer
       subject: "Help Desk Ticket Resolved - #{@ticket.department.department_type}"
     )
   end
+
+  def ticket_updated(ticket_id, recipients)
+    @ticket = HelpDeskTicket.includes(:department, :user, :submitted_by_user, :assigned_to_user, :responded_by_user).find(ticket_id)
+    @recipients = Array(recipients).compact
+
+    mail(
+      to: @recipients,
+      subject: "Help Desk Ticket Update - #{@ticket.ticket_reference}"
+    )
+  end
 end

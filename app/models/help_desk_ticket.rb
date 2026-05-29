@@ -1,6 +1,7 @@
 class HelpDeskTicket < ApplicationRecord
   DISPLAY_TIME_ZONE = "Asia/Kolkata".freeze
-  REQUEST_TYPES = %w[complaint suggestion].freeze
+  REQUEST_TYPES = %w[ticket complaint suggestion].freeze
+  INITIAL_ESCALATION_POSITIONS = (1..3).freeze
   STATUSES = %w[submitted in_review reopened resolved closed].freeze
   FINAL_ACTION_MODES = %w[reopen_close approve_reject].freeze
   ESCALATION_RESPONSE_WINDOW = 2.days
@@ -20,13 +21,14 @@ class HelpDeskTicket < ApplicationRecord
   has_many :support_updates, class_name: "HelpDeskSupportUpdate", dependent: :destroy
   has_many :requester_remarks, class_name: "HelpDeskRequesterRemark", dependent: :destroy
 
-  attr_accessor :requester_user_id, :on_behalf_requested, :request_received_on, :request_received_time
+  attr_accessor :requester_user_id, :on_behalf_requested, :request_received_on, :request_received_time, :initial_escalation_position
 
   has_many_attached :documents
   has_many_attached :support_documents
   has_many_attached :requester_followup_documents
 
   enum :request_type, {
+    ticket: "ticket",
     complaint: "complaint",
     suggestion: "suggestion"
   }
@@ -82,6 +84,7 @@ class HelpDeskTicket < ApplicationRecord
   after_commit :record_initial_support_update, on: :create
   after_commit :send_assignment_notifications, on: :create
   after_commit :send_assignment_notifications_for_reassignment, on: :update
+  after_commit :send_status_update_notifications, on: :update
   after_commit :send_resolution_notifications, on: :update
 
   validates :department_id, presence: true
@@ -102,7 +105,11 @@ class HelpDeskTicket < ApplicationRecord
   validate :documents_are_allowed
 
   def request_label
-    complaint? ? "Complaint" : "Suggestion"
+    {
+      "ticket" => "Ticket",
+      "complaint" => "Complaint",
+      "suggestion" => "Suggestion"
+    }.fetch(request_type.to_s, request_type.to_s.humanize)
   end
 
   def request_subject
@@ -134,6 +141,13 @@ class HelpDeskTicket < ApplicationRecord
     return "Response Ticket" if assisted_request?
 
     "L#{current_escalation_position.presence || 1} Escalation"
+  end
+
+  def complaint_initial_escalation_position
+    selected_position = initial_escalation_position.to_i
+    return selected_position if complaint? && INITIAL_ESCALATION_POSITIONS.include?(selected_position)
+
+    1
   end
 
   def approval_candidate_users
@@ -396,6 +410,65 @@ class HelpDeskTicket < ApplicationRecord
     saved
   end
 
+  def forward_to_department_by(reviewer:, department:, response_message:, support_documents: [])
+    unless can_be_responded_by?(reviewer)
+      errors.add(:base, "You are not authorized to forward this ticket.")
+      return false
+    end
+
+    target_department = department
+    if target_department.blank?
+      errors.add(:department_id, "Select department to forward this ticket.")
+      return false
+    end
+
+    if target_department.id == department_id
+      errors.add(:department_id, "Select another department to forward this ticket.")
+      return false
+    end
+
+    target_level = target_department.helpdesk_escalation_matrix&.ordered_levels&.first
+    if target_level.blank?
+      errors.add(:department_id, "does not have a configured helpdesk escalation matrix")
+      return false
+    end
+
+    new_response_message = response_message.to_s.strip.presence
+    if response_message.blank? || new_response_message.blank?
+      errors.add(:response_message, "can't be blank")
+      return false
+    end
+
+    ensure_legacy_support_update!
+    update_time = Time.current
+    previous_department_name = self.department&.department_type
+
+    self.department = target_department
+    self.help_desk_question_master = nil
+    self.responded_by_user = reviewer
+    self.response_message = "Forwarded from #{previous_department_name} to #{target_department.department_type}: #{new_response_message}"
+    self.responded_at = update_time
+    self.status = "in_review"
+    self.current_escalation_position = target_level.position
+    self.assigned_to_user = target_level.user
+    self.assigned_at = update_time
+    self.escalation_due_at = assisted_request? ? nil : update_time + ESCALATION_RESPONSE_WINDOW
+    self.approval_user = nil
+    self.final_action_mode = nil
+    self.requester_response_due_at = nil
+    self.closed_at = nil if has_attribute?(:closed_at)
+    self.closed_by_user = nil if has_attribute?(:closed_by_user_id)
+    self.closed_automatically = false if has_attribute?(:closed_automatically)
+    attach_documents_to(:support_documents, support_documents)
+
+    saved = save
+    if saved
+      record_support_update!(reviewer: reviewer, message: self.response_message, created_at: update_time)
+      schedule_next_escalation_check!
+    end
+    saved
+  end
+
   def reopen_by!(actor:, remark:, requester_followup_documents: [])
     unless can_be_finalized_by?(actor)
       errors.add(:base, "You are not authorized to reopen this ticket.")
@@ -413,6 +486,8 @@ class HelpDeskTicket < ApplicationRecord
     assignment_time = Time.current
     return_user = responded_by_user.presence || assigned_to_user
     return_position = current_escalation_position.presence
+    failed_counts = failed_response_counts_for_update
+    failed_counts[return_position.to_s] = failed_counts.fetch(return_position.to_s, 0).to_i + 1 if return_position.present?
 
     if return_user.blank? || return_position.blank?
       first_level = configured_escalation_levels.first
@@ -425,8 +500,17 @@ class HelpDeskTicket < ApplicationRecord
       return_position = first_level.position
     end
 
+    if !assisted_request? && failed_counts.fetch(return_position.to_s, 0).to_i >= 2
+      next_level = configured_escalation_levels.find { |level| level.position.to_i > return_position.to_i }
+      if next_level.present?
+        return_user = next_level.user
+        return_position = next_level.position
+      end
+    end
+
     self.status = "reopened"
     self.reopen_count = total_reopens + 1
+    self.failed_response_counts = failed_counts if has_attribute?(:failed_response_counts)
     self.current_escalation_position = return_position
     self.assigned_to_user = return_user
     self.assigned_at = assignment_time
@@ -611,7 +695,7 @@ class HelpDeskTicket < ApplicationRecord
     return if assisted_request?
     return if assigned_to_user_id.present?
 
-    first_level = configured_escalation_levels.first
+    first_level = configured_escalation_levels.find { |level| level.position.to_i == complaint_initial_escalation_position } || configured_escalation_levels.first
     return if first_level.blank?
 
     assignment_time = Time.current
@@ -626,7 +710,7 @@ class HelpDeskTicket < ApplicationRecord
     return if request_type.blank?
     return if message.present?
 
-    label = request_type == "suggestion" ? "Suggestion details" : "Complaint details"
+    label = "#{request_label} details"
     errors.add(:message, "#{label} can't be blank")
   end
 
@@ -634,14 +718,14 @@ class HelpDeskTicket < ApplicationRecord
     return unless assisted_request_requested?
     return if request_received_on.present?
 
-    errors.add(:request_received_on, "Select the complaint or suggestion date for this oral ticket.")
+    errors.add(:request_received_on, "Select the request date for this oral ticket.")
   end
 
   def request_received_time_required_for_assisted_request
     return unless assisted_request_requested?
     return if request_received_time.present?
 
-    errors.add(:request_received_time, "Select the complaint or suggestion time for this oral ticket.")
+    errors.add(:request_received_time, "Select the request time for this oral ticket.")
   end
 
   def request_received_on_cannot_be_in_future
@@ -768,6 +852,11 @@ class HelpDeskTicket < ApplicationRecord
     errors.add(:department_id, "does not have a configured helpdesk escalation matrix")
   end
 
+  def failed_response_counts_for_update
+    value = has_attribute?(:failed_response_counts) ? failed_response_counts : {}
+    value.is_a?(Hash) ? value.transform_keys(&:to_s) : {}
+  end
+
   def response_message_required_for_resolution
     return unless status == "resolved"
     return if response_message.present?
@@ -822,5 +911,15 @@ class HelpDeskTicket < ApplicationRecord
     return if recipients.blank?
 
     HelpDeskTicketMailer.ticket_resolved(id, recipients).deliver_later
+  end
+
+  def send_status_update_notifications
+    return if resolved? || closed?
+    return unless saved_change_to_status? || saved_change_to_department_id? || saved_change_to_assigned_to_user_id? || saved_change_to_response_message?
+
+    recipients = [ requester_email, submitted_by_user&.email ].compact.map(&:strip).reject(&:blank?).uniq
+    return if recipients.blank?
+
+    HelpDeskTicketMailer.ticket_updated(id, recipients).deliver_later
   end
 end

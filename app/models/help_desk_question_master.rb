@@ -1,11 +1,12 @@
 class HelpDeskQuestionMaster < ApplicationRecord
-  REQUEST_TYPES = %w[complaint suggestion].freeze
+  REQUEST_TYPES = %w[ticket complaint suggestion].freeze
 
   belongs_to :department
 
   has_many :help_desk_tickets, dependent: :nullify
 
   enum :request_type, {
+    ticket: "ticket",
     complaint: "complaint",
     suggestion: "suggestion"
   }

@@ -621,7 +621,7 @@ class HelpDeskTicketsControllerTest < ActionDispatch::IntegrationTest
     get help_desk_tickets_url
 
     assert_response :success
-    assert_includes response.body, "Create response ticket for an oral complaint / suggestion"
+    assert_includes response.body, "Create response ticket for an oral request"
 
     freeze_time do
       assert_difference("HelpDeskTicket.count", 1) do

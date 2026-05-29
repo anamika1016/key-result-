@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_05_26_091000) do
+ActiveRecord::Schema[8.0].define(version: 2026_05_29_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -200,6 +200,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_26_091000) do
     t.string "final_action_mode"
     t.integer "reopen_count", default: 0, null: false
     t.datetime "request_received_at"
+    t.jsonb "failed_response_counts", default: {}, null: false
     t.index ["approval_user_id"], name: "index_help_desk_tickets_on_approval_user_id"
     t.index ["assigned_to_user_id", "status"], name: "index_help_desk_tickets_on_assignee_and_status"
     t.index ["assigned_to_user_id"], name: "index_help_desk_tickets_on_assigned_to_user_id"

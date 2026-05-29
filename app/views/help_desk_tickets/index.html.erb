@@ -20,6 +20,7 @@
     []
   end
   recent_ticket_count = @recent_tickets.size
+  recent_general_tickets = @recent_tickets.count(&:ticket?)
   recent_complaints = @recent_tickets.count(&:complaint?)
   recent_suggestions = @recent_tickets.count(&:suggestion?)
   assigned_queue_count = @assigned_tickets.size
@@ -59,12 +60,12 @@
           <p class="helpdesk-stat__value"><%= recent_ticket_count %></p>
         </div>
         <div class="helpdesk-stat helpdesk-stat--rose">
-          <p class="helpdesk-stat__label">Complaints</p>
-          <p class="helpdesk-stat__value"><%= recent_complaints %></p>
+          <p class="helpdesk-stat__label">Tickets</p>
+          <p class="helpdesk-stat__value"><%= recent_general_tickets %></p>
         </div>
         <div class="helpdesk-stat helpdesk-stat--blue">
-          <p class="helpdesk-stat__label">Suggestions</p>
-          <p class="helpdesk-stat__value"><%= recent_suggestions %></p>
+          <p class="helpdesk-stat__label">Complaints</p>
+          <p class="helpdesk-stat__value"><%= recent_complaints %></p>
         </div>
       </div>
     </section>
@@ -98,8 +99,16 @@
             <div>
               <%= form.label :request_type, "Request Type", class: "helpdesk-field-label" %>
               <%= form.select :request_type,
-                              options_for_select([ [ "Complaint", "complaint" ], [ "Suggestion", "suggestion" ] ], selected_type),
+                              options_for_select([ [ "Ticket", "ticket" ], [ "Complaint", "complaint" ], [ "Suggestion", "suggestion" ] ], selected_type),
                               { include_blank: "Select request type" },
+                              class: "helpdesk-input" %>
+            </div>
+
+            <div id="help-desk-initial-escalation-wrapper" class="<%= selected_type == 'complaint' ? '' : 'hidden' %>">
+              <%= form.label :initial_escalation_position, "Send Complaint To", class: "helpdesk-field-label" %>
+              <%= form.select :initial_escalation_position,
+                              options_for_select([ [ "L1", 1 ], [ "L2", 2 ], [ "L3", 3 ] ], @help_desk_ticket.initial_escalation_position.presence || 1),
+                              {},
                               class: "helpdesk-input" %>
             </div>
 
@@ -117,7 +126,7 @@
                                            },
                                            "1",
                                            "0" %>
-                        Create response ticket for an oral complaint / suggestion
+                        Create response ticket for an oral request
                       </label>
                     </div>
                     <span class="helpdesk-inline-note">Select the employee whose work was completed.</span>
@@ -138,7 +147,7 @@
                     </div>
 
                     <div>
-                      <%= form.label :request_received_on, "Complaint / Suggestion Date", class: "helpdesk-field-label" %>
+                      <%= form.label :request_received_on, "Request Date", class: "helpdesk-field-label" %>
                       <%= form.date_field :request_received_on,
                                           value: request_received_on_value,
                                           class: "helpdesk-input",
@@ -147,7 +156,7 @@
                     </div>
 
                     <div>
-                      <%= form.label :request_received_time, "Complaint / Suggestion Time", class: "helpdesk-field-label" %>
+                      <%= form.label :request_received_time, "Request Time", class: "helpdesk-field-label" %>
                       <%= form.time_field :request_received_time,
                                           value: request_received_time_value,
                                           class: "helpdesk-input",
@@ -177,21 +186,21 @@
 
             <div id="help-desk-custom-question-wrapper" class="helpdesk-form-span <%= 'hidden' if selected_type.blank? || selected_question_master_id.present? %>">
               <label id="help-desk-custom-question-label" for="help_desk_ticket_question_subject" class="helpdesk-field-label">
-                <%= selected_type == "suggestion" ? "Other Suggestion Topic" : "Other Complaint Topic" %>
+                <%= selected_type == "suggestion" ? "Other Suggestion Topic" : (selected_type == "ticket" ? "Other Ticket Topic" : "Other Complaint Topic") %>
               </label>
               <%= form.text_field :question_subject,
                                   class: "helpdesk-input",
-                                  placeholder: selected_type == "suggestion" ? "Type your own suggestion topic." : "Type your own complaint topic." %>
+                                  placeholder: selected_type == "suggestion" ? "Type your own suggestion topic." : (selected_type == "ticket" ? "Type your own ticket topic." : "Type your own complaint topic.") %>
             </div>
 
             <div id="help-desk-message-wrapper" class="helpdesk-form-span <%= 'hidden' if selected_type.blank? %>">
               <label id="help-desk-message-label" for="help_desk_ticket_message" class="helpdesk-field-label">
-                <%= selected_type == "suggestion" ? "Suggestion Details" : "Complaint Details" %>
+                <%= selected_type == "suggestion" ? "Suggestion Details" : (selected_type == "ticket" ? "Ticket Details" : "Complaint Details") %>
               </label>
               <%= form.text_area :message,
                                  rows: 5,
                                  class: "helpdesk-textarea",
-                                 placeholder: selected_type == "suggestion" ? "Share your suggestion in a clear and practical way." : "Describe the issue you are facing with as much detail as possible." %>
+                                 placeholder: selected_type == "suggestion" ? "Share your suggestion in a clear and practical way." : (selected_type == "ticket" ? "Describe the ticket clearly." : "Describe the issue you are facing with as much detail as possible.") %>
             </div>
 
             <div class="helpdesk-form-span">
@@ -507,6 +516,8 @@
     const questionSelectWrapper = document.getElementById("help-desk-question-select-wrapper");
     const questionSelect = document.getElementById("help_desk_ticket_help_desk_question_master_id");
     const questionHelp = document.getElementById("help-desk-question-help");
+    const initialEscalationWrapper = document.getElementById("help-desk-initial-escalation-wrapper");
+    const initialEscalationSelect = document.getElementById("help_desk_ticket_initial_escalation_position");
     const customQuestionWrapper = document.getElementById("help-desk-custom-question-wrapper");
     const customQuestionLabel = document.getElementById("help-desk-custom-question-label");
     const customQuestionField = document.getElementById("help_desk_ticket_question_subject");
@@ -545,10 +556,22 @@
       defaultRequester = { name: "", employee_code: "", email: "" };
     }
 
-    const questionTypeSelected = () => requestTypeSelect.value === "complaint" || requestTypeSelect.value === "suggestion";
-    const detailLabelForType = () => requestTypeSelect.value === "suggestion" ? "Suggestion Details" : "Complaint Details";
-    const customLabelForType = () => requestTypeSelect.value === "suggestion" ? "Other Suggestion Topic" : "Other Complaint Topic";
-    const customPlaceholderForType = () => requestTypeSelect.value === "suggestion" ? "Type your own suggestion topic." : "Type your own complaint topic.";
+    const questionTypeSelected = () => ["ticket", "complaint", "suggestion"].includes(requestTypeSelect.value);
+    const detailLabelForType = () => {
+      if (requestTypeSelect.value === "suggestion") return "Suggestion Details";
+      if (requestTypeSelect.value === "ticket") return "Ticket Details";
+      return "Complaint Details";
+    };
+    const customLabelForType = () => {
+      if (requestTypeSelect.value === "suggestion") return "Other Suggestion Topic";
+      if (requestTypeSelect.value === "ticket") return "Other Ticket Topic";
+      return "Other Complaint Topic";
+    };
+    const customPlaceholderForType = () => {
+      if (requestTypeSelect.value === "suggestion") return "Type your own suggestion topic.";
+      if (requestTypeSelect.value === "ticket") return "Type your own ticket topic.";
+      return "Type your own complaint topic.";
+    };
     const assistedModeEnabled = () => Boolean(assistedToggle && assistedToggle.checked);
 
     const matchingQuestions = () => questionCatalog.filter((question) => {
@@ -605,9 +628,22 @@
       customQuestionField.placeholder = customPlaceholderForType();
     };
 
+    const updateInitialEscalationField = () => {
+      const shouldShow = requestTypeSelect.value === "complaint";
+
+      if (initialEscalationWrapper) {
+        initialEscalationWrapper.classList.toggle("hidden", !shouldShow);
+      }
+
+      if (initialEscalationSelect) {
+        initialEscalationSelect.disabled = !shouldShow;
+      }
+    };
+
     const updateHelpDeskMessageField = () => {
       const selectedType = requestTypeSelect.value;
       const isSuggestion = selectedType === "suggestion";
+      const isTicket = selectedType === "ticket";
       const isVisible = questionTypeSelected();
       const selectedMasterQuestion = questionSelect.value !== "";
 
@@ -620,7 +656,7 @@
       messageLabel.textContent = selectedMasterQuestion ? "Additional Details" : detailLabelForType();
       messageField.placeholder = selectedMasterQuestion ?
         "Add supporting details, examples, or context for this selected topic." :
-        (isSuggestion ? "Share your suggestion in a clear and practical way." : "Describe the issue you are facing with as much detail as possible.");
+        (isSuggestion ? "Share your suggestion in a clear and practical way." : (isTicket ? "Describe the ticket clearly." : "Describe the issue you are facing with as much detail as possible."));
     };
 
     const updateQuestionOptions = () => {
@@ -669,7 +705,10 @@
     };
 
     departmentSelect.addEventListener("change", updateQuestionOptions);
-    requestTypeSelect.addEventListener("change", updateQuestionOptions);
+    requestTypeSelect.addEventListener("change", () => {
+      updateInitialEscalationField();
+      updateQuestionOptions();
+    });
     questionSelect.addEventListener("change", () => {
       updateCustomQuestionField();
       updateHelpDeskMessageField();
@@ -678,6 +717,7 @@
     if (requesterSelect) requesterSelect.addEventListener("change", syncRequesterSummary);
 
     requestTypeSelect.dataset.helpDeskBound = "true";
+    updateInitialEscalationField();
     updateQuestionOptions();
     updateAssistedFields();
   }

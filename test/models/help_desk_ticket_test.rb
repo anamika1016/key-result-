@@ -116,6 +116,20 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
     end
   end
 
+  test "complaint can be assigned directly to selected escalation level" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "complaint",
+      initial_escalation_position: "2",
+      question_subject: "Urgent payroll issue",
+      message: "This complaint should start with L2."
+    )
+
+    assert_equal 2, ticket.current_escalation_position
+    assert_equal @l2_user.id, ticket.assigned_to_user_id
+  end
+
   test "reviewer can still see resolved tickets in visible history" do
     ticket = HelpDeskTicket.create!(
       user: @user,
@@ -309,6 +323,36 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
     end
   end
 
+  test "second failed response at a level reopens with next escalation level" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "complaint",
+      question_subject: "Recurring network issue",
+      message: "Network keeps failing."
+    )
+
+    assert ticket.mark_resolved_by(
+      reviewer: @l1_user,
+      response_message: "Network cable replaced.",
+      final_action_mode: "reopen_close"
+    )
+    assert ticket.reopen_by!(actor: @user, remark: "Issue still exists.")
+    assert_equal @l1_user.id, ticket.reload.assigned_to_user_id
+
+    assert ticket.mark_resolved_by(
+      reviewer: @l1_user,
+      response_message: "Switch port changed.",
+      final_action_mode: "reopen_close"
+    )
+    assert ticket.reopen_by!(actor: @user, remark: "Still not resolved.")
+
+    ticket.reload
+    assert_equal 2, ticket.current_escalation_position
+    assert_equal @l2_user.id, ticket.assigned_to_user_id
+    assert_equal({ "1" => 2 }, ticket.failed_response_counts)
+  end
+
   test "reviewer can send a ticket to the original submitter for user action" do
     submitter = User.create!(
       email: "submitter.helpdesk@example.com",
@@ -473,8 +517,8 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
     ticket.prepare_assisted_resolution!(resolver: @oral_l1_user)
 
     assert_not ticket.valid?
-    assert_includes ticket.errors[:request_received_on], "Select the complaint or suggestion date for this oral ticket."
-    assert_includes ticket.errors[:request_received_time], "Select the complaint or suggestion time for this oral ticket."
+    assert_includes ticket.errors[:request_received_on], "Select the request date for this oral ticket."
+    assert_includes ticket.errors[:request_received_time], "Select the request time for this oral ticket."
   end
 
   test "requester can reject an oral response ticket back to the resolver" do
