@@ -82,8 +82,6 @@ class HelpDeskTicket < ApplicationRecord
   before_validation :assign_initial_escalation_details, on: :create
   after_commit :schedule_initial_escalation_check, on: :create
   after_commit :record_initial_support_update, on: :create
-  after_commit :send_created_action_notifications, on: :create
-  after_commit :send_updated_action_notifications, on: :update
   after_commit :send_help_desk_submission_sms, on: :create
   after_commit :send_help_desk_approved_sms, on: :update
 
