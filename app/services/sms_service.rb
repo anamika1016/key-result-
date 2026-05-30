@@ -7,9 +7,11 @@ class SmsService
   ROUTE = "2"
   COUNTRY = "0"
   DLT_TE_ID = "1707175983185179621"
+  HELP_DESK_SUBMISSION_DLT_TE_ID = "1707178012230155457"
+  HELP_DESK_APPROVED_DLT_TE_ID = "1707178012251128478"
   UNICODE = "1"
 
-  def self.send_sms(mobile_number, message)
+  def self.send_sms(mobile_number, message, dlt_te_id: DLT_TE_ID)
     return { success: false, message: "Mobile number is required" } if mobile_number.blank?
     return { success: false, message: "Message is required" } if message.blank?
 
@@ -41,7 +43,7 @@ class SmsService
       encoded_message = URI.encode_www_form_component(message)
 
       # Build the API URL
-      url = "#{BASE_URL}?authkey=#{AUTH_KEY}&mobiles=#{clean_mobile}&message=#{encoded_message}&sender=#{SENDER}&route=#{ROUTE}&country=#{COUNTRY}&DLT_TE_ID=#{DLT_TE_ID}&unicode=#{UNICODE}"
+      url = "#{BASE_URL}?authkey=#{AUTH_KEY}&mobiles=#{clean_mobile}&message=#{encoded_message}&sender=#{SENDER}&route=#{ROUTE}&country=#{COUNTRY}&DLT_TE_ID=#{dlt_te_id}&unicode=#{UNICODE}"
 
       Rails.logger.info "Sending SMS to #{clean_mobile}: #{message}"
 
@@ -163,5 +165,13 @@ class SmsService
   def self.l2_notification_message_for_l3(employee_name, quarter, action)
     action_text = action == "approved" ? "approved" : "returned"
     "#{employee_name}'s #{quarter} KRA MIS has been #{action_text} by L3 Manager. Action For Social Advancement (ASA)"
+  end
+
+  def self.help_desk_submission_message(recipient_name, ticket_number, request_type, submitter_name)
+    "Dear #{recipient_name}, Ticket No. #{ticket_number}: Help Desk #{request_type} has been submitted by #{submitter_name}. Kindly review and take the necessary action. - Action for social advancement (ASA)"
+  end
+
+  def self.help_desk_approved_message(recipient_name, ticket_number, approver_name)
+    "Dear #{recipient_name}, Ticket No. #{ticket_number}: Your help desk ticket has been approved by #{approver_name}. Please log in to the system for further details. - Action For Social Advancement (ASA)"
   end
 end

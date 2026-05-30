@@ -84,6 +84,8 @@ class HelpDeskTicket < ApplicationRecord
   after_commit :record_initial_support_update, on: :create
   after_commit :send_created_action_notifications, on: :create
   after_commit :send_updated_action_notifications, on: :update
+  after_commit :send_help_desk_submission_sms, on: :create
+  after_commit :send_help_desk_approved_sms, on: :update
 
   validates :department_id, presence: true
   validates :request_type, presence: true, inclusion: { in: REQUEST_TYPES }
@@ -963,5 +965,69 @@ class HelpDeskTicket < ApplicationRecord
 
   def send_status_update_notifications
     send_action_notifications!(notification_action_label)
+  end
+
+  def send_help_desk_submission_sms
+    return if assigned_to_user.blank?
+
+    mobile_number = user_mobile_number(assigned_to_user)
+    return if mobile_number.blank?
+
+    message = SmsService.help_desk_submission_message(
+      sms_recipient_name(assigned_to_user),
+      ticket_reference,
+      help_desk_sms_request_type,
+      requester_name
+    )
+
+    result = SmsService.send_sms(
+      mobile_number,
+      message,
+      dlt_te_id: SmsService::HELP_DESK_SUBMISSION_DLT_TE_ID
+    )
+
+    Rails.logger.info "Help Desk submission SMS result for #{ticket_reference}: #{result.inspect}"
+  end
+
+  def send_help_desk_approved_sms
+    return unless saved_change_to_status? && resolved?
+
+    mobile_number = requester_mobile_number
+    return if mobile_number.blank?
+
+    approver_name = responded_by_user&.display_name.presence || "Support Team"
+    message = SmsService.help_desk_approved_message(
+      requester_name,
+      ticket_reference,
+      approver_name
+    )
+
+    result = SmsService.send_sms(
+      mobile_number,
+      message,
+      dlt_te_id: SmsService::HELP_DESK_APPROVED_DLT_TE_ID
+    )
+
+    Rails.logger.info "Help Desk approved SMS result for #{ticket_reference}: #{result.inspect}"
+  end
+
+  def help_desk_sms_request_type
+    if complaint? || suggestion?
+      request_type
+    else
+      "ticket"
+    end
+  end
+
+  def requester_mobile_number
+    user_mobile_number(user)
+  end
+
+  def user_mobile_number(user_record)
+    user_record&.mapped_employee_detail&.mobile_number.to_s.strip.presence
+  end
+
+  def sms_recipient_name(user_record)
+    user_record&.display_name.to_s.split.first.presence || "User"
   end
 end
