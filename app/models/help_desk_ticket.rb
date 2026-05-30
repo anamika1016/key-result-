@@ -82,10 +82,8 @@ class HelpDeskTicket < ApplicationRecord
   before_validation :assign_initial_escalation_details, on: :create
   after_commit :schedule_initial_escalation_check, on: :create
   after_commit :record_initial_support_update, on: :create
-  after_commit :send_assignment_notifications, on: :create
-  after_commit :send_assignment_notifications_for_reassignment, on: :update
-  after_commit :send_status_update_notifications, on: :update
-  after_commit :send_resolution_notifications, on: :update
+  after_commit :send_created_action_notifications, on: :create
+  after_commit :send_updated_action_notifications, on: :update
 
   validates :department_id, presence: true
   validates :request_type, presence: true, inclusion: { in: REQUEST_TYPES }
@@ -890,36 +888,80 @@ class HelpDeskTicket < ApplicationRecord
     ActiveSupport::TimeZone[DISPLAY_TIME_ZONE] || Time.zone
   end
 
-  def send_assignment_notifications
-    return if assigned_to_user.blank? || assigned_to_user.email.blank?
+  def notification_recipient_emails
+    [
+      requester_email,
+      user&.email,
+      submitted_by_user&.email,
+      approval_user&.email,
+      assigned_to_user&.email,
+      responded_by_user&.email,
+      closed_by_user&.email
+    ].compact.map(&:strip).reject(&:blank?).uniq { |email| email.downcase }
+  end
 
-    HelpDeskTicketMailer.ticket_assigned(id).deliver_later
+  def send_created_action_notifications
+    send_action_notifications!("Submitted")
+  end
+
+  def send_updated_action_notifications
+    return unless notification_worthy_update?
+
+    send_action_notifications!(notification_action_label)
+  end
+
+  def notification_worthy_update?
+    changed_columns = previous_changes.keys
+
+    (changed_columns & %w[
+      status
+      department_id
+      assigned_to_user_id
+      current_escalation_position
+      response_message
+      requester_remark
+      approval_user_id
+      final_action_mode
+      closed_at
+      closed_by_user_id
+      closed_automatically
+    ]).any?
+  end
+
+  def notification_action_label
+    changed_columns = previous_changes.keys
+
+    return "Closed" if changed_columns.include?("status") && closed?
+    return "Completed By Support" if changed_columns.include?("status") && resolved?
+    return "Reopened" if changed_columns.include?("status") && reopened?
+    return "Forwarded" if changed_columns.include?("department_id")
+    return "Assigned" if (changed_columns & %w[assigned_to_user_id current_escalation_position]).any?
+    return "Support Update" if changed_columns.include?("response_message")
+    return "Requester Remark" if changed_columns.include?("requester_remark")
+
+    "Updated"
+  end
+
+  def send_action_notifications!(action_label)
+    recipients = notification_recipient_emails
+    return if recipients.blank?
+
+    HelpDeskTicketMailer.ticket_action(id, recipients, action_label).deliver_later
+  end
+
+  def send_assignment_notifications
+    send_action_notifications!("Assigned")
   end
 
   def send_assignment_notifications_for_reassignment
-    return if resolved? || closed?
-    return unless saved_change_to_assigned_to_user_id? || saved_change_to_current_escalation_position? || (saved_change_to_status? && reopened?)
-    return if assigned_to_user.blank? || assigned_to_user.email.blank?
-
-    HelpDeskTicketMailer.ticket_assigned(id).deliver_later
+    send_action_notifications!("Assigned")
   end
 
   def send_resolution_notifications
-    return unless saved_change_to_status? && resolved?
-
-    recipients = [ requester_email, submitted_by_user&.email ].compact.map(&:strip).reject(&:blank?).uniq
-    return if recipients.blank?
-
-    HelpDeskTicketMailer.ticket_resolved(id, recipients).deliver_later
+    send_action_notifications!("Completed By Support")
   end
 
   def send_status_update_notifications
-    return if resolved? || closed?
-    return unless saved_change_to_status? || saved_change_to_department_id? || saved_change_to_assigned_to_user_id? || saved_change_to_response_message?
-
-    recipients = [ requester_email, submitted_by_user&.email ].compact.map(&:strip).reject(&:blank?).uniq
-    return if recipients.blank?
-
-    HelpDeskTicketMailer.ticket_updated(id, recipients).deliver_later
+    send_action_notifications!(notification_action_label)
   end
 end

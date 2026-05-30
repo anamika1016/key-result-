@@ -1,5 +1,5 @@
 class ApprovalMailer < ApplicationMailer
-  default from: "notification@ploughmanagro.com"
+  default from: "notification@asabhopal.org"
 
   # Quarterly L1 approval request email
   def quarterly_l1_approval_request(employee_detail, quarter, achievements, l1_email = nil)

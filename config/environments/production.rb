@@ -64,12 +64,12 @@ Rails.application.configure do
     protocol: "http"
   }
   config.action_mailer.smtp_settings = {
-    address: "smtp.ploughmanagro.com",
+    address: "smtp.rediffmailpro.com",
     port: 587,
-    domain: "kra.asaindia.org",
-    user_name: "notification@ploughmanagro.com",
+    domain: "asabhopal.org",
+    user_name: "notification@asabhopal.org",
     password: ENV["SMTP_PASSWORD"],
-    authentication: :plain,
+    authentication: :login,
     enable_starttls_auto: true
   }
   config.action_mailer.perform_deliveries = true

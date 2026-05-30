@@ -40,14 +40,14 @@ Rails.application.configure do
   config.action_mailer.perform_deliveries = true
   config.action_mailer.default_url_options = { host: "139.59.8.73", port: 3002 }
 
-  # SMTP settings for development - using Gmail SMTP since ploughmanagro.com uses Google Workspace
+  # SMTP settings for development
   config.action_mailer.smtp_settings = {
-    address: "smtp.gmail.com",
+    address: "smtp.rediffmailpro.com",
     port: 587,
-    domain: "ploughmanagro.com",
-    user_name: "notification@ploughmanagro.com",
-    password: "qtxqykbyjuyinwri", # App password provided by user
-    authentication: :plain,
+    domain: "asabhopal.org",
+    user_name: "notification@asabhopal.org",
+    password: ENV["SMTP_PASSWORD"],
+    authentication: :login,
     enable_starttls_auto: true
   }
 
