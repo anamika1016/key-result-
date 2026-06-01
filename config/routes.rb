@@ -130,7 +130,11 @@ Rails.application.routes.draw do
     end
   end
   resources :help_desk_reports, path: "helpdesk-report", only: [ :index ]
-  resources :help_desk_question_masters, path: "helpdesk-question-master", except: [ :show, :new ]
+  resources :help_desk_question_masters, path: "helpdesk-question-master", except: [ :show, :new ] do
+    collection do
+      post :import
+    end
+  end
   resources :helpdesk_escalation_matrices, path: "helpdesk-escalation-matrix", except: [ :show, :new ]
 
   # Keep your other routes

@@ -66,12 +66,13 @@ class HelpDeskReportsControllerTest < ActionDispatch::IntegrationTest
     )
     assert closed_ticket.close_by!(actor: @user)
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     get help_desk_reports_url
 
     assert_response :success
     assert_includes response.body, "Help Desk Report"
+    assert_includes response.body, "Raised:"
     assert_includes response.body, current_ticket.ticket_reference
     assert_includes response.body, closed_ticket.ticket_reference
     assert_includes response.body, "Saved Ticket History"
@@ -100,7 +101,7 @@ class HelpDeskReportsControllerTest < ActionDispatch::IntegrationTest
       )
     end
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     get help_desk_reports_url
 
@@ -108,8 +109,8 @@ class HelpDeskReportsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "Support Updates"
     assert_includes response.body, "Initial check is done."
     assert_includes response.body, "Cable replacement is done."
-    assert_includes response.body, "25 May 2026, 03:13 PM"
-    assert_includes response.body, "25 May 2026, 03:21 PM"
+    assert_includes response.body, "25 May 2026, 08:43 PM"
+    assert_includes response.body, "25 May 2026, 08:51 PM"
   end
 
   test "help desk current page hides closed tickets but report keeps them" do
@@ -135,7 +136,7 @@ class HelpDeskReportsControllerTest < ActionDispatch::IntegrationTest
     )
     assert closed_ticket.close_by!(actor: @user)
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     get help_desk_tickets_url
 
@@ -160,7 +161,7 @@ class HelpDeskReportsControllerTest < ActionDispatch::IntegrationTest
       message: "Need report export for this ticket."
     )
 
-    sign_in @user
+    sign_in @user, scope: :user
 
     get help_desk_reports_url(format: :xlsx, status: "submitted")
 

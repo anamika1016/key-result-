@@ -28,7 +28,7 @@ class HelpDeskQuestionMastersControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "hod can create help desk question master" do
-    sign_in @hod
+    sign_in @hod, scope: :user
 
     assert_difference("HelpDeskQuestionMaster.count", 1) do
       post help_desk_question_masters_url, params: {
@@ -45,8 +45,33 @@ class HelpDeskQuestionMastersControllerTest < ActionDispatch::IntegrationTest
     assert_redirected_to help_desk_question_masters_url
   end
 
+  test "hod can import help desk questions from csv" do
+    sign_in @hod, scope: :user
+
+    file = Tempfile.new([ "help_desk_questions", ".csv" ])
+    file.write("Department,Request Type,Question,Active\nFinance,Complaint,Payment status not updated,Yes\n")
+    file.rewind
+
+    assert_difference("HelpDeskQuestionMaster.count", 1) do
+      post import_help_desk_question_masters_url, params: {
+        file: Rack::Test::UploadedFile.new(file.path, "text/csv")
+      }
+    end
+
+    question = HelpDeskQuestionMaster.last
+
+    assert_redirected_to help_desk_question_masters_url
+    assert_equal @department, question.department
+    assert_equal "complaint", question.request_type
+    assert_equal "Payment status not updated", question.question_text
+    assert_predicate question, :active?
+  ensure
+    file&.close
+    file&.unlink
+  end
+
   test "employee cannot access help desk question master page" do
-    sign_in @employee
+    sign_in @employee, scope: :user
 
     get help_desk_question_masters_url
 

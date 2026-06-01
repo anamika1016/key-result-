@@ -17,7 +17,7 @@
         <span class="helpdesk-eyebrow">Support Matrix</span>
         <h1 class="helpdesk-title">Helpdesk Escalation Matrix</h1>
 
-        <div class="helpdesk-badge-row" style="margin-top: 14px;">
+        <div class="helpdesk-badge-row helpdesk-stack-top-md">
           <span class="helpdesk-badge helpdesk-badge--info">Dynamic escalation levels</span>
           <span class="helpdesk-badge helpdesk-badge--success">Department wise routing</span>
           <span class="helpdesk-badge helpdesk-badge--neutral">Edit and reorder friendly</span>
@@ -66,7 +66,7 @@
               <div class="helpdesk-panel helpdesk-panel--highlight">
                 <p class="helpdesk-field-label">Escalation Levels</p>
 
-                <div class="helpdesk-builder-table" style="margin-top: 16px;">
+                <div class="helpdesk-builder-table helpdesk-stack-top-md">
                   <div class="helpdesk-builder-table__head">
                     <div>Level</div>
                     <div>Escalation User</div>
@@ -127,9 +127,9 @@
             </div>
           </div>
 
-          <div class="helpdesk-panel helpdesk-panel--soft" style="margin-top: 18px;">
+          <div class="helpdesk-panel helpdesk-panel--soft helpdesk-stack-top-md">
             <p class="helpdesk-field-label">How It Works</p>
-            <div class="helpdesk-badge-row" style="margin-top: 10px;">
+            <div class="helpdesk-badge-row helpdesk-stack-top-sm">
               <span class="helpdesk-badge">Choose Vertical</span>
               <span class="helpdesk-badge">Assign Owners</span>
               <span class="helpdesk-badge">Save Matrix</span>
@@ -163,7 +163,7 @@
                 <div class="helpdesk-badge-row">
                   <span class="helpdesk-badge"><%= pluralize(matrix.ordered_levels.size, "level") %></span>
                 </div>
-                <h3 class="helpdesk-ticket__title" style="margin-top: 14px;"><%= matrix.department.department_type %></h3>
+                <h3 class="helpdesk-ticket__title helpdesk-stack-top-md"><%= matrix.department.department_type %></h3>
                 <p class="helpdesk-ticket__copy">Department wise escalation routing</p>
               </div>
 

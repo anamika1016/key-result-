@@ -120,6 +120,7 @@
               raised_by_user = ticket.submitted_by_user.presence || ticket.user
               raised_by_name = raised_by_user.present? ? user_display_name(raised_by_user) : ticket.requester_name
               raised_by_identifier = raised_by_user&.employee_code.presence || raised_by_user&.email.presence || raised_for_identifier
+              raised_at = ticket.request_received_at.presence || ticket.created_at
               self_raised = raised_by_user.present? && ticket.user_id == raised_by_user.id && !ticket.assisted_request?
               resolver_name = ticket.responded_by_user.present? ? user_display_name(ticket.responded_by_user) : "No support response yet"
               owner_name = ticket.assigned_to_user.present? ? user_display_name(ticket.assigned_to_user) : "No active owner"
@@ -155,6 +156,7 @@
                     <p class="helpdesk-field-label">Raised By</p>
                     <p class="helpdesk-report-card__value"><%= ticket.requester_name %></p>
                     <p class="helpdesk-report-card__muted"><%= raised_for_identifier %></p>
+                    <p class="helpdesk-report-card__muted">Raised: <%= raised_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></p>
                   </div>
                   <div>
                     <p class="helpdesk-field-label"><%= ticket.request_label %> Department</p>

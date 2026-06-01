@@ -23,14 +23,11 @@
   recent_general_tickets = @recent_tickets.count(&:ticket?)
   recent_complaints = @recent_tickets.count(&:complaint?)
   recent_suggestions = @recent_tickets.count(&:suggestion?)
-  assigned_queue_count = @assigned_tickets.size
-  pending_requester_action_count = @recent_tickets.count { |ticket| ticket.resolved? && ticket.can_be_finalized_by?(current_user) }
   recent_section_title = @can_review_help_desk_tickets ? "Current Tickets" : "Current Requests"
   recent_section_description = @can_review_help_desk_tickets ? "Only active or pending-user-action tickets stay here. Closed history moves to Help Desk Report." : "Only your current open or user-action-pending requests stay here. Older closed records move to Help Desk Report."
   recent_empty_title = @can_review_help_desk_tickets ? "No current tickets" : "No current requests"
   recent_empty_description = @can_review_help_desk_tickets ? "Active tickets you raise, handle, or resolve will appear here. Closed history stays in Help Desk Report." : "Your current help desk requests will appear here. Closed history stays in Help Desk Report."
   recent_count_label = @can_review_help_desk_tickets ? "ticket" : "request"
-  summary_label = @can_review_help_desk_tickets ? "Current Tickets" : "Current Requests"
 %>
 
 <div class="main-content sidebar-aware-content helpdesk-page">
@@ -70,7 +67,7 @@
       </div>
     </section>
 
-    <div class="helpdesk-main-grid">
+    <div>
       <section class="helpdesk-card">
         <div class="helpdesk-card__header helpdesk-card__header--split">
           <div>
@@ -229,28 +226,6 @@
         <% end %>
       </section>
 
-      <aside class="helpdesk-sidebar">
-        <section class="helpdesk-card">
-          <div class="helpdesk-card__header">
-            <h3 class="helpdesk-section-title">Quick Summary</h3>
-          </div>
-
-          <div class="helpdesk-summary-grid">
-            <div class="helpdesk-summary-item">
-              <p class="helpdesk-field-label"><%= @can_review_help_desk_tickets ? "Current" : "Requests" %></p>
-              <p class="helpdesk-context"><strong><%= recent_ticket_count %></strong></p>
-            </div>
-            <div class="helpdesk-summary-item">
-              <p class="helpdesk-field-label">Assigned</p>
-              <p class="helpdesk-context"><strong><%= assigned_queue_count %></strong></p>
-            </div>
-            <div class="helpdesk-summary-item">
-              <p class="helpdesk-field-label">Awaiting</p>
-              <p class="helpdesk-context"><strong><%= pending_requester_action_count %></strong></p>
-            </div>
-          </div>
-        </section>
-      </aside>
     </div>
 
     <section class="helpdesk-card">
