@@ -137,8 +137,8 @@ body {
 
 @media (min-width: 1024px) {
   .sidebar-aware-content {
-    width: calc(100% - 16rem) !important;
-    margin-left: 16rem !important;
+    width: calc(100% - 15.25rem) !important;
+    margin-left: 15.25rem !important;
   }
 }
 

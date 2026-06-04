@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_05_29_100000) do
+ActiveRecord::Schema[8.0].define(version: 2026_06_04_090000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -122,6 +122,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_05_29_100000) do
     t.string "l3_employer_name"
     t.integer "user_details_count", default: 0, null: false
     t.boolean "assignments_managed"
+    t.string "position"
     t.index ["employee_code"], name: "index_employee_details_on_employee_code"
     t.index ["employee_email"], name: "index_employee_details_on_employee_email"
     t.index ["l1_code", "status"], name: "index_employee_details_on_l1_code_and_status"

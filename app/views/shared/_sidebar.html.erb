@@ -39,24 +39,35 @@
   <style>
     /* Force proper sidebar layout immediately */
     #hs-application-sidebar {
-      min-width: 16rem !important;
-      width: 16rem !important;
+      min-width: 15.25rem !important;
+      width: 15.25rem !important;
     }
     
     /* Force proper link layout */
     #hs-application-sidebar .flex.items-center {
       display: flex !important;
       align-items: center !important;
-      gap: 0.875rem !important;
-      padding: 0.5rem 0.625rem !important;
+      gap: 0.82rem !important;
+      padding: 0.52rem 0.65rem !important;
       border-radius: 0.5rem !important;
     }
     
     /* Force icon size */
     #hs-application-sidebar svg {
-      width: 1.5rem !important;
-      height: 1.5rem !important;
+      width: 1.43rem !important;
+      height: 1.43rem !important;
       flex-shrink: 0 !important;
+    }
+
+    #hs-application-sidebar a,
+    #hs-application-sidebar summary {
+      font-size: 1rem !important;
+    }
+
+    #hs-application-sidebar .text-base,
+    #hs-application-sidebar .text-lg {
+      font-size: 1rem !important;
+      line-height: 1.35rem !important;
     }
     
     /* Force text to show inline */
@@ -69,13 +80,13 @@
     #hs-application-sidebar nav {
       display: flex !important;
       flex-direction: column !important;
-      padding: 0.75rem !important;
+      padding: 0.55rem !important;
     }
     
     #hs-application-sidebar ul {
       display: flex !important;
       flex-direction: column !important;
-      gap: 0.25rem !important;
+      gap: 0.12rem !important;
     }
     
     #hs-application-sidebar li {
@@ -93,8 +104,8 @@
 
     #hs-application-sidebar .sidebar-submenu {
       margin-top: 0.25rem !important;
-      margin-left: 2.25rem !important;
-      padding-left: 0.75rem !important;
+      margin-left: 1.75rem !important;
+      padding-left: 0.5rem !important;
       border-left: 1px solid #e5e7eb !important;
       gap: 0.125rem !important;
     }
@@ -127,10 +138,10 @@
     bg-white border-e border-gray-200
     lg:block lg:translate-x-0 lg:end-auto lg:bottom-0" role="dialog" tabindex="-1" aria-label="Sidebar">
     <div class="relative flex flex-col h-full max-h-full">
-      <div class="px-6 pt-4 flex items-center">
+      <div class="px-4 pt-3 flex items-center">
         <!-- Logo -->
         <a class="d-inline-block rounded-xl text-xl font-weight-semibold" href="#" aria-label="Preline">
-          <%= image_tag "asa.jpeg", alt: "ASA Logo", class: "img-fluid", style: "width: 180px; height: 80px" %>
+          <%= image_tag "asa.jpeg", alt: "ASA Logo", class: "img-fluid", style: "width: 168px; height: 74px" %>
         </a>
         <!-- End Logo -->
       </div>
@@ -162,7 +173,7 @@
                 <circle cx="12" cy="12" r="6" />
                 <circle cx="12" cy="12" r="2" />
               </svg>
-              <span class="font-semibold">TARGET FORM</span>
+              <span class="font-semibold">Target Form</span>
             <% end %>
           </li>
 
@@ -177,7 +188,7 @@
                 <path d="M12 2v13" />
                 <path d="M8 8l4-4 4 4" />
               </svg>
-              <span class="font-semibold">ACHIEVEMENT FORM</span>
+              <span class="font-semibold">Achievement Form</span>
             <% end %>
           </li>
 
@@ -283,7 +294,7 @@
               <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                 <path d="M12 6v6l4 2" /><circle cx="12" cy="12" r="10" />
               </svg>
-              <span class="font-semibold text-base">TRAININGS</span>
+              <span class="font-semibold text-base">Trainings</span>
             <% end %>
           </li>
 
@@ -293,7 +304,7 @@
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                   <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                 </svg>
-                <span class="font-semibold text-base">ASSIGN TRAININGS</span>
+                <span class="font-semibold text-base">Assign Trainings</span>
               <% end %>
             </li>
           <% end %>
@@ -334,7 +345,7 @@
                   <path d="M8 10h8" />
                   <path d="M8 14h5" />
                 </svg>
-                <span class="font-semibold text-base">HELP DESK</span>
+                <span class="font-semibold text-base">Help Desk</span>
                 <% if help_desk_menu_badge_count.positive? %>
                   <span class="ml-auto inline-flex min-w-6 items-center justify-center rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">
                     <%= help_desk_notification_label(help_desk_menu_badge_count) %>
@@ -412,13 +423,13 @@
       </nav>
     </div>
     <!-- Logout Button ABOVE the line -->
-    <div class="p-4">
+    <div class="p-3">
       <%= button_to destroy_user_session_path,
           method: :delete,
           data: { confirm: "Are you sure you want to sign out?" },
-          class: "w-full flex items-center gap-x-4 py-3 px-5 text-lg text-white bg-red-500 rounded-xl hover:bg-red-600 transition duration-200 shadow-md",
+          class: "w-full flex items-center gap-x-3 py-3 px-4 text-base text-white bg-red-500 rounded-xl hover:bg-red-600 transition duration-200 shadow-md",
           form: { style: "display: inline;" } do %>
-        <svg class="shrink-0 w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <svg class="shrink-0 w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
           <polyline points="10 17 15 12 10 7" />
           <line x1="15" y1="12" x2="3" y2="12" />
@@ -427,26 +438,28 @@
       <% end %>
     </div>
 
-    <div class="flex-shrink-0 border-t border-gray-200 p-4 bg-gray-50">
+    <div class="flex-shrink-0 border-t border-gray-200 p-3 bg-gray-50">
       <div class="flex items-center space-x-2 text-gray-700 overflow-hidden"> <!-- changed space-x-3 to space-x-2 -->
 
         <!-- User Avatar -->
         <% if current_user.avatar.attached? %>
           <%= image_tag current_user.avatar,
                         alt: "User Avatar",
-                        class: "h-14 w-14 rounded-full object-cover shadow-sm border border-gray-300 sidebar-avatar" %>
+                        class: "rounded-full object-cover shadow-sm border border-gray-300 sidebar-avatar",
+                        style: "width: 52px; height: 52px;" %>
         <% else %>
           <%= image_tag "business_female_male_users.svg",
                         alt: "User Avatar",
-                        class: "h-14 w-14 rounded-full object-cover shadow-sm border border-gray-300 sidebar-avatar" %>
+                        class: "rounded-full object-cover shadow-sm border border-gray-300 sidebar-avatar",
+                        style: "width: 52px; height: 52px;" %>
         <% end %>
 
         <!-- Email inside fixed width -->
         <div class="flex flex-col overflow-hidden">
-          <span class="font-semibold text-base text-gray-900 truncate max-w-[170px]"> <!-- increased font size and max-width -->
+          <span class="font-semibold text-base text-gray-900 truncate max-w-[160px]">
             <%= current_user.email %>
           </span>
-          <span class="text-sm text-gray-500">Logged in</span> <!-- increased font size a bit -->
+          <span class="text-xs text-gray-500">Logged in</span>
         </div>
       </div>
     </div>

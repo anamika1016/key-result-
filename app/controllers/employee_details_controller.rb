@@ -259,7 +259,7 @@ class EmployeeDetailsController < ApplicationController
 
     workbook.add_worksheet(name: "Employees") do |sheet|
       sheet.add_row [
-        "Name", "Email", "Employee Code", "Mobile Number", "Department"
+        "Name", "Email", "Employee Code", "Mobile Number", "Designation", "Position", "Department"
       ]
 
       # Create unique employee-department entries for export
@@ -315,6 +315,8 @@ class EmployeeDetailsController < ApplicationController
           entry[:employee].employee_email,
           entry[:employee].employee_code,
           entry[:employee].mobile_number,
+          entry[:employee].post,
+          entry[:employee].position,
           entry[:department]&.department_type || entry[:employee].department
         ]
       end
@@ -510,7 +512,7 @@ class EmployeeDetailsController < ApplicationController
       sheet.add_row [
         "Name", "Email", "Employee Code", "Mobile Number",
         "L1 Code", "L1 Name", "L2 Code", "L2 Name",
-        "L3 Code", "L3 Name", "Department"
+        "L3 Code", "L3 Name", "Designation", "Position", "Department"
       ]
 
       # Data rows — registered employees ka data
@@ -529,6 +531,8 @@ class EmployeeDetailsController < ApplicationController
           emp.l2_employer_name,
           emp.l3_code,
           emp.l3_employer_name,
+          emp.post,
+          emp.position,
           dept_name
         ]
       end
@@ -567,21 +571,29 @@ class EmployeeDetailsController < ApplicationController
       "l3_code" => "l3_code",
       "l1_name" => "l1_employer_name",
       "l1_manager" => "l1_employer_name",
+      "l1_manager_name" => "l1_employer_name",
       "l1_employer" => "l1_employer_name",
+      "l1_employer_name" => "l1_employer_name",
       "l2_name" => "l2_employer_name",
       "l2_manager" => "l2_employer_name",
+      "l2_manager_name" => "l2_employer_name",
       "l2_employer" => "l2_employer_name",
+      "l2_employer_name" => "l2_employer_name",
       "l3_name" => "l3_employer_name",
       "l3_manager" => "l3_employer_name",
+      "l3_manager_name" => "l3_employer_name",
       "l3_employer" => "l3_employer_name",
+      "l3_employer_name" => "l3_employer_name",
       "post" => "post",
       "designation" => "post",
+      "position" => "position",
       "department" => "department",
       "vertical" => "department"
     }
 
     imported_count = 0
     created_count = 0
+    updated_count = 0
     skipped_count = 0
     duplicate_count = 0
     existing_count = 0
@@ -635,7 +647,17 @@ class EmployeeDetailsController < ApplicationController
         end
 
         if existing_employee_codes.include?(employee_code_key)
-          existing_count += 1
+          existing_employee = EmployeeDetail.where("LOWER(TRIM(employee_code)) = ?", employee_code_key).first
+          update_attrs = mapped_row.except("employee_code").compact_blank
+
+          if existing_employee.present? && update_attrs.present?
+            existing_employee.update!(update_attrs)
+            uploaded_employee_codes.add(employee_code_key)
+            updated_count += 1
+          else
+            existing_count += 1
+          end
+
           next
         end
 
@@ -663,7 +685,8 @@ class EmployeeDetailsController < ApplicationController
     end
 
     # Create success message
-    success_message = "Excel file imported successfully! Imported sheet '#{import_sheet_name}' with #{total_rows_detected} data rows. Workbook sheets: #{sheet_summaries.join(', ')}. #{imported_count} records processed (#{created_count} created"
+    success_message = "Excel file imported successfully! Imported sheet '#{import_sheet_name}' with #{total_rows_detected} data rows. Workbook sheets: #{sheet_summaries.join(', ')}. #{imported_count + updated_count} records processed (#{created_count} created"
+    success_message += ", #{updated_count} existing updated" if updated_count.positive?
     success_message += ", #{skipped_count} blank skipped" if skipped_count.positive?
     success_message += ", #{duplicate_count} duplicate employee codes skipped" if duplicate_count.positive?
     success_message += ", #{existing_count} already existing employee codes skipped" if existing_count.positive?
@@ -1989,7 +2012,7 @@ end
     params.require(:employee_detail).permit(
       :employee_name, :employee_email, :employee_code, :mobile_number,
       :l1_code, :l1_employer_name, :l2_code, :l2_employer_name,
-      :l3_code, :l3_employer_name, :department
+      :l3_code, :l3_employer_name, :post, :position, :department
     )
   end
 

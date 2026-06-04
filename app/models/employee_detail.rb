@@ -82,6 +82,7 @@ class EmployeeDetail < ApplicationRecord
       l3_code
       l3_employer_name
       post
+      position
       department
       created_at
       updated_at
