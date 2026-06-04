@@ -144,11 +144,13 @@
             <%= Date::MONTHNAMES[month] %> <%= year %>
           </h3>
           
-          <% 
-            total_in_db = Training.where(year: year, month: month)
-            all_done = total_in_db.any? && total_in_db.all? do |t| 
+          <%
+            assigned_month_trainings = month_trainings
+            all_done = assigned_month_trainings.any? && assigned_month_trainings.all? do |t|
               prog = @progress_map[t.id]
-              prog&.status == 'completed' && (prog.time_spent.to_i >= t.duration.to_i)
+              prog&.status == 'completed' &&
+                (prog.time_spent.to_i >= t.duration.to_i) &&
+                (!t.has_assessment? || !t.training_questions.exists? || !prog.score.nil?)
             end
           %>
           
@@ -161,13 +163,15 @@
             <% end %>
           <% else %>
             <span style="font-size: 11px; font-weight: 600; color: #64748b;">
-              <% 
-                valid_completed = total_in_db.select do |t| 
+              <%
+                valid_completed = assigned_month_trainings.select do |t|
                   prog = @progress_map[t.id]
-                  prog&.status == 'completed' && (prog.time_spent.to_i >= t.duration.to_i)
+                  prog&.status == 'completed' &&
+                    (prog.time_spent.to_i >= t.duration.to_i) &&
+                    (!t.has_assessment? || !t.training_questions.exists? || !prog.score.nil?)
                 end.size
               %>
-              <%= valid_completed %> / <%= total_in_db.size %> Total PPTs Completed (with required time)
+              <%= valid_completed %> / <%= assigned_month_trainings.size %> Total PPTs Completed (with required time)
             </span>
           <% end %>
         </div>

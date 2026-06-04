@@ -307,20 +307,18 @@ class TrainingsController < ApplicationController
   def certificate
     @training = Training.find(params[:id])
     @target_user = (current_user.hod? && params[:user_id].present?) ? User.find(params[:user_id]) : current_user
-    @progress = UserTrainingProgress.find_by(training: @training, user: @target_user, status: "completed")
 
-    unless @progress
-      redirect_to trainings_path, alert: "Certificate not found or training not completed."
+    unless monthly_certificate_ready?(@target_user, @training.year, @training.month)
+      status = monthly_certificate_status(@target_user, @training.year, @training.month)
+      redirect_to trainings_path,
+                  alert: "Certificate will be available only after completing all #{Date::MONTHNAMES[@training.month.to_i]} #{@training.year} trainings. Completed #{status[:completed]} of #{status[:total]}."
       return
     end
 
-    @employee_detail = @target_user.employee_detail || EmployeeDetail.find_by(employee_email: @target_user.email)
-    @user_name = @employee_detail&.employee_name || @target_user.email
-    @completion_date = @progress.ended_at&.strftime("%d %b %Y") || Time.current.strftime("%d %b %Y")
-    @certificate_type = "single"
-    @display_title = @training.title
+    certificate_params = { year: @training.year, month: @training.month, format: :pdf }
+    certificate_params[:user_id] = @target_user.id if current_user.hod? && @target_user != current_user
 
-    render_certificate
+    redirect_to monthly_certificate_trainings_path(certificate_params)
   end
 
   def monthly_certificate
@@ -328,51 +326,22 @@ class TrainingsController < ApplicationController
     @month = params[:month].to_i
     @target_user = (current_user.hod? && params[:user_id].present?) ? User.find(params[:user_id]) : current_user
 
-    employee = @target_user.employee_detail || EmployeeDetail.find_by(employee_email: @target_user.email)
-
-    # 1. Use same set of trainings as index: assigned-only if assignments_managed, else all for this month/year
-    if employee&.assignments_managed?
-      assigned_ids = employee.user_training_assignments.pluck(:training_id)
-      @month_trainings = Training.where(month: @month, year: @year, id: assigned_ids)
-    else
-      @month_trainings = Training.where(month: @month, year: @year)
-    end
+    employee = employee_detail_for(@target_user)
+    @month_trainings = month_trainings_for(@target_user, @year, @month)
 
     if @month_trainings.empty?
       redirect_to trainings_path, alert: "No active trainings found for this month."
       return
     end
 
-    # 2. Check if ALL are completed AND meet duration requirements
-    all_progress = UserTrainingProgress
-      .where(user: @target_user, training_id: @month_trainings.pluck(:id))
-      .order(
-        Arel.sql("CASE WHEN status = 'completed' THEN 0 ELSE 1 END ASC"),
-        ended_at: :desc,
-        updated_at: :desc,
-        id: :desc
-      )
-
-    # Map "best" progress for quick check (handles duplicate rows safely)
-    progress_map = {}
-    all_progress.each do |p|
-      progress_map[p.training_id] ||= p
-    end
-
-    valid_completions = @month_trainings.all? do |t|
-      p = progress_map[t.id]
-      # Status must be completed AND time_spent (seconds) >= duration (seconds)
-      p&.status == "completed" && (p.time_spent.to_i >= t.duration.to_i)
-    end
-
-    unless valid_completions
+    unless monthly_certificate_ready?(@target_user, @year, @month)
       redirect_to trainings_path, alert: "Please complete all trainings for #{Date::MONTHNAMES[@month]} #{@year} and spend the required time on each to get the certificate."
       return
     end
 
     @employee_detail = employee
     @user_name = @employee_detail&.employee_name || @target_user.email
-    last_progress = all_progress.order(ended_at: :desc).first
+    last_progress = progress_scope_for(@target_user, @month_trainings.pluck(:id)).order(ended_at: :desc).first
     @completion_date = last_progress&.ended_at&.strftime("%d %b %Y") || Time.current.strftime("%d %b %Y")
 
     @certificate_type = "monthly"
@@ -457,8 +426,16 @@ class TrainingsController < ApplicationController
       @progress.save!
     end
 
+    @monthly_certificate_status = monthly_certificate_status(current_user, @training.year, @training.month)
+    @monthly_certificate_ready = @monthly_certificate_status[:ready]
+
     if @total == 0 || !@training.has_assessment
-      redirect_to trainings_path, notice: "Training completed successfully. Your certificate is ready!"
+      notice = if @monthly_certificate_ready
+        "Training completed successfully. Your monthly certificate is ready!"
+      else
+        "Training completed successfully. Monthly certificate will be available after completing all trainings for this month."
+      end
+      redirect_to trainings_path, notice: notice
     else
       render :assessment_result
     end
@@ -480,6 +457,8 @@ class TrainingsController < ApplicationController
   end
 
   def render_certificate
+    configure_wkhtmltopdf_binary!
+
     render pdf: "Certificate_#{@display_title}",
            template: "trainings/certificate",
            formats: [ :pdf ],
@@ -494,6 +473,79 @@ class TrainingsController < ApplicationController
   end
 
   private
+
+  def employee_detail_for(user)
+    user.employee_detail || EmployeeDetail.find_by(employee_email: user.email)
+  end
+
+  def configure_wkhtmltopdf_binary!
+    current_path = WickedPdf.config[:exe_path].to_s
+    return if current_path.present? && File.exist?(current_path) && File.executable?(current_path)
+
+    gem_binary = begin
+      Gem.bin_path("wkhtmltopdf-binary", "wkhtmltopdf")
+    rescue Gem::Exception
+      nil
+    end
+
+    return if gem_binary.blank?
+
+    WickedPdf.config[:exe_path] = gem_binary
+  end
+
+  def month_trainings_for(user, year, month)
+    employee = employee_detail_for(user)
+    scope = Training.where(month: month, year: year)
+
+    if employee&.assignments_managed?
+      assigned_ids = employee.user_training_assignments.pluck(:training_id)
+      scope = scope.where(id: assigned_ids)
+    end
+
+    scope
+  end
+
+  def progress_scope_for(user, training_ids)
+    UserTrainingProgress
+      .where(user: user, training_id: training_ids)
+      .order(
+        Arel.sql("CASE WHEN status = 'completed' THEN 0 ELSE 1 END ASC"),
+        ended_at: :desc,
+        updated_at: :desc,
+        id: :desc
+      )
+  end
+
+  def best_progress_by_training_id(user, training_ids)
+    progress_map = {}
+    progress_scope_for(user, training_ids).each do |progress|
+      progress_map[progress.training_id] ||= progress
+    end
+    progress_map
+  end
+
+  def completed_for_certificate?(training, progress)
+    return false unless progress&.status == "completed" && progress.time_spent.to_i >= training.duration.to_i
+    return true unless training.has_assessment? && training.training_questions.exists?
+
+    !progress.score.nil?
+  end
+
+  def monthly_certificate_status(user, year, month)
+    trainings = month_trainings_for(user, year, month).to_a
+    progress_map = best_progress_by_training_id(user, trainings.map(&:id))
+    completed = trainings.count { |training| completed_for_certificate?(training, progress_map[training.id]) }
+
+    {
+      total: trainings.size,
+      completed: completed,
+      ready: trainings.any? && completed == trainings.size
+    }
+  end
+
+  def monthly_certificate_ready?(user, year, month)
+    monthly_certificate_status(user, year, month)[:ready]
+  end
 
   def training_params
     params.require(:training)

@@ -210,7 +210,9 @@
                 
                 all_done = assigned_month_trainings.any? && assigned_month_trainings.all? do |t|
                   prog = (@progress_by_training_id || {})[t.id]
-                  prog&.status == "completed" && (prog.time_spent.to_i >= t.duration.to_i)
+                  prog&.status == "completed" &&
+                    (prog.time_spent.to_i >= t.duration.to_i) &&
+                    (!t.has_assessment? || !t.training_questions.exists? || !prog.score.nil?)
                 end
               %>
               
@@ -239,7 +241,9 @@
                     <% 
                       valid_completed = assigned_month_trainings.select do |t| 
                         prog = t.user_training_progresses.find { |p| p.user_id == current_user.id }
-                        prog&.status == "completed" && (prog.time_spent.to_i >= t.duration.to_i)
+                        prog&.status == "completed" &&
+                          (prog.time_spent.to_i >= t.duration.to_i) &&
+                          (!t.has_assessment? || !t.training_questions.exists? || !prog.score.nil?)
                       end.size
                     %>
                     <%= valid_completed %> / <%= assigned_month_trainings.size %> Total PPTs Completed (with required time)
