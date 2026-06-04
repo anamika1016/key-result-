@@ -4,7 +4,10 @@ class HelpDeskTicket < ApplicationRecord
   INITIAL_ESCALATION_POSITIONS = (1..3).freeze
   STATUSES = %w[submitted in_review reopened resolved closed].freeze
   FINAL_ACTION_MODES = %w[reopen_close approve_reject].freeze
-  ESCALATION_RESPONSE_WINDOW = 2.days
+  ESCALATION_RESPONSE_WINDOWS = {
+    1 => 24.hours,
+    2 => 48.hours
+  }.freeze
   REQUESTER_RESPONSE_WINDOW = 2.days
   REVIEW_OPEN_STATUSES = %w[submitted in_review reopened].freeze
   MAX_DOCUMENTS = 5
@@ -314,7 +317,7 @@ class HelpDeskTicket < ApplicationRecord
       self.current_escalation_position = next_level.position
       self.assigned_to_user = next_level.user
       self.assigned_at = next_assignment_time
-      self.escalation_due_at = next_assignment_time + ESCALATION_RESPONSE_WINDOW
+      self.escalation_due_at = escalation_due_at_for(next_level.position, next_assignment_time)
       self.status = "in_review" if submitted?
       changed = true
     end
@@ -391,7 +394,7 @@ class HelpDeskTicket < ApplicationRecord
     self.status = "in_review"
     self.assigned_to_user = reviewer
     self.assigned_at = update_time
-    self.escalation_due_at = update_time + ESCALATION_RESPONSE_WINDOW
+    self.escalation_due_at = escalation_due_at_for(current_escalation_position, update_time)
     self.approval_user = nil
     self.final_action_mode = nil
     self.requester_response_due_at = nil
@@ -450,7 +453,7 @@ class HelpDeskTicket < ApplicationRecord
     self.current_escalation_position = target_level.position
     self.assigned_to_user = target_level.user
     self.assigned_at = update_time
-    self.escalation_due_at = assisted_request? ? nil : update_time + ESCALATION_RESPONSE_WINDOW
+    self.escalation_due_at = assisted_request? ? nil : escalation_due_at_for(target_level.position, update_time)
     self.approval_user = nil
     self.final_action_mode = nil
     self.requester_response_due_at = nil
@@ -512,7 +515,7 @@ class HelpDeskTicket < ApplicationRecord
     self.current_escalation_position = return_position
     self.assigned_to_user = return_user
     self.assigned_at = assignment_time
-    self.escalation_due_at = assisted_request? ? nil : assignment_time + ESCALATION_RESPONSE_WINDOW
+    self.escalation_due_at = assisted_request? ? nil : escalation_due_at_for(return_position, assignment_time)
     self.approval_user = nil
     self.final_action_mode = nil
     self.requester_response_due_at = nil
@@ -698,10 +701,17 @@ class HelpDeskTicket < ApplicationRecord
 
     assignment_time = Time.current
 
-    self.current_escalation_position ||= first_level.position
+    self.current_escalation_position = first_level.position
     self.assigned_to_user = first_level.user
     self.assigned_at ||= assignment_time
-    self.escalation_due_at ||= assignment_time + ESCALATION_RESPONSE_WINDOW
+    self.escalation_due_at ||= escalation_due_at_for(first_level.position, assignment_time)
+  end
+
+  def escalation_due_at_for(position, assigned_time = Time.current)
+    response_window = ESCALATION_RESPONSE_WINDOWS[position.to_i]
+    return nil if response_window.blank?
+
+    assigned_time + response_window
   end
 
   def message_presence_for_selected_type

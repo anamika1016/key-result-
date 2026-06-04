@@ -93,11 +93,11 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
       assert_equal "submitted", ticket.status
       assert_equal 1, ticket.current_escalation_position
       assert_equal @l1_user.id, ticket.assigned_to_user_id
-      assert_equal Time.current + 2.days, ticket.escalation_due_at
+      assert_equal Time.current + 24.hours, ticket.escalation_due_at
     end
   end
 
-  test "auto escalates to next level after two days without response" do
+  test "auto escalates from l1 to l2 after 24 hours and gives l2 48 hours" do
     ticket = HelpDeskTicket.create!(
       user: @user,
       department: @department,
@@ -113,6 +113,30 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
       assert_equal 2, ticket.current_escalation_position
       assert_equal @l2_user.id, ticket.assigned_to_user_id
       assert_equal "in_review", ticket.status
+      assert_equal ticket.assigned_at + 48.hours, ticket.escalation_due_at
+    end
+  end
+
+  test "auto escalates from l2 to l3 after 48 hours without setting another due date" do
+    ticket = HelpDeskTicket.create!(
+      user: @user,
+      department: @department,
+      request_type: "complaint",
+      initial_escalation_position: "2",
+      question_subject: "Laptop boot issue",
+      message: "My laptop is not booting."
+    )
+
+    assert_equal @l2_user.id, ticket.assigned_to_user_id
+    assert_in_delta 48.hours.from_now.to_i, ticket.escalation_due_at.to_i, 2
+
+    travel_to(ticket.escalation_due_at + 5.minutes) do
+      assert ticket.auto_escalate_if_due!
+
+      ticket.reload
+      assert_equal 3, ticket.current_escalation_position
+      assert_equal @l3_user.id, ticket.assigned_to_user_id
+      assert_nil ticket.escalation_due_at
     end
   end
 
@@ -128,6 +152,7 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
 
     assert_equal 2, ticket.current_escalation_position
     assert_equal @l2_user.id, ticket.assigned_to_user_id
+    assert_in_delta 48.hours.from_now.to_i, ticket.escalation_due_at.to_i, 2
   end
 
   test "reviewer can still see resolved tickets in visible history" do
@@ -206,7 +231,7 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
       assert_equal "in_review", ticket.status
       assert_equal @l1_user.id, ticket.responded_by_user_id
       assert_equal @l1_user.id, ticket.assigned_to_user_id
-      assert_equal Time.current + 2.days, ticket.escalation_due_at
+      assert_equal Time.current + 24.hours, ticket.escalation_due_at
       assert_nil ticket.requester_response_due_at
       assert_equal 1, ticket.support_updates.count
       assert_equal "We are still working on the dashboard updates.", ticket.support_updates.last.message
@@ -318,7 +343,7 @@ class HelpDeskTicketTest < ActiveSupport::TestCase
       assert_equal 2, ticket.current_escalation_position
       assert_equal 1, ticket.reopen_count
       assert_equal "The problem is still happening after the reset.", ticket.requester_remark
-      assert_equal Time.current + 2.days, ticket.escalation_due_at
+      assert_equal Time.current + 48.hours, ticket.escalation_due_at
       assert_nil ticket.requester_response_due_at
     end
   end
