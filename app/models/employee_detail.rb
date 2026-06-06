@@ -75,6 +75,8 @@ class EmployeeDetail < ApplicationRecord
       employee_email
       employee_code
       mobile_number
+      office_type
+      office_name
       l1_code
       l1_employer_name
       l2_code

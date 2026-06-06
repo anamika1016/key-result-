@@ -148,6 +148,10 @@ Rails.application.routes.draw do
     end
   end
 
+  resources :employee_trainings, only: [ :index, :show, :new, :create ]
+  resources :employee_training_thematics, only: [ :index, :create, :destroy ]
+  resources :employee_training_topics, only: [ :index, :create, :destroy ]
+
   resources :user_quizzes, only: [ :index, :create, :update, :destroy ] do
     collection do
       post :import

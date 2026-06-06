@@ -259,7 +259,7 @@ class EmployeeDetailsController < ApplicationController
 
     workbook.add_worksheet(name: "Employees") do |sheet|
       sheet.add_row [
-        "Name", "Email", "Employee Code", "Mobile Number", "Designation", "Position", "Department"
+        "Name", "Email", "Employee Code", "Mobile Number", "Designation", "Position", "Office Type", "Office Name", "Department"
       ]
 
       # Create unique employee-department entries for export
@@ -317,6 +317,8 @@ class EmployeeDetailsController < ApplicationController
           entry[:employee].mobile_number,
           entry[:employee].post,
           entry[:employee].position,
+          entry[:employee].office_type,
+          entry[:employee].office_name,
           entry[:department]&.department_type || entry[:employee].department
         ]
       end
@@ -512,7 +514,7 @@ class EmployeeDetailsController < ApplicationController
       sheet.add_row [
         "Name", "Email", "Employee Code", "Mobile Number",
         "L1 Code", "L1 Name", "L2 Code", "L2 Name",
-        "L3 Code", "L3 Name", "Designation", "Position", "Department"
+        "L3 Code", "L3 Name", "Designation", "Position", "Office Type", "Office Name", "Department"
       ]
 
       # Data rows — registered employees ka data
@@ -533,6 +535,8 @@ class EmployeeDetailsController < ApplicationController
           emp.l3_employer_name,
           emp.post,
           emp.position,
+          emp.office_type,
+          emp.office_name,
           dept_name
         ]
       end
@@ -561,11 +565,17 @@ class EmployeeDetailsController < ApplicationController
       "name" => "employee_name",
       "employee_name" => "employee_name",
       "email" => "employee_email",
+      "email_id" => "employee_email",
+      "mail" => "employee_email",
+      "mail_id" => "employee_email",
       "employee_email" => "employee_email",
       "employee_code" => "employee_code",
+      "emp_code" => "employee_code",
       "mobile_number" => "mobile_number",
       "mobile_no" => "mobile_number",
       "mobile" => "mobile_number",
+      "office_type" => "office_type",
+      "office_name" => "office_name",
       "l1_code" => "l1_code",
       "l2_code" => "l2_code",
       "l3_code" => "l3_code",
@@ -653,6 +663,14 @@ class EmployeeDetailsController < ApplicationController
           if existing_employee.present? && update_attrs.present?
             existing_employee.update!(update_attrs)
             uploaded_employee_codes.add(employee_code_key)
+            excel_data << existing_employee.attributes.slice(
+              "employee_name",
+              "employee_email",
+              "employee_code",
+              "mobile_number",
+              "office_type",
+              "office_name"
+            )
             updated_count += 1
           else
             existing_count += 1
@@ -2012,7 +2030,8 @@ end
     params.require(:employee_detail).permit(
       :employee_name, :employee_email, :employee_code, :mobile_number,
       :l1_code, :l1_employer_name, :l2_code, :l2_employer_name,
-      :l3_code, :l3_employer_name, :post, :position, :department
+      :l3_code, :l3_employer_name, :post, :position, :department,
+      :office_type, :office_name
     )
   end
 

@@ -6,6 +6,7 @@ class User < ApplicationRecord
   has_one :employee_detail
   has_one_attached :avatar
   has_many :help_desk_tickets, dependent: :destroy
+  has_many :employee_trainings, dependent: :destroy
   has_many :user_training_assignments, dependent: :destroy
   has_many :assigned_trainings, through: :user_training_assignments, source: :training
   has_many :user_training_progresses, dependent: :destroy
