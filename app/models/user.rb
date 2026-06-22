@@ -6,6 +6,10 @@ class User < ApplicationRecord
   has_one :employee_detail
   has_one_attached :avatar
   has_many :help_desk_tickets, dependent: :destroy
+  has_many :guest_house_bookings, dependent: :destroy
+  has_many :guest_house_notifications, dependent: :destroy
+  has_many :guest_house_waitlists, dependent: :destroy
+  has_many :managed_guest_houses, class_name: "GuestHouse", foreign_key: :manager_user_id, dependent: :nullify
   has_many :employee_trainings, dependent: :destroy
   has_many :user_training_assignments, dependent: :destroy
   has_many :assigned_trainings, through: :user_training_assignments, source: :training
@@ -56,7 +60,8 @@ class User < ApplicationRecord
   def mapped_employee_detail
     @mapped_employee_detail ||= employee_detail ||
       EmployeeDetail.find_by(employee_code: employee_code) ||
-      EmployeeDetail.find_by(employee_email: email)
+      EmployeeDetail.find_by(employee_email: email) ||
+      EmployeeDetail.where("REGEXP_REPLACE(TRIM(employee_code), '^0+', '') = ?", employee_code.to_s.strip.sub(/\A0+/, "")).order(:id).first
   end
 
   def display_name
@@ -68,7 +73,14 @@ class User < ApplicationRecord
     login = conditions.delete(:login)
     if login.present?
       value = login.strip.downcase
-      where(conditions).where([ "lower(email) = :value OR lower(employee_code) = :value", { value: value } ]).first
+      where(conditions)
+        .where(
+          [
+            "lower(email) = :value OR lower(employee_code) = :value",
+            { value: value }
+          ]
+        )
+        .first
     else
       # Fallback to standard email lookup if no login parameter
       where(conditions).first

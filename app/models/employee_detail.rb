@@ -158,7 +158,11 @@ scope :with_l2_approved_achievements, -> {
 
     # Check if user already exists
     existing_user = User.find_by(email: employee_email) || User.find_by(employee_code: employee_code)
-    return if existing_user
+    if existing_user
+      existing_user.update(employee_code: employee_code) if existing_user.employee_code.to_s.strip != employee_code.to_s.strip
+      update_column(:user_id, existing_user.id) if user_id.blank?
+      return
+    end
 
     begin
       # Create user account with default password and role

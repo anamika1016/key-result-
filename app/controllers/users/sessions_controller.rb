@@ -57,7 +57,7 @@ class Users::SessionsController < Devise::SessionsController
       redirect_to new_session_path(resource_name) and return
     end
 
-    user = User.where("lower(employee_code) = ?", submitted_code.downcase).first
+    user = user_for_login_code(submitted_code)
 
     if user.nil?
       flash[:alert] = "No account found with that employee code. Please check your employee code and try again."
@@ -84,6 +84,10 @@ class Users::SessionsController < Devise::SessionsController
 
   def normalize_employee_code(employee_code)
     employee_code.to_s.strip.downcase.presence
+  end
+
+  def normalize_employee_code_without_leading_zero(employee_code)
+    normalize_employee_code(employee_code).to_s.sub(/\A0+/, "")
   end
 
   def valid_external_sign_in_request?(employee_code)
@@ -119,7 +123,7 @@ class Users::SessionsController < Devise::SessionsController
     normalized_code = normalize_employee_code(employee_code)
     return if normalized_code.blank?
 
-    EmployeeDetail.where("LOWER(TRIM(employee_code)) = ?", normalized_code).first
+    exact_employee_detail_for_code(normalized_code) || employee_detail_for_normalized_code(normalized_code)
   end
 
   def user_for_employee_detail(employee_detail)
@@ -128,9 +132,10 @@ class Users::SessionsController < Devise::SessionsController
     normalized_code = normalize_employee_code(employee_detail.employee_code)
     return if normalized_code.blank?
 
-    user_for_employee_code(normalized_code) ||
-      matching_employee_user(employee_detail.user, normalized_code) ||
-      matching_employee_user(user_for_employee_email(employee_detail.employee_email), normalized_code)
+    matching_employee_user(employee_detail.user, normalized_code) ||
+      matching_employee_user(user_for_employee_email(employee_detail.employee_email), normalized_code) ||
+      exact_user_for_employee_code(normalized_code) ||
+      user_for_employee_code(normalized_code)
   end
 
   def employee_code_sign_in_available?(employee_code)
@@ -140,9 +145,49 @@ class Users::SessionsController < Devise::SessionsController
 
   def user_for_employee_code(employee_code)
     normalized_code = normalize_employee_code(employee_code)
+    normalized_without_zero = normalize_employee_code_without_leading_zero(employee_code)
     return if normalized_code.blank?
 
-    User.where("LOWER(TRIM(employee_code)) = ?", normalized_code).first
+    exact_user_for_employee_code(normalized_code) ||
+      User
+        .where("REGEXP_REPLACE(TRIM(employee_code), '^0+', '') = ?", normalized_without_zero)
+        .order(:id)
+        .first
+  end
+
+  def user_for_login_code(employee_code)
+    normalized_code = normalize_employee_code(employee_code)
+    return if normalized_code.blank?
+
+    exact_user_for_employee_code(normalized_code) ||
+      user_for_employee_detail(exact_employee_detail_for_code(normalized_code)) ||
+      user_for_employee_code(normalized_code)
+  end
+
+  def exact_user_for_employee_code(employee_code)
+    normalized_code = normalize_employee_code(employee_code)
+    return if normalized_code.blank?
+
+    User
+      .where("LOWER(TRIM(employee_code)) = ?", normalized_code)
+      .first
+  end
+
+  def exact_employee_detail_for_code(employee_code)
+    normalized_code = normalize_employee_code(employee_code)
+    return if normalized_code.blank?
+
+    EmployeeDetail.where("LOWER(TRIM(employee_code)) = ?", normalized_code).first
+  end
+
+  def employee_detail_for_normalized_code(employee_code)
+    normalized_without_zero = normalize_employee_code_without_leading_zero(employee_code)
+    return if normalized_without_zero.blank?
+
+    EmployeeDetail
+      .where("REGEXP_REPLACE(TRIM(employee_code), '^0+', '') = ?", normalized_without_zero)
+      .order(:id)
+      .first
   end
 
   def matching_employee_user(user, employee_code)
