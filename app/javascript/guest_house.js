@@ -41,7 +41,7 @@ const initGuestHouse = () => {
     const occupantCopy = section.querySelector("[data-guest-house-occupant-copy]");
     const list = section.querySelector("[data-guest-house-occupant-list]");
     const initialRow = list?.querySelector("[data-guest-house-occupant-row]");
-    const singleRoomDesignation = /\b(md|m\.d\.|director|ceo|chief executive officer|managing director)\b/i;
+    const singleRoomDesignation = /\b(md|m\.d\.|director|ceo|c\.e\.o\.|coo|c\.o\.o\.|chief executive officer|chief operating officer|managing director)\b/i;
     let previousBookingWindow = {
       checkinDate: checkinDate?.value || "",
       checkinTime: checkinTime?.value || "",
