@@ -18,57 +18,46 @@
           </div>
 
           <div class="form-group">
-            <%= form.label :activity_id, "Activity", class: "form-label" %>
+            <%= form.label :activity_id, "Measurement Description", class: "form-label" %>
             <%= form.select :activity_id, Activity.all.map { |a| [a.activity_name, a.id] }, {}, class: "form-control" %>
           </div>
         </div>
 
         <div class="form-row">
           <div class="form-group">
-            <%= form.label :activity_theme_name, "KPI", class: "form-label" %>
+            <%= form.label :activity_theme_name, "KRA", class: "form-label" %>
             <%= form.text_field :activity_theme_name, 
                 value: @user_detail.activity&.theme_name || 'No Theme',
                 class: "form-control" %>
           </div>
 
           <div class="form-group">
-            <%= form.label :activity_unit, "Unit", class: "form-label" %>
+            <%= form.label :activity_unit, "Unit of Measurement", class: "form-label" %>
             <%= form.text_field :activity_unit, 
                 value: @user_detail.activity&.unit || '',
                 class: "form-control" %>
           </div>
 
           <div class="form-group">
-            <%= form.label :total_weightage, "Total Weightage", class: "form-label" %>
-            <%= form.number_field :total_weightage,
-                value: @user_detail.total_weightage.presence || @user_detail.activity&.weight || 0,
-                step: 0.1,
+            <%= form.label :annual_target, "Annual Target (FY #{display_financial_year_short(@user_detail.year)})", class: "form-label" %>
+            <%= form.text_field :annual_target,
+                value: @user_detail.annual_target,
                 class: "form-control" %>
           </div>
         </div>
 
         <div class="form-row">
-          <div class="form-group">
-            <%= form.label :weightage_q1, "Weightage Q1", class: "form-label" %>
-            <%= form.number_field :weightage_q1, step: 0.1, class: "form-control" %>
-          </div>
-
-          <div class="form-group">
-            <%= form.label :weightage_q2, "Weightage Q2", class: "form-label" %>
-            <%= form.number_field :weightage_q2, step: 0.1, class: "form-control" %>
-          </div>
-
-          <div class="form-group">
-            <%= form.label :weightage_q3, "Weightage Q3", class: "form-label" %>
-            <%= form.number_field :weightage_q3, step: 0.1, class: "form-control" %>
-          </div>
-
-          <div class="form-group">
-            <%= form.label :weightage_q4, "Weightage Q4", class: "form-label" %>
-            <%= form.number_field :weightage_q4, step: 0.1, class: "form-control" %>
-          </div>
+          <% {
+            april: "Apr", may: "May", june: "Jun", july: "Jul",
+            august: "Aug", september: "Sept", october: "Oct", november: "Nov",
+            december: "Dec", january: "Jan", february: "Feb", march: "Mar"
+          }.each do |month, label| %>
+            <div class="form-group">
+              <%= form.label month, label, class: "form-label" %>
+              <%= form.text_field month, class: "form-control" %>
+            </div>
+          <% end %>
         </div>
-
 
         <div class="text-center mt-4">
           <%= form.submit "Update", class: "btn btn-success", 

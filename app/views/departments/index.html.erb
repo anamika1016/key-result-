@@ -39,7 +39,7 @@
           <!-- Bulk Upload Section -->
           <div class="bg-white p-6 rounded-lg shadow-md mb-6">
             <div class="mb-8">
-              <h2 class="text-2xl font-semibold text-gray-800 mb-4">Bulk Upload Verticals & KPI</h2>
+              <h2 class="text-2xl font-semibold text-gray-800 mb-4">Bulk Upload Verticals & KRA</h2>
 
               <div class="bg-white border border-gray-200 rounded-lg shadow-sm p-6 w-full">
                 <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
@@ -115,7 +115,7 @@
               <!-- Activities Section -->
               <div class="mb-6">
                 <div class="flex items-center justify-between mb-4">
-                   <h3 class="text-lg font-semibold text-gray-800">KPI</h3>
+                   <h3 class="text-lg font-semibold text-gray-800">KRA</h3>
                                     <div class="flex gap-2">
                     <button type="button" id="add-activity" class="inline-flex items-center px-4 py-2 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2" style="background-color: #2d374b;" onmouseover="this.style.backgroundColor='#1a202c'" onmouseout="this.style.backgroundColor='#2d374b'">
                       <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -130,39 +130,33 @@
                 <div id="activities-container">
                   <!-- Default activity field - will be replaced by JavaScript if needed -->
                   <div class="activity-fields border border-gray-200 rounded-md p-4 mb-4 bg-gray-50">
-                    <div class="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-8 gap-4">
+                    <div class="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-4 gap-4">
                       <div>
-                         <label class="block text-sm font-medium text-gray-700">KPI</label>
-                         <input type="text" name="department[activities_attributes][default][theme_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter KPI" required>
+                         <label class="block text-sm font-medium text-gray-700">KRA</label>
+                         <input type="text" name="department[activities_attributes][default][theme_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter KRA" required>
                       </div>
                       <div>
-                         <label class="block text-sm font-medium text-gray-700">Indicator</label>
-                         <input type="text" name="department[activities_attributes][default][activity_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Indicator" required>
+                         <label class="block text-sm font-medium text-gray-700">Measurement Description</label>
+                         <input type="text" name="department[activities_attributes][default][activity_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Measurement Description" required>
                       </div>
                       <div>
-                        <label class="block text-sm font-medium text-gray-700">Unit</label>
-                        <input type="text" name="department[activities_attributes][default][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter unit">
+                        <label class="block text-sm font-medium text-gray-700">Unit of Measurement</label>
+                        <input type="text" name="department[activities_attributes][default][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Unit of Measurement">
                       </div>
                       <div>
-                         <label class="block text-sm font-medium text-gray-700">Total Weightage</label>
-                         <input type="number" name="department[activities_attributes][default][weight]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Weightage" required>
+                         <label class="block text-sm font-medium text-gray-700">Annual Target (FY 2026-27)</label>
+                         <input type="text" name="department[activities_attributes][default][annual_target]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Annual Target">
                       </div>
-                      <div>
-                         <label class="block text-sm font-medium text-gray-700">Weightage Q1</label>
-                         <input type="number" name="department[activities_attributes][default][weightage_q1]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q1">
-                      </div>
-                      <div>
-                         <label class="block text-sm font-medium text-gray-700">Weightage Q2</label>
-                         <input type="number" name="department[activities_attributes][default][weightage_q2]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q2">
-                      </div>
-                      <div>
-                         <label class="block text-sm font-medium text-gray-700">Weightage Q3</label>
-                         <input type="number" name="department[activities_attributes][default][weightage_q3]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q3">
-                      </div>
-                      <div>
-                         <label class="block text-sm font-medium text-gray-700">Weightage Q4</label>
-                         <input type="number" name="department[activities_attributes][default][weightage_q4]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q4">
-                      </div>
+                      <% {
+                        april: "Apr", may: "May", june: "Jun", july: "Jul",
+                        august: "Aug", september: "Sept", october: "Oct", november: "Nov",
+                        december: "Dec", january: "Jan", february: "Feb", march: "Mar"
+                      }.each do |month, label| %>
+                        <div>
+                          <label class="block text-sm font-medium text-gray-700"><%= label %></label>
+                          <input type="text" name="department[activities_attributes][default][<%= month %>]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="<%= label %>">
+                        </div>
+                      <% end %>
                     </div>
                     <div class="mt-3 flex justify-end">
                       <button type="button" class="remove-activity bg-red-600 text-white text-sm px-3 py-1 rounded-md hover:bg-red-700">
@@ -170,6 +164,7 @@
                       </button>
                     </div>
                     <input type="hidden" name="department[activities_attributes][default][id]" value="">
+                    <input type="hidden" name="department[activities_attributes][default][weight]" value="0">
                     <input type="hidden" name="department[activities_attributes][default][_destroy]" value="false">
                   </div>
                 </div>
@@ -248,7 +243,7 @@
                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">L1 Manager</th>
                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">L2 Manager</th>
                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">L3 Manager</th>
-                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">KPI</th>
+                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">KRA</th>
                     <th class="px-6 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
@@ -779,39 +774,24 @@ class DepartmentManager {
   getActivityTemplate(index) {
     return `
       <div class="activity-fields border border-gray-200 rounded-md p-4 mb-4 bg-gray-50">
-        <div class="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-8 gap-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 xl:grid-cols-4 gap-4">
           <div>
-             <label class="block text-sm font-medium text-gray-700">KPI</label>
-             <input type="text" name="department[activities_attributes][${index}][theme_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter KPI" required>
+             <label class="block text-sm font-medium text-gray-700">KRA</label>
+             <input type="text" name="department[activities_attributes][${index}][theme_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter KRA" required>
           </div>
           <div>
-             <label class="block text-sm font-medium text-gray-700">Indicator</label>
-             <input type="text" name="department[activities_attributes][${index}][activity_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Indicator" required>
+             <label class="block text-sm font-medium text-gray-700">Measurement Description</label>
+             <input type="text" name="department[activities_attributes][${index}][activity_name]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Measurement Description" required>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700">Unit</label>
-            <input type="text" name="department[activities_attributes][${index}][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter unit">
+            <label class="block text-sm font-medium text-gray-700">Unit of Measurement</label>
+            <input type="text" name="department[activities_attributes][${index}][unit]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Unit of Measurement">
           </div>
           <div>
-             <label class="block text-sm font-medium text-gray-700">Total Weightage</label>
-             <input type="number" name="department[activities_attributes][${index}][weight]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Weightage" required>
+             <label class="block text-sm font-medium text-gray-700">Annual Target (FY 2026-27)</label>
+             <input type="text" name="department[activities_attributes][${index}][annual_target]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Enter Annual Target">
           </div>
-          <div>
-             <label class="block text-sm font-medium text-gray-700">Weightage Q1</label>
-             <input type="number" name="department[activities_attributes][${index}][weightage_q1]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q1">
-          </div>
-          <div>
-             <label class="block text-sm font-medium text-gray-700">Weightage Q2</label>
-             <input type="number" name="department[activities_attributes][${index}][weightage_q2]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q2">
-          </div>
-          <div>
-             <label class="block text-sm font-medium text-gray-700">Weightage Q3</label>
-             <input type="number" name="department[activities_attributes][${index}][weightage_q3]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q3">
-          </div>
-          <div>
-             <label class="block text-sm font-medium text-gray-700">Weightage Q4</label>
-             <input type="number" name="department[activities_attributes][${index}][weightage_q4]" step="0.01" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="Q4">
-          </div>
+          ${this.monthTargetFields(index)}
         </div>
         <div class="mt-3 flex justify-end">
           <button type="button" class="remove-activity bg-red-600 text-white text-sm px-3 py-1 rounded-md hover:bg-red-700">
@@ -819,9 +799,25 @@ class DepartmentManager {
           </button>
         </div>
         <input type="hidden" name="department[activities_attributes][${index}][id]" value="">
+        <input type="hidden" name="department[activities_attributes][${index}][weight]" value="0">
         <input type="hidden" name="department[activities_attributes][${index}][_destroy]" value="false">
       </div>
     `;
+  }
+
+  monthTargetFields(index) {
+    const months = [
+      ['april', 'Apr'], ['may', 'May'], ['june', 'Jun'], ['july', 'Jul'],
+      ['august', 'Aug'], ['september', 'Sept'], ['october', 'Oct'], ['november', 'Nov'],
+      ['december', 'Dec'], ['january', 'Jan'], ['february', 'Feb'], ['march', 'Mar']
+    ];
+
+    return months.map(([month, label]) => `
+      <div>
+        <label class="block text-sm font-medium text-gray-700">${label}</label>
+        <input type="text" name="department[activities_attributes][${index}][${month}]" class="mt-1 block w-full border rounded-md px-3 py-2 text-sm" placeholder="${label}">
+      </div>
+    `).join('');
   }
 
   removeActivity(activityElement) {
@@ -919,15 +915,14 @@ class DepartmentManager {
       const themeName = activity.querySelector('input[name*="[theme_name]"]')?.value;
       const activityName = activity.querySelector('input[name*="[activity_name]"]')?.value;
       const unit = activity.querySelector('input[name*="[unit]"]')?.value;
-      const weight = activity.querySelector('input[name*="[weight]"]')?.value;
       
-      if (themeName && activityName && weight) {
+      if (themeName && activityName) {
         hasValidActivity = true;
       }
     });
 
     if (!hasValidActivity) {
-      this.showError('Please fill in all activity fields.');
+      this.showError('Please fill KRA and Measurement Description.');
       this.isSubmitting = false;
       return;
     }
@@ -1109,11 +1104,20 @@ class DepartmentManager {
         currentActivity.querySelector('input[name*="[theme_name]"]').value = activity.theme_name || '';
         currentActivity.querySelector('input[name*="[activity_name]"]').value = activity.activity_name || '';
         currentActivity.querySelector('input[name*="[unit]"]').value = activity.unit || '';
-        currentActivity.querySelector('input[name*="[weight]"]').value = activity.weight || '';
-        currentActivity.querySelector('input[name*="[weightage_q1]"]').value = activity.weightage_q1 || '';
-        currentActivity.querySelector('input[name*="[weightage_q2]"]').value = activity.weightage_q2 || '';
-        currentActivity.querySelector('input[name*="[weightage_q3]"]').value = activity.weightage_q3 || '';
-        currentActivity.querySelector('input[name*="[weightage_q4]"]').value = activity.weightage_q4 || '';
+        currentActivity.querySelector('input[name*="[annual_target]"]').value = activity.annual_target || '';
+        currentActivity.querySelector('input[name*="[april]"]').value = activity.april || '';
+        currentActivity.querySelector('input[name*="[may]"]').value = activity.may || '';
+        currentActivity.querySelector('input[name*="[june]"]').value = activity.june || '';
+        currentActivity.querySelector('input[name*="[july]"]').value = activity.july || '';
+        currentActivity.querySelector('input[name*="[august]"]').value = activity.august || '';
+        currentActivity.querySelector('input[name*="[september]"]').value = activity.september || '';
+        currentActivity.querySelector('input[name*="[october]"]').value = activity.october || '';
+        currentActivity.querySelector('input[name*="[november]"]').value = activity.november || '';
+        currentActivity.querySelector('input[name*="[december]"]').value = activity.december || '';
+        currentActivity.querySelector('input[name*="[january]"]').value = activity.january || '';
+        currentActivity.querySelector('input[name*="[february]"]').value = activity.february || '';
+        currentActivity.querySelector('input[name*="[march]"]').value = activity.march || '';
+        currentActivity.querySelector('input[name*="[weight]"]').value = activity.weight || '0';
         currentActivity.querySelector('input[name*="[id]"]').value = activity.id || '';
 
         console.log(`Activity ${index} populated with ID: ${activity.id}, name: ${activity.activity_name}`);

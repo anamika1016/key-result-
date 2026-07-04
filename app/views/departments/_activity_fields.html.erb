@@ -5,17 +5,17 @@
       <%= f.number_field :activity_id, class: "mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent", placeholder: "Enter KPI ID" %>
     </div>
     <div>
-      <%= f.label :activity_name, "Activity Name", class: "block text-sm font-medium text-gray-700" %>
-      <%= f.text_field :activity_name, class: "mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent", placeholder: "Enter Indicator" %>
+      <%= f.label :activity_name, "Measurement Description", class: "block text-sm font-medium text-gray-700" %>
+      <%= f.text_field :activity_name, class: "mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent", placeholder: "Enter Measurement Description" %>
     </div>
     <div>
-      <%= f.label :theme_name, "theme_name", class: "block text-sm font-medium text-gray-700" %>
-      <%= f.text_field :theme_name, class: "mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent", placeholder: "Enter KPI" %>
+      <%= f.label :theme_name, "KRA", class: "block text-sm font-medium text-gray-700" %>
+      <%= f.text_field :theme_name, class: "mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent", placeholder: "Enter KRA" %>
     </div>
     
     <div>
-      <%= f.label :unit, "Unit", class: "block text-sm font-medium text-gray-700" %>
-      <%= f.text_field :unit, class: "mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent", placeholder: "Enter unit (optional)" %>
+      <%= f.label :unit, "Unit of Measurement", class: "block text-sm font-medium text-gray-700" %>
+      <%= f.text_field :unit, class: "mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent", placeholder: "Enter Unit of Measurement" %>
     </div>
     <div>
       <%= f.label :weight, "Weightage", class: "block text-sm font-medium text-gray-700" %>

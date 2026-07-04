@@ -53,10 +53,11 @@
                 <tr class="bg-gray-800">
                   <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">Department</th>
                   <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">Employee Name</th>
-                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">Indicator</th>
-                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">KPI</th>
-                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">Unit</th>
+                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">KRA</th>
+                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">Measurement Description</th>
+                  <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">Unit of Measurement</th>
                   <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">Weightage</th>
+                  <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-800">Monthly Target</th>
                   <% if params[:quarter] == 'Q1' || params[:quarter].blank? %>
                     <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700 quarter-header" data-quarter="q1">Q1</th>
                   <% end %>
@@ -134,10 +135,18 @@
                       </span>
                     </td>
                     <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
-                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.theme_name.presence || 'No Theme' %></td>
+                    <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity.unit %></td>
                     <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold"><%= detail.weight.present? ? "#{detail.weight.to_f.to_i}%" : '0%' %></td>
+                    <% selected_quarter_key = (params[:quarter].presence || "Q1").to_s.downcase %>
+                    <% quarter_targets = {
+                      "q1" => "Apr: #{detail.april.presence || '-'} | May: #{detail.may.presence || '-'} | Jun: #{detail.june.presence || '-'}",
+                      "q2" => "Jul: #{detail.july.presence || '-'} | Aug: #{detail.august.presence || '-'} | Sept: #{detail.september.presence || '-'}",
+                      "q3" => "Oct: #{detail.october.presence || '-'} | Nov: #{detail.november.presence || '-'} | Dec: #{detail.december.presence || '-'}",
+                      "q4" => "Jan: #{detail.january.presence || '-'} | Feb: #{detail.february.presence || '-'} | Mar: #{detail.march.presence || '-'}"
+                    } %>
+                    <td class="px-4 py-3 text-xs text-gray-800 border-r border-gray-200 text-center font-semibold"><%= quarter_targets[selected_quarter_key] || quarter_targets["q1"] %></td>
 
                     <!-- Q1 Quarter -->
                     <% if params[:quarter] == 'Q1' || params[:quarter].blank? %>

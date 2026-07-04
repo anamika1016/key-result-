@@ -2,26 +2,44 @@ wb = xlsx_package.workbook
 
 wb.add_worksheet(name: "User Details") do |sheet|
   sheet.add_row [
-    "Financial Year", "Department", "Employee Name", "Employee Email", "Employee Code", "Mobile Number",
-    "Activity", "Theme", "Unit", "Total Weightage", "Weightage Q1", "Weightage Q2", "Weightage Q3", "Weightage Q4"
+    "Mobile No.", "Employee Name", "Employee Email", "Employee Code", "Post", "Location", "Department",
+    "L1 Code", "L1 Employer Name", "L2 Code", "L2 Employer Name", "L3 Code", "L3 Employer Name", "Financial Year",
+    "KRA", "Measurement description", "Unit of Measurement", "Annual Target (FY #{display_financial_year_short(@selected_year)})",
+    "Apr", "May", "Jun", "Jul", "Aug", "Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar"
   ]
 
   @user_details.each do |ud|
     sheet.add_row [
-      display_financial_year(ud.year),
-      ud.department&.department_type,
+      ud.employee_detail&.mobile_number,
       ud.employee_detail&.employee_name,
       ud.employee_detail&.employee_email,
       ud.employee_detail&.employee_code,
-      ud.employee_detail&.mobile_number,
-      ud.activity&.activity_name,
+      ud.employee_detail&.post,
+      ud.employee_detail&.office_name,
+      ud.department&.department_type,
+      ud.employee_detail&.l1_code,
+      ud.employee_detail&.l1_employer_name,
+      ud.employee_detail&.l2_code,
+      ud.employee_detail&.l2_employer_name,
+      ud.employee_detail&.l3_code,
+      ud.employee_detail&.l3_employer_name,
+      display_financial_year(ud.year),
       ud.activity&.theme_name,
+      ud.activity&.activity_name,
       ud.activity&.unit,
-      ud.weight,
-      ud.weightage_for_quarter(:q1),
-      ud.weightage_for_quarter(:q2),
-      ud.weightage_for_quarter(:q3),
-      ud.weightage_for_quarter(:q4)
+      ud.annual_target,
+      ud.april,
+      ud.may,
+      ud.june,
+      ud.july,
+      ud.august,
+      ud.september,
+      ud.october,
+      ud.november,
+      ud.december,
+      ud.january,
+      ud.february,
+      ud.march
     ]
   end
 end

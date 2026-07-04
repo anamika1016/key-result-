@@ -47,7 +47,7 @@
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Name</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Employee Code</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Vertical</th>
-              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Quarter</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Month</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L1 Manager</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L2 Manager</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">L3 Manager</th>
@@ -122,20 +122,7 @@
                       
                       # FIXED: Only show quarters where user has actually SUBMITTED their quarterly achievement
                       # Check if user has submitted quarterly achievement (month = 'q1', 'q2', 'q3', 'q4') with actual data
-                      quarterly_submission = all_quarter_achievements.find do |ach|
-                        case quarter_name
-                        when 'Q1'
-                          ach.month == 'q1' && ach.achievement.present?
-                        when 'Q2'
-                          ach.month == 'q2' && ach.achievement.present?
-                        when 'Q3'
-                          ach.month == 'q3' && ach.achievement.present?
-                        when 'Q4'
-                          ach.month == 'q4' && ach.achievement.present?
-                        else
-                          false
-                        end
-                      end
+                      quarterly_submission = all_quarter_achievements.any? { |ach| ach.achievement.present? }
                       
                       # Only show if user has actually submitted quarterly achievement with data
                       if quarterly_submission.present?
@@ -336,12 +323,13 @@
                       <span class="font-semibold text-indigo-700">
                         <% 
                           # Show only quarter names (Q1, Q2, Q3, Q4)
-                          quarter_display = quarter_name
+                          month_display = all_quarter_achievements.find { |achievement| quarter_months.include?(achievement.month.to_s.downcase) && achievement.achievement.present? }&.month
+                          quarter_display = month_display.present? ? month_display.first(3).upcase : quarter_name
                         %>
                         <%= quarter_display %>
                       </span>
                       <div class="text-xs text-gray-500 mt-1">
-                        Year: <%= display_financial_year(@selected_year) %>
+                        <%= quarter_name %> | Year: <%= display_financial_year(@selected_year) %>
                       </div>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-700 border-r border-gray-200"><%= emp.l1_employer_name %></td>
@@ -354,8 +342,9 @@
                       </span>
                     </td>
                     <td class="px-6 py-4 text-sm">
+                      <% submitted_month = all_quarter_achievements.find { |achievement| quarter_months.include?(achievement.month.to_s.downcase) && achievement.achievement.present? }&.month %>
                       <%= link_to "View Details", 
-                          employee_detail_path(emp, quarter: quarter_name, department_id: department_id, year: @selected_year), 
+                          employee_detail_path(emp, quarter: quarter_name, month: submitted_month, department_id: department_id, year: @selected_year),
                           class: "inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition-all duration-200 hover:shadow-md transform hover:scale-105" %>
                     </td>
                   </tr>
@@ -427,20 +416,7 @@
               
               # FIXED: Only process quarters where user has actually SUBMITTED their quarterly achievement
               # Check if user has submitted quarterly achievement (month = 'q1', 'q2', 'q3', 'q4') with actual data
-              quarterly_submission = all_quarter_achievements.find do |ach|
-                case quarter_name
-                when 'Q1'
-                  ach.month == 'q1' && ach.achievement.present?
-                when 'Q2'
-                  ach.month == 'q2' && ach.achievement.present?
-                when 'Q3'
-                  ach.month == 'q3' && ach.achievement.present?
-                when 'Q4'
-                  ach.month == 'q4' && ach.achievement.present?
-                else
-                  false
-                end
-              end
+              quarterly_submission = all_quarter_achievements.any? { |ach| ach.achievement.present? }
               
               # Only process if user has actually submitted quarterly achievement with data
               if quarterly_submission.present?

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_06_22_153500) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_03_091000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -757,6 +757,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_06_22_153500) do
     t.decimal "weightage_q2", precision: 8, scale: 2
     t.decimal "weightage_q3", precision: 8, scale: 2
     t.decimal "weightage_q4", precision: 8, scale: 2
+    t.text "annual_target"
     t.index ["activity_id"], name: "index_user_details_on_activity_id"
     t.index ["department_id"], name: "index_user_details_on_department_id"
     t.index ["employee_detail_id", "department_id", "activity_id", "year"], name: "index_user_details_on_employee_department_activity_year"

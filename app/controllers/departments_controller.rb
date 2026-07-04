@@ -271,10 +271,19 @@ class DepartmentsController < ApplicationController
             activity_name: activity.activity_name,
             unit: activity.unit,
             weight: user_detail.weight,
-            weightage_q1: user_detail.weightage_q1,
-            weightage_q2: user_detail.weightage_q2,
-            weightage_q3: user_detail.weightage_q3,
-            weightage_q4: user_detail.weightage_q4
+            annual_target: user_detail.annual_target,
+            april: user_detail.april,
+            may: user_detail.may,
+            june: user_detail.june,
+            july: user_detail.july,
+            august: user_detail.august,
+            september: user_detail.september,
+            october: user_detail.october,
+            november: user_detail.november,
+            december: user_detail.december,
+            january: user_detail.january,
+            february: user_detail.february,
+            march: user_detail.march
           }
         end.uniq { |activity| activity[:id] } # Remove duplicates
 
@@ -321,10 +330,19 @@ class DepartmentsController < ApplicationController
             activity_name: activity.activity_name,
             unit: activity.unit,
             weight: user_detail.weight,
-            weightage_q1: user_detail.weightage_q1,
-            weightage_q2: user_detail.weightage_q2,
-            weightage_q3: user_detail.weightage_q3,
-            weightage_q4: user_detail.weightage_q4
+            annual_target: user_detail.annual_target,
+            april: user_detail.april,
+            may: user_detail.may,
+            june: user_detail.june,
+            july: user_detail.july,
+            august: user_detail.august,
+            september: user_detail.september,
+            october: user_detail.october,
+            november: user_detail.november,
+            december: user_detail.december,
+            january: user_detail.january,
+            february: user_detail.february,
+            march: user_detail.march
           }
         end
 
@@ -776,9 +794,39 @@ class DepartmentsController < ApplicationController
       "Employee Code" => "employee_code",
       "Theme" => "theme_name",
       "Theme Name" => "theme_name",
+      "KRA" => "theme_name",
+      "Measurement description" => "activity_name",
+      "Measurement Description" => "activity_name",
       "Activity" => "activity_name",
       "Activity Name" => "activity_name",
       "Unit" => "unit",
+      "Unit of Measurement" => "unit",
+      "Annual Target (FY 2026-27)" => "annual_target",
+      "Annual Target" => "annual_target",
+      "Apr" => "april",
+      "April" => "april",
+      "May" => "may",
+      "Jun" => "june",
+      "June" => "june",
+      "Jul" => "july",
+      "July" => "july",
+      "Aug" => "august",
+      "August" => "august",
+      "Sept" => "september",
+      "Sep" => "september",
+      "September" => "september",
+      "Oct" => "october",
+      "October" => "october",
+      "Nov" => "november",
+      "November" => "november",
+      "Dec" => "december",
+      "December" => "december",
+      "Jan" => "january",
+      "January" => "january",
+      "Feb" => "february",
+      "February" => "february",
+      "Mar" => "march",
+      "March" => "march",
       "Total Weightage" => "weight",
       "Weightage" => "weight",
       "Weight" => "weight",
@@ -842,7 +890,7 @@ class DepartmentsController < ApplicationController
 
       # Only add activity if activity data is present
       if mapped["activity_name"].present?
-        processed_weight = normalize_weightage(mapped["weight"])
+        processed_weight = normalize_weightage(mapped["weight"]) || 0
 
         departments_hash[key][:activities] << {
           theme_name: mapped["theme_name"],
@@ -850,10 +898,19 @@ class DepartmentsController < ApplicationController
           unit: mapped["unit"],
           weight: processed_weight,
           total_weightage: processed_weight,
-          weightage_q1: normalize_weightage(mapped["weightage_q1"]),
-          weightage_q2: normalize_weightage(mapped["weightage_q2"]),
-          weightage_q3: normalize_weightage(mapped["weightage_q3"]),
-          weightage_q4: normalize_weightage(mapped["weightage_q4"])
+          annual_target: mapped["annual_target"],
+          april: mapped["april"],
+          may: mapped["may"],
+          june: mapped["june"],
+          july: mapped["july"],
+          august: mapped["august"],
+          september: mapped["september"],
+          october: mapped["october"],
+          november: mapped["november"],
+          december: mapped["december"],
+          january: mapped["january"],
+          february: mapped["february"],
+          march: mapped["march"]
         }
       end
     end
@@ -1256,7 +1313,20 @@ class DepartmentsController < ApplicationController
       weightage_q1: normalize_weightage(activity_attr_value(activity_attrs, :weightage_q1)),
       weightage_q2: normalize_weightage(activity_attr_value(activity_attrs, :weightage_q2)),
       weightage_q3: normalize_weightage(activity_attr_value(activity_attrs, :weightage_q3)),
-      weightage_q4: normalize_weightage(activity_attr_value(activity_attrs, :weightage_q4))
+      weightage_q4: normalize_weightage(activity_attr_value(activity_attrs, :weightage_q4)),
+      annual_target: activity_attr_value(activity_attrs, :annual_target),
+      april: activity_attr_value(activity_attrs, :april),
+      may: activity_attr_value(activity_attrs, :may),
+      june: activity_attr_value(activity_attrs, :june),
+      july: activity_attr_value(activity_attrs, :july),
+      august: activity_attr_value(activity_attrs, :august),
+      september: activity_attr_value(activity_attrs, :september),
+      october: activity_attr_value(activity_attrs, :october),
+      november: activity_attr_value(activity_attrs, :november),
+      december: activity_attr_value(activity_attrs, :december),
+      january: activity_attr_value(activity_attrs, :january),
+      february: activity_attr_value(activity_attrs, :february),
+      march: activity_attr_value(activity_attrs, :march)
     }.compact
   end
 
@@ -1266,7 +1336,10 @@ class DepartmentsController < ApplicationController
 
   def department_params
     params.require(:department).permit(:department_type, :employee_reference, :theme_name, :year,
-    activities_attributes: [ :id, :theme_name, :activity_name, :unit, :weight, :_destroy ])
+    activities_attributes: [ :id, :theme_name, :activity_name, :unit, :weight,
+                             :annual_target, :april, :may, :june, :july, :august,
+                             :september, :october, :november, :december, :january,
+                             :february, :march, :_destroy ])
   end
 
   # Get activities for a specific employee using UserDetail - supporting multiple departments
@@ -1321,10 +1394,19 @@ class DepartmentsController < ApplicationController
             activity_name: activity.activity_name,
             unit: activity.unit,
             weight: user_detail.weight,
-            weightage_q1: user_detail.weightage_q1,
-            weightage_q2: user_detail.weightage_q2,
-            weightage_q3: user_detail.weightage_q3,
-            weightage_q4: user_detail.weightage_q4,
+            annual_target: user_detail.annual_target,
+            april: user_detail.april,
+            may: user_detail.may,
+            june: user_detail.june,
+            july: user_detail.july,
+            august: user_detail.august,
+            september: user_detail.september,
+            october: user_detail.october,
+            november: user_detail.november,
+            december: user_detail.december,
+            january: user_detail.january,
+            february: user_detail.february,
+            march: user_detail.march,
             year: activity.year,
             department_type: department.department_type
           }
@@ -1431,10 +1513,19 @@ class DepartmentsController < ApplicationController
               activity_name: activity.activity_name,
               unit: activity.unit,
               weight: user_detail.weight,
-              weightage_q1: user_detail.weightage_q1,
-              weightage_q2: user_detail.weightage_q2,
-              weightage_q3: user_detail.weightage_q3,
-              weightage_q4: user_detail.weightage_q4,
+              annual_target: user_detail.annual_target,
+              april: user_detail.april,
+              may: user_detail.may,
+              june: user_detail.june,
+              july: user_detail.july,
+              august: user_detail.august,
+              september: user_detail.september,
+              october: user_detail.october,
+              november: user_detail.november,
+              december: user_detail.december,
+              january: user_detail.january,
+              february: user_detail.february,
+              march: user_detail.march,
               year: activity.year,
               department_type: department.department_type
             }

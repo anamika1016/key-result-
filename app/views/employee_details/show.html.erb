@@ -46,14 +46,17 @@
       <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
         <h2 class="text-2xl font-bold text-gray-800 flex items-center">
           <i class="fas fa-trophy mr-3 text-gray-600"></i>
-          <%= @selected_quarter %> Quarter Achievement Details
+          <%= @selected_month.present? ? @selected_month.titleize.upcase : @selected_quarter %> Achievement Details
         </h2>
       </div>
 
       <div class="p-6">
         <%
-          # Define months to display based on selected quarter
-          display_months = case @selected_quarter
+          # Define months to display based on selected month/quarter
+          display_months = if @selected_month.present?
+            [[@selected_month.to_sym, @selected_month.first(3).titleize]]
+          else
+            case @selected_quarter
                           when 'Q1'
                             [[:april, 'Apr'], [:may, 'May'], [:june, 'Jun']]
                           when 'Q2'
@@ -66,6 +69,7 @@
                             # Default to Q2
                             [[:july, 'Jul'], [:august, 'Aug'], [:september, 'Sep']]
                           end
+          end
         %>
         
         
@@ -75,13 +79,13 @@
           <table class="min-w-full divide-y divide-gray-300 text-sm">
             <thead class="bg-gradient-to-r from-gray-800 to-gray-700">
               <tr>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Indicator</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">KPI</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Total Weightage</th>
-                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Weightage <%= @selected_quarter.presence || "Q2" %></th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">KRA</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Measurement Description</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Unit of Measurement</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Annual Target (FY <%= display_financial_year_short(@selected_year) %>)</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600">Monthly Target <%= display_months.map(&:last).join("/") %></th>
                 <th class="px-6 py-4 text-center text-xs font-semibold text-white uppercase tracking-wider border-r border-gray-600" colspan="3">
-                  <%= @selected_quarter %> (<%= display_months.map(&:last).join('-') %>)
+                  <%= @selected_month.present? ? @selected_month.titleize.upcase : @selected_quarter %> (<%= display_months.map(&:last).join('-') %>)
                 </th>
               </tr>
               <tr class="bg-gray-700">
@@ -118,7 +122,8 @@
                 %>
                 <% 
                   selected_quarter_key = @selected_quarter.to_s.downcase.presence || "q2"
-                  direct_quarter_achievement = detail.achievements.find { |a| a.month.to_s.downcase == selected_quarter_key }
+                  selected_achievement_key = @selected_month.presence || selected_quarter_key
+                  direct_quarter_achievement = detail.achievements.find { |a| a.month.to_s.downcase == selected_achievement_key }
                   quarter_achievements = detail.achievements.select { |a| display_months.map { |m| m[0].to_s.downcase }.include?(a.month.to_s.downcase) }
                   weightage = detail.weight.to_f
                   quarter_weightage = detail.weightage_for_quarter(selected_quarter_key).to_f
@@ -141,24 +146,25 @@
                   
                   # Don't set default remarks - show empty if no remarks provided
                   remarks = remarks.present? ? remarks : ""
+                  target_text = display_months.map { |month, label| "#{label}: #{detail.public_send(month).presence || '-'}" }.join(" | ")
                   
                   row_count += 1
                 %>
                 <tr class="<%= detail_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
                   <td class="px-6 py-4 text-sm text-gray-800 font-medium border-r border-gray-200">
-                    <%= detail.activity&.activity_name || 'N/A' %>
+                    <%= detail.activity&.theme_name || 'N/A' %>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
-                    <%= detail.activity&.theme_name || 'N/A' %>
+                    <%= detail.activity&.activity_name || 'N/A' %>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
                     <%= detail.activity&.unit || 'N/A' %>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
-                    <%= "#{weightage.to_i}%" %>
+                    <%= detail.annual_target.presence || "-" %>
                   </td>
                   <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">
-                    <%= "#{quarter_weightage.to_i}%" %>
+                    <%= target_text %>
                   </td>
                   <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
                     <span class="text-green-700 font-semibold bg-green-50 px-2 py-1 rounded">
@@ -189,8 +195,8 @@
                 <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">TOTAL COUNT</td>
                 <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
                 <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
-                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200"><%= "#{total_weightage.to_i}%" %></td>
-                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200"><%= "#{total_quarter_weightage.to_i}%" %></td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
+                <td class="px-6 py-4 text-sm text-gray-800 border-r border-gray-200">-</td>
                 <td class="px-6 py-4 text-sm text-center border-r border-gray-200">
                   <span class="text-green-800 font-bold">
                     <% total_achievement_percentage = total_quarter_weightage > 0 ? ((total_weightage_score / total_quarter_weightage) * 100).round(2) : 0 %>

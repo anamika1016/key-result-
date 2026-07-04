@@ -7,14 +7,22 @@ wb.add_worksheet(name: "Departments") do |sheet|
     "Department",
     "Employee Name",
     "Employee Code",
-    "Theme Name",
-    "Activity Name",
-    "Unit",
-    "Total Weightage",
-    "Weightage Q1",
-    "Weightage Q2",
-    "Weightage Q3",
-    "Weightage Q4"
+    "KRA",
+    "Measurement description",
+    "Unit of Measurement",
+    "Annual Target (FY 2026-27)",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sept",
+    "Oct",
+    "Nov",
+    "Dec",
+    "Jan",
+    "Feb",
+    "Mar"
   ]
 
   @user_details.each do |user_detail|
@@ -26,11 +34,19 @@ wb.add_worksheet(name: "Departments") do |sheet|
       user_detail.theme_name,
       user_detail.activity_name,
       user_detail.unit,
-      user_detail.weight,
-      user_detail.weightage_q1,
-      user_detail.weightage_q2,
-      user_detail.weightage_q3,
-      user_detail.weightage_q4
+      user_detail.annual_target,
+      user_detail.april,
+      user_detail.may,
+      user_detail.june,
+      user_detail.july,
+      user_detail.august,
+      user_detail.september,
+      user_detail.october,
+      user_detail.november,
+      user_detail.december,
+      user_detail.january,
+      user_detail.february,
+      user_detail.march
     ]
   end
 end

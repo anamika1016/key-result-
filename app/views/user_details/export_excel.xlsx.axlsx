@@ -1,122 +1,110 @@
 wb = xlsx_package.workbook
 
 wb.add_worksheet(name: "Super Admin Target Form") do |sheet|
-  # Define styles
-  header_style = wb.styles.add_style(
-    bg_color: "2F4F4F",
-    fg_color: "FFFFFF",
+  styles = wb.styles
+
+  title_style = styles.add_style(
+    bg_color: "1F3B64",
+    fg_color: "FFD700",
     b: true,
+    sz: 14,
     alignment: { horizontal: :center, vertical: :center },
     border: { style: :thin, color: "000000" }
   )
 
-  month_header_style = wb.styles.add_style(
-    bg_color: "4682B4",
-    fg_color: "FFFFFF",
+  meta_style = styles.add_style(
     b: true,
-    alignment: { horizontal: :center, vertical: :center },
-    border: { style: :thin, color: "000000" }
-  )
-
-  data_style = wb.styles.add_style(
-    alignment: { horizontal: :center, vertical: :center },
-    border: { style: :thin, color: "CCCCCC" }
-  )
-
-  text_style = wb.styles.add_style(
     alignment: { horizontal: :left, vertical: :center },
-    border: { style: :thin, color: "CCCCCC" }
+    border: { style: :thin, color: "000000" }
   )
 
-  # Add header row
+  header_style = styles.add_style(
+    bg_color: "1F4E79",
+    fg_color: "FFFFFF",
+    b: true,
+    alignment: { horizontal: :center, vertical: :center, wrap_text: true },
+    border: { style: :thin, color: "000000" }
+  )
+
+  data_style = styles.add_style(
+    alignment: { horizontal: :center, vertical: :center, wrap_text: true },
+    border: { style: :thin, color: "000000" }
+  )
+
+  text_style = styles.add_style(
+    alignment: { horizontal: :left, vertical: :center, wrap_text: true },
+    border: { style: :thin, color: "000000" }
+  )
+
+  first_detail = @user_details&.first
+  employee = first_detail&.employee_detail
+  department = first_detail&.department
+  fy_label = display_financial_year_short(@selected_year)
+
+  sheet.add_row [ "KEY RESULT AREAS" ] + Array.new(15, nil), style: Array.new(16, title_style)
+  sheet.merge_cells "A1:P1"
+
+  sheet.add_row [ "Action for Social Advancement (ASA)  |  FY #{fy_label}" ] + Array.new(15, nil), style: Array.new(16, title_style)
+  sheet.merge_cells "A2:P2"
+
+  sheet.add_row [ nil, "Name:", employee&.employee_name.to_s ] + Array.new(13, nil), style: Array.new(16, meta_style)
+  sheet.add_row [ nil, "Designation:", employee&.post.to_s ] + Array.new(13, nil), style: Array.new(16, meta_style)
+  sheet.add_row [ nil, "TO/ FCO/ PMU/ HO:", department&.department_type.to_s ] + Array.new(13, nil), style: Array.new(16, meta_style)
+  sheet.add_row Array.new(16, nil), style: Array.new(16, data_style)
+
   sheet.add_row [
-    "Financial Year",
-    "Department",
-    "Employee Name",
-    "Employee Email",
-    "Employee Code",
-    "Mobile Number",
-    "Activity",
-    "Theme",
-    "Unit",
-    "Total Weightage",
-    "Weightage Q1",
-    "Weightage Q2",
-    "Weightage Q3",
-    "Weightage Q4"
-  ], style: [ header_style, header_style, header_style, header_style, header_style,
-             header_style,
-             header_style, header_style, header_style, header_style, header_style,
-             header_style, header_style, header_style ]
+    "KRA",
+    "Measurement description",
+    "Unit of Measurement",
+    "Annual Target (FY #{fy_label})",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sept",
+    "Oct",
+    "Nov",
+    "Dec",
+    "Jan",
+    "Feb",
+    "Mar"
+  ], style: Array.new(16, header_style)
 
-  # Add data rows
-  begin
-    # Force load the data directly in template
-    user_details_direct = UserDetail.includes(:department, :activity, :employee_detail).where(year: @selected_year_db)
+  data_to_use = @user_details.presence ||
+                UserDetail.includes(:department, :activity, :employee_detail).where(year: @selected_year_db)
 
-    # Use direct query for now to bypass any instance variable issues
-    data_to_use = @user_details.present? ? @user_details : user_details_direct
-
-    if data_to_use.present?
-      Rails.logger.info "Excel Template: Adding #{data_to_use.count} data rows"
-      data_to_use.each_with_index do |detail, index|
-        begin
-          Rails.logger.info "Excel Template: Processing row #{index + 1} - #{detail.employee_detail&.employee_name}"
-
-          sheet.add_row [
-            display_financial_year(detail.year),
-            detail.department&.department_type&.to_s || "N/A",
-            detail.employee_detail&.employee_name&.to_s || "N/A",
-            detail.employee_detail&.employee_email&.to_s || "N/A",
-            detail.employee_detail&.employee_code&.to_s || "N/A",
-            detail.employee_detail&.mobile_number&.to_s || "N/A",
-            detail.activity&.activity_name&.to_s || "N/A",
-            detail.activity&.theme_name&.to_s || "No Theme",
-            detail.activity&.unit&.to_s || "",
-            detail.weight&.to_s || "",
-            detail.weightage_for_quarter(:q1)&.to_s || "",
-            detail.weightage_for_quarter(:q2)&.to_s || "",
-            detail.weightage_for_quarter(:q3)&.to_s || "",
-            detail.weightage_for_quarter(:q4)&.to_s || ""
-          ], style: [ text_style, text_style, text_style, text_style, text_style,
-                     text_style,
-                     text_style, text_style, data_style, data_style, data_style,
-                     data_style, data_style, data_style ]
-        rescue => e
-          Rails.logger.error "Error adding row to Excel: #{e.message} - Detail ID: #{detail.id}"
-          # Skip this row and continue with next
-          next
-        end
-      end
-    else
-      Rails.logger.warn "Excel Template: No data found, adding 'No data available' message"
-      # Add a message row if no data found
+  if data_to_use.present?
+    data_to_use.each do |detail|
       sheet.add_row [
-        "No data available",
-        "", "", "", "", "", "", "", "", "", "", "", "", ""
-      ], style: [ text_style, text_style, text_style, text_style, text_style,
-                 text_style,
-                 data_style, data_style, data_style, data_style, data_style,
-                 data_style, data_style, data_style ]
+        detail.activity&.theme_name.to_s,
+        detail.activity&.activity_name.to_s,
+        detail.activity&.unit.to_s,
+        detail.annual_target.to_s,
+        detail.april.to_s,
+        detail.may.to_s,
+        detail.june.to_s,
+        detail.july.to_s,
+        detail.august.to_s,
+        detail.september.to_s,
+        detail.october.to_s,
+        detail.november.to_s,
+        detail.december.to_s,
+        detail.january.to_s,
+        detail.february.to_s,
+        detail.march.to_s
+      ], style: [ text_style, text_style, data_style ] + Array.new(13, data_style)
     end
-  rescue => e
-    Rails.logger.error "Excel Template Error: #{e.message}"
-    sheet.add_row [
-      "Error generating data",
-      "", "", "", "", "", "", "", "", "", "", "", "", ""
-    ], style: [ text_style, text_style, text_style, text_style, text_style,
-               text_style,
-               data_style, data_style, data_style, data_style, data_style,
-               data_style, data_style, data_style ]
+  else
+    8.times do
+      sheet.add_row Array.new(16, nil), style: Array.new(16, data_style)
+    end
   end
 
-  # Set column widths
-  sheet.column_widths 15, 15, 20, 25, 15, 15, 25, 20, 10, 15, 15, 15, 15, 15
-
-  # Freeze header row
+  sheet.column_widths 24, 36, 20, 22, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12
   sheet.sheet_view.pane do |pane|
-    pane.top_left_cell = "A2"
+    pane.top_left_cell = "A8"
     pane.state = :frozen
-    pane.y_split = 1
+    pane.y_split = 7
   end
 end

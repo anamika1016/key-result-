@@ -122,21 +122,21 @@
     <div>
       <h2 class="text-4xl font-bold text-gray-800 flex items-center">
         <i class="fas fa-check-circle me-3 text-green-600 text-2xl"></i>
-        Submitted View Data
+        Submitted view achievements
       </h2>
       <p class="text-gray-600 mt-2">
         <i class="fas fa-info-circle me-2"></i>
         <% case current_user.role %>
         <% when "employee" %>
-          Your submitted quarterly achievements and targets (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
+          Your submitted monthly achievements and targets (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
         <% when "hod" %>
-          All submitted quarterly achievements and targets in your department (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
+          All submitted monthly achievements and targets in your department (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
         <% when "l1_employer" %>
-          Submitted quarterly achievements and targets for employees under your supervision (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
+          Submitted monthly achievements and targets for employees under your supervision (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
         <% when "l2_employer" %>
-          Submitted quarterly achievements and targets for employees under your supervision (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
+          Submitted monthly achievements and targets for employees under your supervision (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
         <% else %>
-          Showing <%= @user_details.count %> record<%= 's' if @user_details.count != 1 %> with submitted quarterly achievements and targets
+          Showing <%= @user_details.count %> record<%= 's' if @user_details.count != 1 %> with submitted monthly achievements and targets
         <% end %>
       </p>
     </div>
@@ -151,6 +151,12 @@
             onchange: "this.form.submit();" %>
       </form>
 
+      <%= link_to get_user_detail_user_details_path(year: @selected_year),
+              class: "bg-slate-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center shadow-md hover:shadow-lg" do %>
+        <i class="fas fa-calendar-alt me-2"></i>
+        <span class="font-semibold">Monthly edit</span>
+      <% end %>
+
       <button id="edit-quarterly-btn" 
               class="bg-gray-400 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center shadow-md hover:shadow-lg transform hover:scale-105"
               disabled
@@ -160,6 +166,27 @@
       </button>
     </div>
 
+  </div>
+</div>
+
+<%
+  month_shortcuts = [
+    [ "APR", "april" ], [ "MAY", "may" ], [ "JUN", "june" ],
+    [ "JUL", "july" ], [ "AUG", "august" ], [ "SEPT", "september" ],
+    [ "OCT", "october" ], [ "NOV", "november" ], [ "DEC", "december" ],
+    [ "JAN", "january" ], [ "FEB", "february" ], [ "MAR", "march" ]
+  ]
+%>
+<div class="px-6 pt-5">
+  <div class="month-eye-grid">
+    <% month_shortcuts.each do |label, month_key| %>
+      <%= link_to get_user_detail_user_details_path(year: @selected_year, month: month_key),
+          class: "month-eye-link",
+          title: "Open #{label} monthly sheet" do %>
+        <span><%= label %></span>
+        <i class="fas fa-eye"></i>
+      <% end %>
+    <% end %>
   </div>
 </div>
 
@@ -231,7 +258,58 @@
       end
     %>
     <div class="p-6">
-      <div class="table-wrapper overflow-auto bg-white rounded-lg border border-gray-200 shadow-sm">
+      <div class="monthly-submitted-table table-wrapper overflow-auto bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
+        <table class="table table-hover w-full min-w-full">
+          <thead class="bg-gray-800">
+            <tr>
+              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">KRA</th>
+              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Measurement description</th>
+              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit of Measurement</th>
+              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Annual Target (FY <%= display_financial_year_short(@selected_year) %>)</th>
+              <% month_shortcuts.each do |label, month_key| %>
+                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">
+                  <div class="month-head-cell">
+                    <span><%= label %></span>
+                    <%= link_to get_user_detail_user_details_path(year: @selected_year, month: month_key), class: "month-head-eye", title: "Open #{label}" do %>
+                      <i class="fas fa-eye"></i>
+                    <% end %>
+                  </div>
+                </th>
+              <% end %>
+            </tr>
+            <tr class="bg-gray-700">
+              <% month_shortcuts.each do |label, _month_key| %>
+                <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600"><%= label %> target / achievement / remarks</th>
+              <% end %>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% @user_details.each_with_index do |detail, index| %>
+              <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity&.theme_name.presence || "-" %></td>
+                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity&.activity_name.presence || "-" %></td>
+                <td class="px-4 py-3 text-sm text-gray-800 text-center border-r border-gray-200"><%= detail.activity&.unit.presence || "-" %></td>
+                <td class="px-4 py-3 text-sm text-gray-800 text-center border-r border-gray-200"><%= detail.annual_target.presence || "-" %></td>
+                <% month_shortcuts.each do |_label, month_key| %>
+                  <%
+                    achievement = detail.achievements.find { |item| item.month.to_s.downcase == month_key }
+                    target_value = detail.public_send(month_key)
+                    progress = target_value.to_f.positive? && achievement&.achievement.present? ? ((achievement.achievement.to_f / target_value.to_f) * 100).round : nil
+                  %>
+                  <td class="px-3 py-3 text-xs text-center border-r border-gray-200 submitted-month-cell">
+                    <div><strong>Target:</strong> <%= target_value.presence || "-" %></div>
+                    <div><strong>Achievement:</strong> <%= achievement&.achievement.presence || "-" %></div>
+                    <div><strong>Progress:</strong> <%= progress.present? ? "#{progress}%" : "-" %></div>
+                    <div class="submitted-remarks"><%= achievement&.employee_remarks.presence || "-" %></div>
+                  </td>
+                <% end %>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="legacy-quarterly-table table-wrapper overflow-auto bg-white rounded-lg border border-gray-200 shadow-sm" style="display:none">
         <table class="table table-hover w-full min-w-full">
           <thead class="bg-gray-800">
             <tr>
@@ -768,6 +846,36 @@
       </div>
     </div>
 
+    <div class="px-6 pb-8">
+      <h3 class="text-lg font-bold text-gray-800 mb-3">Final summary</h3>
+      <div class="final-summary-grid">
+        <% {
+          "Q1 (APR-JUN)" => "q1",
+          "Q2 (JUL-SEP)" => "q2",
+          "Q3 (OCT-DEC)" => "q3",
+          "Q4 (JAN-MAR)" => "q4"
+        }.each do |label, quarter_key| %>
+          <%
+            quarter_achievements = @user_details.flat_map(&:achievements).select { |achievement| achievement.month.to_s.downcase == quarter_key }
+            target_total = @user_details.sum { |detail| detail.public_send(quarter_key).to_f }
+            achievement_total = quarter_achievements.sum { |achievement| achievement.achievement.to_f }
+            approved_count = quarter_achievements.count { |achievement| achievement.status.to_s.include?("approved") }
+          %>
+          <div class="final-summary-card">
+            <div class="flex items-center justify-between mb-3">
+              <strong><%= label %></strong>
+              <button type="button" class="summary-eye" onclick="showQuarterlyDetails('<%= quarter_key.upcase %>')" title="View <%= label %> details">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <p>Target: <%= target_total.to_i == target_total ? target_total.to_i : target_total.round(2) %></p>
+            <p>Achievement: <%= achievement_total.to_i == achievement_total ? achievement_total.to_i : achievement_total.round(2) %></p>
+            <p>Approved records: <%= approved_count %></p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
     </div>
 <% else %>
   <!-- No data message -->
@@ -775,7 +883,7 @@
     <div class="flex justify-between items-center">
       <h2 class="text-4xl font-bold text-gray-800 flex items-center">
         <i class="fas fa-check-circle me-3 text-green-600 text-2xl"></i>
-        Submitted View Data
+        Submitted view achievements
       </h2>
       <form action="<%= submitted_view_data_path %>" method="get" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm">
         <label for="submitted-view-empty-year" class="text-sm font-semibold text-slate-700">Financial Year</label>
@@ -796,15 +904,15 @@
           <span class="block mb-2 font-semibold text-gray-600">Financial Year: <%= display_financial_year(@selected_year) %></span>
           <% case current_user.role %>
           <% when "employee" %>
-            You haven't submitted any quarterly achievements yet. Please submit your achievements first to view them here.
+            You haven't submitted any monthly achievements yet. Please submit your achievements first to view them here.
           <% when "hod" %>
-            No employees in your department have submitted their quarterly achievements yet.
+            No employees in your department have submitted their monthly achievements yet.
           <% when "l1_employer" %>
-            No employees under your supervision have submitted their quarterly achievements yet.
+            No employees under your supervision have submitted their monthly achievements yet.
           <% when "l2_employer" %>
-            No employees under your supervision have submitted their quarterly achievements yet.
+            No employees under your supervision have submitted their monthly achievements yet.
           <% else %>
-            There are no submitted quarterly achievements to display at this time.
+            There are no submitted monthly achievements to display at this time.
           <% end %>
         </p>
         <% if current_user.employee? %>
@@ -841,6 +949,87 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+}
+
+.month-eye-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.month-eye-link,
+.summary-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #b7e3ff;
+  border-radius: 999px;
+  background: #e7f7ff;
+  color: #0369a1;
+  font-weight: 800;
+  text-decoration: none;
+  padding: 8px 12px;
+}
+
+.month-head-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.month-head-eye {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: #e7f7ff;
+  color: #0369a1;
+  text-decoration: none;
+}
+
+.submitted-month-cell {
+  min-width: 170px;
+  line-height: 1.6;
+  vertical-align: top;
+}
+
+.submitted-remarks {
+  margin-top: 6px;
+  border-radius: 6px;
+  background: #eef4ff;
+  color: #1d4ed8;
+  padding: 3px 6px;
+}
+
+.final-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.final-summary-card {
+  border: 1px solid #dbe3ee;
+  border-radius: 10px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+}
+
+.final-summary-card p {
+  margin: 4px 0;
+  color: #475569;
+  font-size: 13px;
+}
+
+.summary-eye {
+  width: 34px;
+  height: 34px;
+  padding: 0;
 }
 
 .table th, .table td {

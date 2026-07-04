@@ -755,13 +755,14 @@ class EmployeeDetailsController < ApplicationController
                                   ]
                                 )
 
-      # FIXED: Filter to show employees who have actually submitted quarterly achievement data
+      # FIXED: Filter to show employees who have actually submitted monthly or quarterly achievement data
       all_employees = all_assigned_employees.select do |emp|
-        # Only show employees who have submitted quarterly achievements (q1, q2, q3, q4) with actual data
-        # Check if employee has quarterly achievements with meaningful data in any of their departments
         scoped_user_details_for_year(emp.user_details).any? do |ud|
           ud.achievements.any? do |ach|
-            [ "q1", "q2", "q3", "q4" ].include?(ach.month) && ach.achievement.present?
+            %w[
+              april may june july august september october november december january february march
+              q1 q2 q3 q4
+            ].include?(ach.month.to_s.downcase) && ach.achievement.present?
           end
         end
       end
@@ -933,6 +934,7 @@ class EmployeeDetailsController < ApplicationController
 
     @user_detail_id = params[:user_detail_id]
     @selected_quarter = params[:quarter] || "Q2"  # Default to Q2
+    @selected_month = params[:month].presence
     @selected_department = params[:department_id]
 
     # FIXED: Get user details from ALL EmployeeDetail records for this employee, filtered by department
@@ -1349,6 +1351,7 @@ end
 
     @user_detail_id = params[:user_detail_id]
     @selected_quarter = params[:quarter] || "Q2"  # Default to Q2
+    @selected_month = params[:month].presence
     @selected_department = params[:department_id]
 
     # FIXED: Get user details from ALL EmployeeDetail records for this employee, filtered by department
@@ -1572,6 +1575,7 @@ end
 
     @user_detail_id = params[:user_detail_id]
     @selected_quarter = params[:quarter] || "Q2"  # Default to Q2
+    @selected_month = params[:month].presence
     @selected_department = params[:department_id]
 
     # FIXED: Get user details from ALL EmployeeDetail records for this employee, filtered by department

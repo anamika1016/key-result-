@@ -4,7 +4,7 @@ class ApplicationController < ActionController::Base
   before_action :process_help_desk_escalations
   before_action :configure_permitted_parameters, if: :devise_controller?
 
-  helper_method :has_l1_responsibilities?, :has_l2_responsibilities?, :helpdesk_reviewer?, :current_financial_year_label, :normalize_financial_year, :financial_year_options, :display_financial_year, :database_financial_year_value
+  helper_method :has_l1_responsibilities?, :has_l2_responsibilities?, :helpdesk_reviewer?, :current_financial_year_label, :normalize_financial_year, :financial_year_options, :display_financial_year, :display_financial_year_short, :database_financial_year_value
 
   private
 
@@ -53,8 +53,9 @@ class ApplicationController < ActionController::Base
   def normalize_financial_year(raw_value)
     return current_financial_year_label if raw_value.blank?
 
-    value = raw_value.to_s.strip
+    value = raw_value.to_s.strip.sub(/\AFY\s*/i, "")
     return value if value.match?(/\A\d{2}-\d{2}\z/)
+    return "#{value[2, 2]}-#{value[5, 2]}" if value.match?(/\A\d{4}-\d{2}\z/)
     return "#{value[2, 2]}-#{(value.to_i + 1).to_s[-2, 2]}" if value.match?(/\A\d{4}\z/)
     return "#{value[2, 2]}-#{value[7, 2]}" if value.match?(/\A\d{4}-\d{4}\z/)
 
@@ -68,6 +69,13 @@ class ApplicationController < ActionController::Base
     start_year = "20#{normalized[0, 2]}"
     end_year = "20#{normalized[3, 2]}"
     "#{start_year}-#{end_year}"
+  end
+
+  def display_financial_year_short(raw_value)
+    normalized = normalize_financial_year(raw_value)
+    return normalized unless normalized.match?(/\A\d{2}-\d{2}\z/)
+
+    "20#{normalized[0, 2]}-#{normalized[3, 2]}"
   end
 
   def database_financial_year_value(model_or_relation, raw_value)

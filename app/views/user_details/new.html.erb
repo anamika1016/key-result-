@@ -22,6 +22,8 @@
           <div class="left-operations">
             <%= form_with url: import_user_details_path, method: :post, multipart: true, local: true, class: "upload-form" do |form| %>
               <%= hidden_field_tag :year, @selected_year %>
+              <%= hidden_field_tag :department_id, params[:department_id] %>
+              <%= hidden_field_tag :employee_detail_id, params[:employee_detail_id] %>
               <div class="file-input-group">
                 <%= form.file_field :file, accept: ".xlsx,.xls", class: "file-input", id: "excel-file-input" %>
                 <label for="excel-file-input" class="file-input-label">
@@ -142,14 +144,22 @@
                   <tr>
                     <th>Vertical</th>
                     <th>Employee Name</th>
-                    <th>Indicator</th>
-                    <th>KPI</th>
-                    <th>Unit</th>
-                    <th>Total Weightage</th>
-                    <th>Weightage Q1</th>
-                    <th>Weightage Q2</th>
-                    <th>Weightage Q3</th>
-                    <th>Weightage Q4</th>
+                    <th>KRA</th>
+                    <th>Measurement Description</th>
+                    <th>Unit of Measurement</th>
+                    <th>Annual Target (FY <%= display_financial_year_short(@selected_year) %>)</th>
+                    <th>Apr</th>
+                    <th>May</th>
+                    <th>Jun</th>
+                    <th>Jul</th>
+                    <th>Aug</th>
+                    <th>Sept</th>
+                    <th>Oct</th>
+                    <th>Nov</th>
+                    <th>Dec</th>
+                    <th>Jan</th>
+                    <th>Feb</th>
+                    <th>Mar</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -165,14 +175,13 @@
                     <tr>
                       <td><%= activity.department&.department_type || '-' %></td>
                       <td><%= @selected_employee&.employee_name || (detail&.employee_detail ? detail.employee_detail.employee_name : 'N/A') %></td>
-                      <td><%= activity.activity_name %></td>
                       <td><%= activity.theme_name.present? ? activity.theme_name : 'No Theme' %></td>
+                      <td><%= activity.activity_name %></td>
                       <td><%= activity.unit.present? ? activity.unit : "" %></td>
-                      <td><%= detail&.weight.present? ? "#{detail.weight.to_f.to_i}%" : "0%" %></td>
-                      <td><%= detail&.weightage_for_quarter(:q1).present? ? "#{detail.weightage_for_quarter(:q1).to_f.to_i}%" : "-" %></td>
-                      <td><%= detail&.weightage_for_quarter(:q2).present? ? "#{detail.weightage_for_quarter(:q2).to_f.to_i}%" : "-" %></td>
-                      <td><%= detail&.weightage_for_quarter(:q3).present? ? "#{detail.weightage_for_quarter(:q3).to_f.to_i}%" : "-" %></td>
-                      <td><%= detail&.weightage_for_quarter(:q4).present? ? "#{detail.weightage_for_quarter(:q4).to_f.to_i}%" : "-" %></td>
+                      <td><%= detail&.annual_target.presence || "-" %></td>
+                      <% [:april, :may, :june, :july, :august, :september, :october, :november, :december, :january, :february, :march].each do |month| %>
+                        <td><%= detail&.public_send(month).presence || "-" %></td>
+                      <% end %>
                       <td>
                         <% if detail %>
                           <%= link_to "Edit", edit_user_detail_path(detail), class: "btn btn-sm btn-outline-primary me-1" %>

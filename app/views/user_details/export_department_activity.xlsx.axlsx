@@ -22,30 +22,37 @@ wb.add_worksheet(name: "Department Activity Data") do |sheet|
 
   # Add header row first
   sheet.add_row [
-    "Financial Year",
-    "Department",
+    "Mobile No.",
     "Employee Name",
     "Employee Email",
     "Employee Code",
-    "Mobile Number",
+    "Post",
+    "Location",
+    "Department",
     "L1 Code",
-    "L1 Employer",
+    "L1 Employer Name",
     "L2 Code",
-    "L2 Employer",
+    "L2 Employer Name",
     "L3 Code",
-    "L3 Employer",
-    "Activity",
-    "Theme",
-    "Unit",
-    "Total Weightage",
-    "Weightage Q1",
-    "Weightage Q2",
-    "Weightage Q3",
-    "Weightage Q4"
-  ], style: [ header_style, header_style, header_style, header_style, header_style,
-             header_style, header_style, header_style, header_style, header_style,
-             header_style, header_style, header_style, header_style, header_style,
-             header_style, header_style, header_style, header_style, header_style ]
+    "L3 Employer Name",
+    "Financial Year",
+    "KRA",
+    "Measurement description",
+    "Unit of Measurement",
+    "Annual Target (FY #{display_financial_year_short(@selected_year)})",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sept",
+    "Oct",
+    "Nov",
+    "Dec",
+    "Jan",
+    "Feb",
+    "Mar"
+  ], style: Array.new(30, header_style)
 
   # Add data rows
   begin
@@ -56,30 +63,37 @@ wb.add_worksheet(name: "Department Activity Data") do |sheet|
           Rails.logger.info "Department Activity Export: Processing row #{index + 1} - #{detail.employee_detail&.employee_name}"
 
           sheet.add_row [
-            display_financial_year(detail.year),
-            detail.department&.department_type&.to_s || "N/A",
+            detail.employee_detail&.mobile_number&.to_s || "N/A",
             detail.employee_detail&.employee_name&.to_s || "N/A",
             detail.employee_detail&.employee_email&.to_s || "N/A",
             detail.employee_detail&.employee_code&.to_s || "N/A",
-            detail.employee_detail&.mobile_number&.to_s || "N/A",
+            detail.employee_detail&.post&.to_s || "",
+            detail.employee_detail&.office_name&.to_s || "",
+            detail.department&.department_type&.to_s || "N/A",
             detail.employee_detail&.l1_code&.to_s || "N/A",
             detail.employee_detail&.l1_employer_name&.to_s || "N/A",
             detail.employee_detail&.l2_code&.to_s || "N/A",
             detail.employee_detail&.l2_employer_name&.to_s || "N/A",
             detail.employee_detail&.l3_code&.to_s || "N/A",
             detail.employee_detail&.l3_employer_name&.to_s || "N/A",
-            detail.activity&.activity_name&.to_s || "N/A",
+            display_financial_year(detail.year),
             detail.activity&.theme_name&.to_s || "No Theme",
+            detail.activity&.activity_name&.to_s || "N/A",
             detail.activity&.unit&.to_s || "",
-            detail.weight&.to_s || "",
-            detail.weightage_for_quarter(:q1)&.to_s || "",
-            detail.weightage_for_quarter(:q2)&.to_s || "",
-            detail.weightage_for_quarter(:q3)&.to_s || "",
-            detail.weightage_for_quarter(:q4)&.to_s || ""
-          ], style: [ text_style, text_style, text_style, text_style, text_style,
-                     text_style, text_style, text_style, text_style, text_style,
-                     text_style, text_style, data_style, data_style, data_style,
-                     data_style, data_style, data_style, data_style, data_style ]
+            detail.annual_target&.to_s || "",
+            detail.april&.to_s || "",
+            detail.may&.to_s || "",
+            detail.june&.to_s || "",
+            detail.july&.to_s || "",
+            detail.august&.to_s || "",
+            detail.september&.to_s || "",
+            detail.october&.to_s || "",
+            detail.november&.to_s || "",
+            detail.december&.to_s || "",
+            detail.january&.to_s || "",
+            detail.february&.to_s || "",
+            detail.march&.to_s || ""
+          ], style: Array.new(14, text_style) + Array.new(16, data_style)
         rescue => e
           Rails.logger.error "Error adding row to Department Activity Excel: #{e.message} - Detail ID: #{detail.id}"
           # Skip this row and continue with next
@@ -92,52 +106,44 @@ wb.add_worksheet(name: "Department Activity Data") do |sheet|
       if @activities.present?
         @activities.limit(10).each do |activity|
           sheet.add_row [
-            display_financial_year(@selected_year),
-            activity.department&.department_type&.to_s || "N/A",
+            "Mobile No.",
             "Employee Name", # Placeholder
             "Employee Email", # Placeholder
             "Employee Code", # Placeholder
-            "Mobile Number", # Placeholder
+            "Post", # Placeholder
+            "Location", # Placeholder
+            activity.department&.department_type&.to_s || "N/A",
             "L1 Code", # Placeholder
             "L1 Manager", # Placeholder
             "L2 Code", # Placeholder
             "L2 Manager", # Placeholder
             "L3 Code", # Placeholder
             "L3 Manager", # Placeholder
-            activity.activity_name&.to_s || "N/A",
+            display_financial_year(@selected_year),
             activity.theme_name&.to_s || "No Theme",
+            activity.activity_name&.to_s || "N/A",
             activity.unit&.to_s || "",
-            activity.weight&.to_s || "",
-            "", "", "", ""
-          ], style: [ text_style, text_style, text_style, text_style, text_style,
-                     text_style, text_style, text_style, text_style, text_style,
-                     text_style, text_style, data_style, data_style, data_style,
-                     data_style, data_style, data_style, data_style, data_style ]
+            "", "", "", "", "", "", "", "", "", "", "", "", ""
+          ], style: Array.new(14, text_style) + Array.new(16, data_style)
         end
       else
         # Add a message row if no data found
         sheet.add_row [
           "No data available - Please select department and employee first",
-          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
-        ], style: [ text_style, text_style, text_style, text_style, text_style,
-                   text_style, text_style, text_style, text_style, text_style,
-                   text_style, text_style, data_style, data_style, data_style,
-                   data_style, data_style, data_style, data_style, data_style ]
+          "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+        ], style: Array.new(30, text_style)
       end
     end
   rescue => e
     Rails.logger.error "Department Activity Excel Template Error: #{e.message}"
     sheet.add_row [
       "Error generating data",
-      "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
-    ], style: [ text_style, text_style, text_style, text_style, text_style,
-               text_style, text_style, text_style, text_style, text_style,
-               text_style, text_style, data_style, data_style, data_style,
-               data_style, data_style, data_style, data_style, data_style ]
+      "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+    ], style: Array.new(30, text_style)
   end
 
   # Set column widths
-  sheet.column_widths 15, 15, 20, 25, 15, 15, 12, 15, 12, 15, 12, 15, 25, 20, 10, 15, 15, 15, 15, 15
+  sheet.column_widths 15, 20, 25, 15, 18, 18, 18, 12, 18, 12, 18, 12, 18, 15, 24, 32, 18, 24, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12, 12
 
   # Freeze header row
   sheet.sheet_view.pane do |pane|

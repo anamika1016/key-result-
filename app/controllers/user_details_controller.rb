@@ -775,6 +775,22 @@ class UserDetailsController < ApplicationController
   end
 
   def get_user_detail
+    @month_options = [
+      [ "APR", "april" ],
+      [ "MAY", "may" ],
+      [ "JUN", "june" ],
+      [ "JUL", "july" ],
+      [ "AUG", "august" ],
+      [ "SEPT", "september" ],
+      [ "OCT", "october" ],
+      [ "NOV", "november" ],
+      [ "DEC", "december" ],
+      [ "JAN", "january" ],
+      [ "FEB", "february" ],
+      [ "MAR", "march" ]
+    ]
+    @selected_month = params[:month].presence_in(@month_options.map(&:last)) || @month_options.first.last
+
     if [ "employee", "l1_employer", "l2_employer" ].include?(current_user.role)
       # FIXED: Find ALL employee details for this user (not just one)
       # A user can have multiple employee detail records for different departments
@@ -795,7 +811,7 @@ class UserDetailsController < ApplicationController
         # FIXED: Deduplicate by activity and department to avoid showing duplicate entries
         # when user has multiple employee_detail records for the same activities
         # Use a subquery to get the minimum ID for each activity-department combination
-        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year)
+        min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year_db)
                            .group(:activity_id, :department_id, :year)
                            .minimum(:id)
 
@@ -816,7 +832,7 @@ class UserDetailsController < ApplicationController
 
     elsif current_user.role == "hod"
       @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
-                                .where(year: @selected_year)
+                                .where(year: @selected_year_db)
                                 .order("departments.department_type, employee_details.employee_name, activities.activity_name")
                                 .limit(100)
       @employee_detail = nil
@@ -1097,6 +1113,19 @@ class UserDetailsController < ApplicationController
 
           # Extract quarterly data
           quarterly_data = {
+            annual_target: extract_month_value(details, "annual_target"),
+            april: extract_month_value(details, "april"),
+            may: extract_month_value(details, "may"),
+            june: extract_month_value(details, "june"),
+            july: extract_month_value(details, "july"),
+            august: extract_month_value(details, "august"),
+            september: extract_month_value(details, "september"),
+            october: extract_month_value(details, "october"),
+            november: extract_month_value(details, "november"),
+            december: extract_month_value(details, "december"),
+            january: extract_month_value(details, "january"),
+            february: extract_month_value(details, "february"),
+            march: extract_month_value(details, "march"),
             q1: extract_month_value(details, "q1"),
             q2: extract_month_value(details, "q2"),
             q3: extract_month_value(details, "q3"),
@@ -1235,6 +1264,8 @@ class UserDetailsController < ApplicationController
 
     begin
       selected_year = selected_year_param
+      selected_department = Department.find_by(id: params[:department_id])
+      selected_employee = EmployeeDetail.find_by(id: params[:employee_detail_id])
       spreadsheet = Roo::Excelx.new(file.tempfile.path)
       header = spreadsheet.row(1)
 
@@ -1259,33 +1290,49 @@ class UserDetailsController < ApplicationController
             row = {}
             header.each_with_index do |col_name, index|
               next if col_name.nil?
-              key = col_name.to_s.strip.downcase.gsub(/\s+/, "_")
+              key = normalize_import_header(col_name)
               row[key] = row_data[index]
             end
 
 
 
-            # Extract the 15 columns including Employee Email, Employee Code, and L1/L2/L3 codes
             row_year = database_financial_year_value(UserDetail, row["financial_year"].presence || row["year"].presence || selected_year)
-            department_type = row["department"] || row["vertical"]
-            employee_name = row["employee_name"]
-            employee_email = row["employee_email"]
-            employee_code = row["employee_code"]
-            mobile_number = row["mobile_number"] || row["mobile_no"] || row["mobile"]
-            l1_code = row["l1_code"]
-            l1_employer_name = row["l1_employer"]
-            l2_code = row["l2_code"]
-            l2_employer_name = row["l2_employer"]
-            l3_code = row["l3_code"]
-            l3_employer_name = row["l3_employer"]
-            activity_name = row["activity"]
-            activity_theme_name = row["theme"]
-            unit = row["unit"]
+            department_type = first_present(row, "department", "vertical") || selected_department&.department_type
+            employee_name = row["employee_name"] || selected_employee&.employee_name
+            employee_email = row["employee_email"] || selected_employee&.employee_email
+            employee_code = row["employee_code"] || selected_employee&.employee_code
+            mobile_number = first_present(row, "mobile_no", "mobile_number", "mobile") || selected_employee&.mobile_number
+            post = first_present(row, "post", "position", "designation") || selected_employee&.post
+            location = first_present(row, "location", "office_name", "branch") || selected_employee&.office_name
+            l1_code = row["l1_code"] || selected_employee&.l1_code
+            l1_employer_name = first_present(row, "l1_employer_name", "l1_employer", "l1_manager") || selected_employee&.l1_employer_name
+            l2_code = row["l2_code"] || selected_employee&.l2_code
+            l2_employer_name = first_present(row, "l2_employer_name", "l2_employer", "l2_manager") || selected_employee&.l2_employer_name
+            l3_code = row["l3_code"] || selected_employee&.l3_code
+            l3_employer_name = first_present(row, "l3_employer_name", "l3_employer", "l3_manager") || selected_employee&.l3_employer_name
+            activity_name = first_present(row, "measurement_description", "measurement", "activity", "indicator")
+            activity_theme_name = first_present(row, "kra", "theme", "kpi")
+            unit = first_present(row, "unit_of_measurement", "unit")
+            annual_target = first_present(row, "annual_target", row.keys.find { |key| key.start_with?("annual_target") })
             weightage = row["total_weightage"] || row["weightage"] || row["weight"]
             weightage_q1 = row["weightage_q1"] || row["q1_weightage"]
             weightage_q2 = row["weightage_q2"] || row["q2_weightage"]
             weightage_q3 = row["weightage_q3"] || row["q3_weightage"]
             weightage_q4 = row["weightage_q4"] || row["q4_weightage"]
+            monthly_targets = {
+              april: first_present(row, "april", "apr"),
+              may: first_present(row, "may"),
+              june: first_present(row, "june", "jun"),
+              july: first_present(row, "july", "jul"),
+              august: first_present(row, "august", "aug"),
+              september: first_present(row, "september", "sept", "sep"),
+              october: first_present(row, "october", "oct"),
+              november: first_present(row, "november", "nov"),
+              december: first_present(row, "december", "dec"),
+              january: first_present(row, "january", "jan"),
+              february: first_present(row, "february", "feb"),
+              march: first_present(row, "march", "mar")
+            }
 
             # Debug logging for weight values
             Rails.logger.info "Processing weight for row #{i}: original_weightage=#{row['weightage']}, original_weight=#{row['weight']}, final_weightage=#{weightage}"
@@ -1306,33 +1353,35 @@ class UserDetailsController < ApplicationController
             end
 
             if activity_name.blank?
-              errors << "Row #{i}: Activity name is missing"
+              errors << "Row #{i}: Measurement description is missing"
               next
             end
 
             department = Department.find_or_create_by!(department_type: department_type)
 
-            # Create/update employee with all required fields including email, code, and L1/L2/L3 codes
-            employee = EmployeeDetail.find_or_create_by!(
+            employee_code_value = employee_code.to_s.strip
+            employee_email_value = employee_email.to_s.strip
+            employee = if employee_code_value.present?
+              EmployeeDetail.find_by("LOWER(employee_code) = ?", employee_code_value.downcase)
+            end
+            employee ||= if employee_email_value.present?
+              EmployeeDetail.find_by("LOWER(employee_email) = ?", employee_email_value.downcase)
+            end
+            employee ||= EmployeeDetail.find_or_initialize_by(
               employee_name: employee_name.to_s.strip,
               department: department_type.to_s.strip
-            ) do |e|
-              e.employee_email = employee_email.to_s.strip if employee_email.present?
-              e.employee_code = employee_code.to_s.strip if employee_code.present?
-              e.mobile_number = mobile_number.to_s.strip if mobile_number.present?
-              e.l1_code = l1_code.to_s.strip if l1_code.present?
-              e.l1_employer_name = l1_employer_name.to_s.strip if l1_employer_name.present?
-              e.l2_code = l2_code.to_s.strip if l2_code.present?
-              e.l2_employer_name = l2_employer_name.to_s.strip if l2_employer_name.present?
-              e.l3_code = l3_code.to_s.strip if l3_code.present?
-              e.l3_employer_name = l3_employer_name.to_s.strip if l3_employer_name.present?
-            end
+            )
+            employee.employee_name = employee_name.to_s.strip if employee.new_record?
+            employee.department = department_type.to_s.strip if employee.new_record?
 
             # Update fields if they exist in Excel
             update_fields = {}
             update_fields[:employee_email] = employee_email.to_s.strip if employee_email.present?
             update_fields[:employee_code] = employee_code.to_s.strip if employee_code.present?
             update_fields[:mobile_number] = mobile_number.to_s.strip if mobile_number.present?
+            update_fields[:post] = post.to_s.strip if post.present?
+            update_fields[:office_name] = location.to_s.strip if location.present?
+            update_fields[:department] = department_type.to_s.strip if department_type.present?
             update_fields[:l1_code] = l1_code.to_s.strip if l1_code.present?
             update_fields[:l1_employer_name] = l1_employer_name.to_s.strip if l1_employer_name.present?
             update_fields[:l2_code] = l2_code.to_s.strip if l2_code.present?
@@ -1413,6 +1462,10 @@ class UserDetailsController < ApplicationController
               user_detail.weightage_q2 = normalize_percentage(weightage_q2) if weightage_q2.present?
               user_detail.weightage_q3 = normalize_percentage(weightage_q3) if weightage_q3.present?
               user_detail.weightage_q4 = normalize_percentage(weightage_q4) if weightage_q4.present?
+              user_detail.annual_target = annual_target if annual_target.present?
+              monthly_targets.each do |month, value|
+                user_detail.public_send("#{month}=", value) if value.present?
+              end
               user_detail.save!
               success_count += 1
             rescue ActiveRecord::RecordInvalid => e
@@ -1459,6 +1512,7 @@ class UserDetailsController < ApplicationController
     params.require(:user_detail).permit(:department_id, :activity_id, :april, :may, :june,
                                         :july, :august, :september, :october, :november,
                                         :december, :january, :february, :march,
+                                        :annual_target,
                                         :q1, :q2, :q3, :q4,
                                         :total_weightage, :weightage_q1, :weightage_q2,
                                         :weightage_q3, :weightage_q4,
@@ -1468,6 +1522,19 @@ class UserDetailsController < ApplicationController
 
   def bulk_create_params
     params.permit(:department_id, :employee_detail_id, user_details: {})
+  end
+
+  def normalize_import_header(header)
+    header.to_s.strip.downcase.gsub(/[^a-z0-9]+/, "_").gsub(/\A_|_\z/, "")
+  end
+
+  def first_present(row, *keys)
+    keys.flatten.compact.each do |key|
+      value = row[key.to_s]
+      return value if value.present?
+    end
+
+    nil
   end
 
   def extract_month_value(details, month)
@@ -1731,25 +1798,9 @@ class UserDetailsController < ApplicationController
         end
 
       elsif current_user.role == "hod"
-        # For HOD, also filter to show only their own data (not all data)
-        employee_details = EmployeeDetail.where(employee_email: current_user.email)
-
-        if employee_details.empty? && current_user.employee_code.present?
-          employee_details = EmployeeDetail.where(employee_code: current_user.employee_code)
-        end
-
-        @user_details = if employee_details.any?
-          employee_detail_ids = employee_details.pluck(:id)
-          min_ids = UserDetail.where(employee_detail_id: employee_detail_ids, year: @selected_year_db)
-                             .group(:activity_id, :department_id, :year)
-                             .minimum(:id)
-
-          UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
-                    .where(id: min_ids.values)
-                    .order("departments.department_type, activities.activity_name")
-        else
-          UserDetail.none
-        end
+        @user_details = UserDetail.includes(:department, :activity, :employee_detail, achievements: :achievement_remark)
+                                  .where(year: @selected_year_db)
+                                  .order("departments.department_type, employee_details.employee_name, activities.activity_name")
       else
         @user_details = UserDetail.none
       end
