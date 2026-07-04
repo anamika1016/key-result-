@@ -157,6 +157,9 @@
                   <td>
                     <strong><%= training.display_topic %></strong><br>
                     <span class="text-gray-500"><%= training.thematic_department_name %></span>
+                    <% if training.project_name.present? %>
+                      <br><span class="text-gray-500"><%= training.project_name %></span>
+                    <% end %>
                   </td>
                   <td>
                     <div class="employee-training-badge-row">
@@ -165,6 +168,12 @@
                       <% end %>
                       <% if training.office_names.size > 3 %>
                         <span class="employee-training-badge">+<%= training.office_names.size - 3 %></span>
+                      <% end %>
+                      <% training.fpo_names.first(2).each do |fpo_name| %>
+                        <span class="employee-training-badge amber"><%= fpo_name %></span>
+                      <% end %>
+                      <% if training.fpo_names.size > 2 %>
+                        <span class="employee-training-badge">+<%= training.fpo_names.size - 2 %> FPO</span>
                       <% end %>
                     </div>
                   </td>

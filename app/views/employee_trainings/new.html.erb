@@ -149,6 +149,8 @@
     .employee-training-multi-option { display: flex !important; align-items: center; gap: 9px; padding: 10px 9px; border-radius: 9px; color: #172033 !important; font-size: 13px !important; font-weight: 700 !important; letter-spacing: 0 !important; text-transform: none !important; margin: 0 !important; cursor: pointer; }
     .employee-training-multi-option:hover { background: #f1f5f9; }
     .employee-training-multi-option input { width: 15px; height: 15px; accent-color: #0f72df; }
+    .employee-training-help { margin-top: 8px; color: #64748b; font-size: 12px; font-weight: 700; }
+    .employee-training-help.error { color: #dc2626; }
     .employee-training-upload { border: 1px solid #d8e2ef; border-radius: 14px; padding: 14px; background: #f8fafc; min-width: 0; transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease; }
     .employee-training-upload:hover { transform: translateY(-2px); border-color: #bfdbfe; box-shadow: 0 12px 26px rgba(15, 23, 42, 0.08); }
     .employee-training-drop { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 116px; border: 1px dashed #c5d3e4; border-radius: 12px; background: #fff; color: #172033; text-align: center; cursor: pointer; transition: border-color 0.18s, background-color 0.18s; }
@@ -228,6 +230,10 @@
 
         <div class="employee-training-grid">
           <div class="employee-training-field">
+            <%= label_tag :project_name do %>Project Name <span class="employee-training-required">*</span><% end %>
+            <%= select_tag :project_name, options_for_select(@project_name_options), include_blank: "Select Project Name", required: true, class: "employee-training-select" %>
+          </div>
+          <div class="employee-training-field">
             <%= label_tag :office_type do %>Office Type <span class="employee-training-required">*</span><% end %>
             <%= select_tag "office_type[]", options_for_select(@office_type_options), multiple: true, required: true, class: "employee-training-hidden-select", data: { office_type_select: true } %>
             <div class="employee-training-multi" data-office-type-multi>
@@ -255,6 +261,18 @@
               </button>
               <div class="employee-training-multi-menu" data-office-name-menu></div>
             </div>
+          </div>
+          <div class="employee-training-field">
+            <%= label_tag :fpo_name do %>FPO<% end %>
+            <%= select_tag "fpo_name[]", options_for_select(@fpo_options), multiple: true, class: "employee-training-hidden-select", data: { fpo_name_select: true } %>
+            <div class="employee-training-multi" data-fpo-name-multi>
+              <button type="button" class="employee-training-multi-trigger" data-fpo-name-trigger>
+                <span class="employee-training-multi-label" data-fpo-name-label>Select Office Type First</span>
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+              </button>
+              <div class="employee-training-multi-menu" data-fpo-name-menu></div>
+            </div>
+            <p class="employee-training-help">Employee selection becomes optional when FPO is selected.</p>
           </div>
           <div class="employee-training-field">
             <%= label_tag :thematic_department_name do %>Thematic/Department Name <span class="employee-training-required">*</span><% end %>
@@ -343,6 +361,7 @@
             <%= search_field_tag :employee_search, nil, placeholder: "Search employee...", class: "employee-training-input", data: { employee_training_search: true } %>
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
           </div>
+          <p class="employee-training-help" data-employee-selection-help>Select at least one employee, or select FPO above.</p>
           <div class="employee-check-grid" data-employee-training-list>
             <% @employees.each do |employee| %>
               <label class="employee-check" data-employee-text="<%= "#{employee.employee_code} #{employee.employee_name}".downcase %>">
@@ -365,15 +384,20 @@
   </div>
 
   <script type="application/json" id="employee-training-office-options"><%= raw(json_escape(@office_options_by_type.to_json)) %></script>
+  <script type="application/json" id="employee-training-fpo-options"><%= raw(json_escape(@fpo_options_by_type.to_json)) %></script>
   <script type="application/json" id="employee-training-topic-options"><%= raw(json_escape(@topics_by_thematic_department.to_json)) %></script>
 
   <script>
     document.addEventListener("turbo:load", function () {
       const searchInput = document.querySelector("[data-employee-training-search]");
       const employeeItems = document.querySelectorAll("[data-employee-training-list] [data-employee-text]");
+      const employeeCheckboxes = document.querySelectorAll("input[name='employee_ids[]']");
+      const employeeSelectionHelp = document.querySelector("[data-employee-selection-help]");
       const officeTypeSelect = document.querySelector("[data-office-type-select]");
       const officeNameSelect = document.querySelector("[data-office-name-select]");
+      const fpoNameSelect = document.querySelector("[data-fpo-name-select]");
       const officeOptionsJson = document.getElementById("employee-training-office-options");
+      const fpoOptionsJson = document.getElementById("employee-training-fpo-options");
       const officeTypeMulti = document.querySelector("[data-office-type-multi]");
       const officeTypeTrigger = document.querySelector("[data-office-type-trigger]");
       const officeTypeLabel = document.querySelector("[data-office-type-label]");
@@ -382,14 +406,19 @@
       const officeNameTrigger = document.querySelector("[data-office-name-trigger]");
       const officeNameLabel = document.querySelector("[data-office-name-label]");
       const officeNameMenu = document.querySelector("[data-office-name-menu]");
+      const fpoNameMulti = document.querySelector("[data-fpo-name-multi]");
+      const fpoNameTrigger = document.querySelector("[data-fpo-name-trigger]");
+      const fpoNameLabel = document.querySelector("[data-fpo-name-label]");
+      const fpoNameMenu = document.querySelector("[data-fpo-name-menu]");
       const thematicDepartmentSelect = document.querySelector("[data-thematic-department-select]");
       const topicSelect = document.querySelector("[data-topic-select]");
       const topicOptionsJson = document.getElementById("employee-training-topic-options");
       const otherTopicWrap = document.querySelector("[data-other-topic-wrap]");
       const otherTopicInput = document.querySelector("[data-other-topic-input]");
 
-      if (officeTypeSelect && officeNameSelect && officeOptionsJson) {
+      if (officeTypeSelect && officeNameSelect && fpoNameSelect && officeOptionsJson && fpoOptionsJson) {
         const officeOptionsByType = JSON.parse(officeOptionsJson.textContent || "{}");
+        const fpoOptionsByType = JSON.parse(fpoOptionsJson.textContent || "{}");
 
         const selectedOfficeTypes = function () {
           return Array.from(officeTypeCheckboxes)
@@ -437,6 +466,44 @@
               officeNameLabel.textContent = `${selectedValues.length} office names selected`;
             }
           }
+        };
+
+        const selectedFpoNames = function () {
+          return Array.from(fpoNameMenu.querySelectorAll("[data-fpo-name-checkbox]"))
+            .filter(function (checkbox) { return checkbox.checked; })
+            .map(function (checkbox) { return checkbox.value; });
+        };
+
+        const updateEmployeeSelectionRequirement = function () {
+          const hasSelectedFpo = selectedFpoNames().length > 0;
+          const hasSelectedEmployee = Array.from(employeeCheckboxes).some(function (checkbox) { return checkbox.checked; });
+
+          if (!employeeSelectionHelp) return;
+
+          employeeSelectionHelp.classList.toggle("error", !hasSelectedFpo && !hasSelectedEmployee);
+          employeeSelectionHelp.textContent = hasSelectedFpo
+            ? "Employee selection is optional because FPO is selected."
+            : "Select at least one employee, or select FPO above.";
+        };
+
+        const syncFpoNameSelect = function () {
+          const selectedValues = selectedFpoNames();
+
+          Array.from(fpoNameSelect.options).forEach(function (option) {
+            option.selected = selectedValues.includes(option.value);
+          });
+
+          if (fpoNameLabel) {
+            if (selectedValues.length === 0) {
+              fpoNameLabel.textContent = selectedOfficeTypes().length > 0 ? "Select FPO" : "Select Office Type First";
+            } else if (selectedValues.length <= 2) {
+              fpoNameLabel.textContent = selectedValues.join(", ");
+            } else {
+              fpoNameLabel.textContent = `${selectedValues.length} FPOs selected`;
+            }
+          }
+
+          updateEmployeeSelectionRequirement();
         };
 
         const fillOfficeNames = function () {
@@ -488,6 +555,55 @@
           syncOfficeNameSelect();
         };
 
+        const fillFpoNames = function () {
+          const selectedTypes = selectedOfficeTypes();
+          const previouslySelected = selectedFpoNames();
+          const fpoNames = [];
+
+          selectedTypes.forEach(function (officeType) {
+            (fpoOptionsByType[officeType] || []).forEach(function (fpoName) {
+              if (!fpoNames.includes(fpoName)) fpoNames.push(fpoName);
+            });
+          });
+
+          fpoNameSelect.innerHTML = "";
+          fpoNameMenu.innerHTML = "";
+
+          fpoNames.forEach(function (fpoName) {
+            const option = document.createElement("option");
+            option.value = fpoName;
+            option.textContent = fpoName;
+            option.selected = previouslySelected.includes(fpoName);
+            fpoNameSelect.appendChild(option);
+
+            const label = document.createElement("label");
+            label.className = "employee-training-multi-option";
+
+            const checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.value = fpoName;
+            checkbox.checked = previouslySelected.includes(fpoName);
+            checkbox.setAttribute("data-fpo-name-checkbox", "");
+            checkbox.addEventListener("change", syncFpoNameSelect);
+
+            const text = document.createElement("span");
+            text.textContent = fpoName;
+
+            label.appendChild(checkbox);
+            label.appendChild(text);
+            fpoNameMenu.appendChild(label);
+          });
+
+          if (fpoNames.length === 0) {
+            const emptyOption = document.createElement("div");
+            emptyOption.className = "employee-training-multi-option";
+            emptyOption.textContent = selectedTypes.length > 0 ? "No FPO found" : "Select Office Type First";
+            fpoNameMenu.appendChild(emptyOption);
+          }
+
+          syncFpoNameSelect();
+        };
+
         if (officeTypeTrigger && officeTypeMulti) {
           officeTypeTrigger.addEventListener("click", function () {
             officeTypeMulti.classList.toggle("open");
@@ -500,6 +616,9 @@
             if (officeNameMulti && !officeNameMulti.contains(event.target)) {
               officeNameMulti.classList.remove("open");
             }
+            if (fpoNameMulti && !fpoNameMulti.contains(event.target)) {
+              fpoNameMulti.classList.remove("open");
+            }
           });
         }
 
@@ -509,15 +628,41 @@
           });
         }
 
+        if (fpoNameTrigger && fpoNameMulti) {
+          fpoNameTrigger.addEventListener("click", function () {
+            if (selectedOfficeTypes().length > 0) fpoNameMulti.classList.toggle("open");
+          });
+        }
+
         officeTypeCheckboxes.forEach(function (checkbox) {
           checkbox.addEventListener("change", function () {
             syncOfficeTypeSelect();
             fillOfficeNames();
+            fillFpoNames();
           });
         });
 
+        employeeCheckboxes.forEach(function (checkbox) {
+          checkbox.addEventListener("change", updateEmployeeSelectionRequirement);
+        });
+
+        const form = officeTypeSelect.closest("form");
+        if (form) {
+          form.addEventListener("submit", function (event) {
+            const hasSelectedFpo = selectedFpoNames().length > 0;
+            const hasSelectedEmployee = Array.from(employeeCheckboxes).some(function (checkbox) { return checkbox.checked; });
+
+            if (!hasSelectedFpo && !hasSelectedEmployee) {
+              event.preventDefault();
+              updateEmployeeSelectionRequirement();
+              employeeSelectionHelp?.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          });
+        }
+
         syncOfficeTypeSelect();
         fillOfficeNames();
+        fillFpoNames();
       }
 
       if (thematicDepartmentSelect && topicSelect && topicOptionsJson) {

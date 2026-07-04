@@ -143,6 +143,10 @@
           <p class="employee-training-label">QR ID</p>
           <p class="employee-training-value"><%= @employee_training.qr_id %></p>
         </div>
+        <div class="employee-training-detail-item">
+          <p class="employee-training-label">Project Name</p>
+          <p class="employee-training-value"><%= @employee_training.project_name.presence || "Not selected" %></p>
+        </div>
 
         <div class="employee-training-detail-item employee-training-span">
           <p class="employee-training-label">Office Type</p>
@@ -161,6 +165,17 @@
             <% end %>
           </div>
         </div>
+
+        <% if @employee_training.fpo_names.present? %>
+          <div class="employee-training-detail-item employee-training-span">
+            <p class="employee-training-label">FPO</p>
+            <div class="employee-training-badge-row">
+              <% @employee_training.fpo_names.each do |fpo_name| %>
+                <span class="employee-training-badge amber"><%= fpo_name %></span>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
 
         <div class="employee-training-detail-item">
           <p class="employee-training-label">ASA Participants</p>

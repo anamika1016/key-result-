@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_03_091000) do
+ActiveRecord::Schema[8.0].define(version: 2026_07_04_095000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -137,6 +137,27 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_03_091000) do
     t.index ["user_id"], name: "index_employee_details_on_user_id"
   end
 
+  create_table "employee_training_offices", force: :cascade do |t|
+    t.string "office_type", null: false
+    t.string "office_name"
+    t.string "fpo_name"
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["office_type", "fpo_name"], name: "index_employee_training_offices_on_office_type_and_fpo_name"
+    t.index ["office_type", "office_name"], name: "index_employee_training_offices_on_office_type_and_office_name"
+    t.index ["office_type"], name: "index_employee_training_offices_on_office_type"
+  end
+
+  create_table "employee_training_projects", force: :cascade do |t|
+    t.string "name", null: false
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_employee_training_projects_on_active"
+    t.index ["name"], name: "index_employee_training_projects_on_name", unique: true
+  end
+
   create_table "employee_training_thematics", force: :cascade do |t|
     t.string "thematic_type", null: false
     t.string "department_name", null: false
@@ -173,7 +194,10 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_03_091000) do
     t.jsonb "employee_detail_ids", default: [], null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.jsonb "fpo_names", default: [], null: false
+    t.string "project_name"
     t.index ["created_at"], name: "index_employee_trainings_on_created_at"
+    t.index ["project_name"], name: "index_employee_trainings_on_project_name"
     t.index ["thematic_department_name"], name: "index_employee_trainings_on_thematic_department_name"
     t.index ["training_date"], name: "index_employee_trainings_on_training_date"
     t.index ["user_id"], name: "index_employee_trainings_on_user_id"

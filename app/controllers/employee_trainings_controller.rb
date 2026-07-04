@@ -35,8 +35,10 @@ class EmployeeTrainingsController < ApplicationController
 
   def employee_training_attributes
     {
+      project_name: params[:project_name],
       office_types: Array(params[:office_type]),
       office_names: Array(params[:office_name]),
+      fpo_names: Array(params[:fpo_name]),
       thematic_department_name: params[:thematic_department_name],
       training_date: params[:training_date],
       topic: params[:topic],
@@ -53,23 +55,15 @@ class EmployeeTrainingsController < ApplicationController
   end
 
   def load_form_options
-    office_rows = EmployeeDetail
-      .where.not(office_type: [ nil, "" ], office_name: [ nil, "" ])
-      .distinct
-      .order(:office_type, :office_name)
-      .pluck(:office_type, :office_name)
+    @project_name_options = EmployeeTrainingProject.table_exists? ? EmployeeTrainingProject.option_names : []
 
-    @office_options_by_type = office_rows.each_with_object({}) do |(office_type, office_name), grouped|
-      office_type = office_type.to_s.strip
-      office_name = office_name.to_s.strip
-      next if office_type.blank? || office_name.blank?
+    office_option_groups = EmployeeTrainingOffice.table_exists? ? EmployeeTrainingOffice.option_groups : {}
 
-      grouped[office_type] ||= []
-      grouped[office_type] << office_name unless grouped[office_type].include?(office_name)
-    end
-
-    @office_type_options = @office_options_by_type.keys.sort
+    @office_options_by_type = office_option_groups.transform_values { |values| values[:offices].sort }
+    @fpo_options_by_type = office_option_groups.transform_values { |values| values[:fpos].sort }
+    @office_type_options = office_option_groups.keys.sort
     @office_options = @office_options_by_type.values.flatten.uniq.sort
+    @fpo_options = @fpo_options_by_type.values.flatten.uniq.sort
 
     @thematic_department_options = EmployeeTrainingThematic.active.ordered.map(&:display_name)
 
