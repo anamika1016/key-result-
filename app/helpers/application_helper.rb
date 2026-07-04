@@ -119,4 +119,50 @@ module ApplicationHelper
   def help_desk_menu_notification_label
     help_desk_notification_label(help_desk_menu_notification_count)
   end
+
+  def annual_target_fy_label(year)
+    "Annual Target (FY #{display_financial_year_short(year)})"
+  end
+
+  def annual_target_display(record)
+    value = record.respond_to?(:annual_target) ? record.annual_target : nil
+    clean_spreadsheet_display_value(value)
+  end
+
+  def clean_spreadsheet_display_value(value)
+    return "" if value.blank?
+
+    text = value.to_s.strip
+    return "" if text.casecmp("nan").zero?
+
+    number = Float(text, exception: false)
+    return text unless number
+
+    number == number.to_i ? number.to_i.to_s : number.round(2).to_s
+  end
+
+  def short_month_label(month)
+    {
+      "april" => "APR",
+      "may" => "MAY",
+      "june" => "JUN",
+      "july" => "JUL",
+      "august" => "AUG",
+      "september" => "SEP",
+      "october" => "OCT",
+      "november" => "NOV",
+      "december" => "DEC",
+      "january" => "JAN",
+      "february" => "FEB",
+      "march" => "MAR"
+    }.fetch(month.to_s.downcase, month.to_s.upcase)
+  end
+
+  def manager_remarks_column_label(level, month_name = nil)
+    [ level, month_name, "Remarks" ].compact_blank.join(" ")
+  end
+
+  def l2_reviewer_assigned?(employee_detail)
+    employee_detail&.l2_code.present? || employee_detail&.l2_employer_name.present?
+  end
 end

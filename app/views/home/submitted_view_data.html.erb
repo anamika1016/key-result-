@@ -1,936 +1,1285 @@
+<!-- Main Content Area -->
 <div class="main-content bg-gray-50 min-h-screen">
-<% if @user_details.any? %>
-  <script>
-    // Initialize dynamic update listener without auto-refresh
-    document.addEventListener('DOMContentLoaded', function() {
-      // Clear any cached data if needed (without auto-refresh)
-      if ('caches' in window) {
-        caches.keys().then(function(names) {
-          names.forEach(function(name) {
-            caches.delete(name);
-          });
-        });
-      }
-      
-      // DYNAMIC UPDATE: Listen for real-time updates from edit form
-      setupDynamicUpdateListener();
-    });
-    
-    // Function to set up dynamic update listener
-    function setupDynamicUpdateListener() {
-      try {
-        // Listen for localStorage changes (from other tabs)
-        window.addEventListener('storage', function(e) {
-          if (e.key === 'dynamic_quarterly_update') {
-            const updateData = JSON.parse(e.newValue);
-            updateViewDynamically(updateData);
-          }
-        });
-        
-        // Listen for custom events (same tab)
-        window.addEventListener('quarterlyDataUpdated', function(e) {
-          updateViewDynamically(e.detail);
-        });
-        
-        // Check for immediate updates on page load
-        const liveUpdateData = sessionStorage.getItem('live_update_data');
-        if (liveUpdateData) {
-          const updateData = JSON.parse(liveUpdateData);
-          updateViewDynamically(updateData);
-          sessionStorage.removeItem('live_update_data');
-        }
-        
-      } catch (error) {
-        // Ignore errors
-      }
-    }
-    
-    // Function to update view dynamically with new data
-    function updateViewDynamically(updateData) {
-      try {
-        const { quarter, detailId, achievement, inputValue } = updateData;
-        
-        // Find the corresponding display element in this view
-        const quarterSelector = `[data-quarter="${quarter}"]`;
-        const achievementDisplay = document.querySelector(`${quarterSelector} [data-detail-id="${detailId}"]`);
-        
-        if (achievementDisplay) {
-          // Update the display value
-          const cleanValue = parseFloat(inputValue) || 0;
-          achievementDisplay.textContent = cleanValue > 0 ? `${cleanValue}%` : '-';
-          
-          // Add visual feedback
-          achievementDisplay.style.backgroundColor = '#d4edda';
-          achievementDisplay.style.transition = 'background-color 0.3s ease';
-          
-          // Remove highlight after 2 seconds
-          setTimeout(() => {
-            achievementDisplay.style.backgroundColor = '';
-          }, 2000);
-          
-          // Show update notification
-          showDynamicUpdateNotification(`Updated ${quarter.toUpperCase()} achievement: ${cleanValue}%`);
-        }
-        
-        // Update totals if they exist
-        updateTotalsIfPresent();
-        
-      } catch (error) {
-        // Ignore errors
-      }
-    }
-    
-    // Function to update totals if present
-    function updateTotalsIfPresent() {
-      try {
-        // Try to find and update total elements
-        const totalElements = document.querySelectorAll('[id*="total"], [class*="total"]');
-        totalElements.forEach(element => {
-          if (element.textContent.includes('%')) {
-            element.style.backgroundColor = '#fff3cd';
-            setTimeout(() => {
-              element.style.backgroundColor = '';
-            }, 1000);
-          }
-        });
-      } catch (error) {
-        // Ignore errors
-      }
-    }
-    
-    // Function to show dynamic update notification
-    function showDynamicUpdateNotification(message) {
-      try {
-        const notification = document.createElement('div');
-        notification.className = 'fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white font-medium bg-green-500 transition-all duration-300 text-sm';
-        notification.textContent = message;
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-          if (notification.parentNode) {
-            notification.parentNode.removeChild(notification);
-          }
-        }, 2000);
-      } catch (error) {
-        // Ignore errors
-      }
-    }
-  </script>
+  <div class="bg-gray-50 min-h-screen">
+    <% if @user_details.any? && @user_details.any? { |detail| detail.achievements.any? { |achievement| achievement.achievement.present? } } %>
    <!-- Update this section in your existing index.html.erb file -->
 <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
   <div class="flex justify-between items-center">
-    <div>
-      <h2 class="text-4xl font-bold text-gray-800 flex items-center">
-        <i class="fas fa-check-circle me-3 text-green-600 text-2xl"></i>
-        Submitted view achievements
-      </h2>
-      <p class="text-gray-600 mt-2">
-        <i class="fas fa-info-circle me-2"></i>
-        <% case current_user.role %>
-        <% when "employee" %>
-          Your submitted monthly achievements and targets (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
-        <% when "hod" %>
-          All submitted monthly achievements and targets in your department (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
-        <% when "l1_employer" %>
-          Submitted monthly achievements and targets for employees under your supervision (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
-        <% when "l2_employer" %>
-          Submitted monthly achievements and targets for employees under your supervision (<%= @user_details.count %> record<%= 's' if @user_details.count != 1 %>)
-        <% else %>
-          Showing <%= @user_details.count %> record<%= 's' if @user_details.count != 1 %> with submitted monthly achievements and targets
-        <% end %>
-      </p>
-    </div>
+    <h2 class="text-4xl font-bold text-gray-800 flex items-center">
+      <i class="fas fa-check-circle me-3 text-green-600 text-2xl"></i>
+      Submitted view achievements
+    </h2>
     
-    <div class="flex flex-wrap justify-end gap-3 mb-4">
-      <form action="<%= submitted_view_data_path %>" method="get" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm">
-        <label for="submitted-view-year" class="text-sm font-semibold text-slate-700">Financial Year</label>
-        <%= select_tag :year,
-            options_for_select(@available_years.map { |year| [display_financial_year(year), year] }, @selected_year),
-            id: "submitted-view-year",
-            class: "border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-800 text-sm",
-            onchange: "this.form.submit();" %>
-      </form>
+    <!-- Add this Quarterly Edit Button -->
+   <div class="flex items-center gap-3">
+  <%= form_with url: submitted_view_data_path, method: :get, local: true, class: "flex items-center gap-2" do |form| %>
+    <%= form.label :financial_year, "Financial year", class: "text-sm font-semibold text-gray-700" %>
+    <%= form.select :financial_year,
+        options_for_select(@financial_years, @selected_financial_year),
+        {},
+        class: "bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700",
+        onchange: "this.form.submit();" %>
+  <% end %>
 
-      <%= link_to get_user_detail_user_details_path(year: @selected_year),
-              class: "bg-slate-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center shadow-md hover:shadow-lg" do %>
-        <i class="fas fa-calendar-alt me-2"></i>
-        <span class="font-semibold">Monthly edit</span>
-      <% end %>
-
-      <button id="edit-quarterly-btn" 
-              class="bg-gray-400 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center shadow-md hover:shadow-lg transform hover:scale-105"
-              disabled
-              onclick="handleEditButtonClick(event)">
-        <i class="fas fa-edit me-2"></i>
-        <span class="font-semibold">Edit Selected Quarters</span>
-      </button>
-    </div>
+  <%= link_to quarterly_edit_all_user_details_path(year: @selected_financial_year, month: @selected_month), 
+              class: "bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center shadow-md hover:shadow-lg transform hover:scale-105" do %>
+    <i class="fas fa-edit me-2"></i>
+    <span class="font-semibold">Monthly edit</span>
+  <% end %>
+</div>
 
   </div>
 </div>
-
-<%
-  month_shortcuts = [
-    [ "APR", "april" ], [ "MAY", "may" ], [ "JUN", "june" ],
-    [ "JUL", "july" ], [ "AUG", "august" ], [ "SEPT", "september" ],
-    [ "OCT", "october" ], [ "NOV", "november" ], [ "DEC", "december" ],
-    [ "JAN", "january" ], [ "FEB", "february" ], [ "MAR", "march" ]
-  ]
-%>
-<div class="px-6 pt-5">
-  <div class="month-eye-grid">
-    <% month_shortcuts.each do |label, month_key| %>
-      <%= link_to get_user_detail_user_details_path(year: @selected_year, month: month_key),
-          class: "month-eye-link",
-          title: "Open #{label} monthly sheet" do %>
-        <span><%= label %></span>
-        <i class="fas fa-eye"></i>
-      <% end %>
-    <% end %>
-  </div>
-</div>
-
-    <%
-      # Helper method to calculate quarterly achievement percentage
-      def calculate_quarterly_achievement_percentage(user_detail, months)
-        return "" unless user_detail
-
-        total_target = 0
-        total_achievement = 0
-
-        months.each do |month|
-          target_value = user_detail.send(month.to_sym) if user_detail.respond_to?(month.to_sym)
-          if target_value.present?
-            begin
-              total_target += target_value.to_f
-            rescue
-              # Skip invalid values
-            end
-          end
-
-          # Get achievement from achievements table (case-insensitive)
-          achievement = user_detail.achievements.find { |a| a.month.to_s.downcase == month.to_s.downcase }
-          if achievement&.achievement.present?
-            begin
-              total_achievement += achievement.achievement.to_f
-            rescue
-              # Skip invalid values
-            end
-          end
-        end
-
-        return "" if total_target == 0
-
-        percentage = (total_achievement / total_target * 100).round(1)
-        percentage.to_s
-      end
-
-      # Helper method to calculate weightage score
-      def calculate_weightage_score(weightage, achievement_percentage)
-        return "" if weightage.blank? || achievement_percentage.blank?
-        
-        weight = weightage.to_f
-        achievement = achievement_percentage.to_f
-        
-        # Convert weightage to decimal if it's a percentage (e.g., 25 -> 0.25)
-        weight_decimal = weight > 1 ? weight / 100 : weight
-        weightage_score = (weight_decimal * achievement).round(2)
-        weightage_score.to_s
-      end
-
-      def format_achievement_value(value)
-        return "" if value.blank?
-
-        number = value.to_f
-        number == number.to_i ? number.to_i.to_s : number.round(2).to_s
-      end
-
-      # Helper method to get quarterly remarks
-      def get_quarterly_remarks(user_detail, months)
-        remarks = []
-        months.each do |month|
-          achievement = user_detail.achievements.find { |a| a.month.to_s.downcase == month.to_s.downcase }
-          if achievement&.employee_remarks.present?
-            remarks << achievement.employee_remarks
-          end
-        end
-        remarks.uniq.join('; ').presence || '-'
-      end
-    %>
-    <div class="p-6">
-      <div class="monthly-submitted-table table-wrapper overflow-auto bg-white rounded-lg border border-gray-200 shadow-sm mb-6">
-        <table class="table table-hover w-full min-w-full">
-          <thead class="bg-gray-800">
-            <tr>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">KRA</th>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Measurement description</th>
-              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit of Measurement</th>
-              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Annual Target (FY <%= display_financial_year_short(@selected_year) %>)</th>
-              <% month_shortcuts.each do |label, month_key| %>
-                <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">
-                  <div class="month-head-cell">
-                    <span><%= label %></span>
-                    <%= link_to get_user_detail_user_details_path(year: @selected_year, month: month_key), class: "month-head-eye", title: "Open #{label}" do %>
-                      <i class="fas fa-eye"></i>
-                    <% end %>
-                  </div>
-                </th>
-              <% end %>
-            </tr>
-            <tr class="bg-gray-700">
-              <% month_shortcuts.each do |label, _month_key| %>
-                <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600"><%= label %> target / achievement / remarks</th>
-              <% end %>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <% @user_details.each_with_index do |detail, index| %>
-              <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200">
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity&.theme_name.presence || "-" %></td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity&.activity_name.presence || "-" %></td>
-                <td class="px-4 py-3 text-sm text-gray-800 text-center border-r border-gray-200"><%= detail.activity&.unit.presence || "-" %></td>
-                <td class="px-4 py-3 text-sm text-gray-800 text-center border-r border-gray-200"><%= detail.annual_target.presence || "-" %></td>
-                <% month_shortcuts.each do |_label, month_key| %>
-                  <%
-                    achievement = detail.achievements.find { |item| item.month.to_s.downcase == month_key }
-                    target_value = detail.public_send(month_key)
-                    progress = target_value.to_f.positive? && achievement&.achievement.present? ? ((achievement.achievement.to_f / target_value.to_f) * 100).round : nil
-                  %>
-                  <td class="px-3 py-3 text-xs text-center border-r border-gray-200 submitted-month-cell">
-                    <div><strong>Target:</strong> <%= target_value.presence || "-" %></div>
-                    <div><strong>Achievement:</strong> <%= achievement&.achievement.presence || "-" %></div>
-                    <div><strong>Progress:</strong> <%= progress.present? ? "#{progress}%" : "-" %></div>
-                    <div class="submitted-remarks"><%= achievement&.employee_remarks.presence || "-" %></div>
-                  </td>
+      <div class="p-6">
+        <div class="table-wrapper overflow-auto bg-white rounded-lg border border-gray-200 shadow-sm">
+          <table class="table table-hover w-full min-w-full">
+            <thead class="bg-gray-800">
+              <tr>
+                <th rowspan="3" class="px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">S.No</th>
+                <th rowspan="3" class="activity-column px-4 py-3 text-left text-xs font-medium text-white tracking-wider border-r border-gray-600">Key result areas</th>
+                <th rowspan="3" class="px-4 py-3 text-left text-xs font-medium text-white tracking-wider border-r border-gray-600">Unit of measurement</th>
+                <th rowspan="3" class="px-4 py-3 text-left text-xs font-medium text-white tracking-wider border-r border-gray-600"><%= annual_target_fy_label(@selected_financial_year) %></th>
+                <th colspan="20" class="px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-orange-700">Q1 (APR-JUN)</th>
+                <th colspan="20" class="px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-purple-700">Q2 (JUL-SEP)</th>
+                <th colspan="20" class="px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-blue-700">Q3 (OCT-DEC)</th>
+                <th colspan="20" class="px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-green-700">Q4 (JAN-MAR)</th>
+              </tr>
+              <tr class="bg-gray-700">
+                <!-- Q1 Months -->
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">APR</th>
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">MAY</th>
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">JUN</th>
+                <th colspan="2" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Quarter</th>
+                
+                <!-- Q2 Months -->
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">JUL</th>
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">AUG</th>
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">SEP</th>
+                <th colspan="2" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Quarter</th>
+                
+                <!-- Q3 Months -->
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">OCT</th>
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">NOV</th>
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">DEC</th>
+                <th colspan="2" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Quarter</th>
+                
+                <!-- Q4 Months -->
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">JAN</th>
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">FEB</th>
+                <th colspan="6" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">MAR</th>
+                <th colspan="2" class="px-2 py-2 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Quarter</th>
+              </tr>
+              <tr class="bg-gray-600">
+                <% 4.times do %>
+                  <!-- Monthly Columns -->
+                  <% 3.times do %>
+                    <th class="px-2 py-1 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Target</th>
+                    <th class="px-2 py-1 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Achievement</th>
+                    <th class="px-2 py-1 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">% Progress</th>
+                    <th class="px-2 py-1 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Employee remarks</th>
+                    <th class="px-2 py-1 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Reporting manager remarks</th>
+                    <th class="px-2 py-1 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Details</th>
+                  <% end %>
+                  <!-- Quarter Columns -->
+                  <th class="px-2 py-1 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Details</th>
+                  <th class="px-2 py-1 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Status</th>
                 <% end %>
               </tr>
-            <% end %>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="legacy-quarterly-table table-wrapper overflow-auto bg-white rounded-lg border border-gray-200 shadow-sm" style="display:none">
-        <table class="table table-hover w-full min-w-full">
-          <thead class="bg-gray-800">
-            <tr>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Department</th>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Employee Name</th>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Indicator</th>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">KPI</th>
-              <th rowspan="2" class="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit</th>
-              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Total Weightage</th>
-              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Q1</th>
-              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Q2</th>
-              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Q3</th>
-              <th rowspan="2" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Q4</th>
-              <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-orange-700">Q1</th>
-              <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-purple-700">Q2</th>
-              <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-blue-700">Q3</th>
-              <th colspan="3" class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-green-700">Q4</th>
-            </tr>
-            <tr class="bg-gray-700">
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Score</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Score</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Score</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Achievement (%)</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Remarks</th>
-              <th class="px-3 py-2 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Weightage Score</th>
-            </tr>
-            <tr class="bg-gray-600">
-              <th colspan="10" class="px-3 py-2 text-center border-r border-gray-600">
-                <span class="text-white text-xs font-medium">Select Quarters to Edit:</span>
-              </th>
-              <th colspan="3" class="px-3 py-2 text-center border-r border-gray-600">
-                <div class="flex items-center justify-center space-x-2">
-                  <input type="checkbox" id="table_q1_checkbox" class="table-quarter-checkbox" data-quarter="Q1" onchange="handleCheckboxChange(this)">
-                  <label for="table_q1_checkbox" class="text-white text-xs">Select Q1</label>
-                    <button type="button" 
-                            class="eye-icon-btn <%= @dashboard_active ? 'text-white hover:text-yellow-300' : 'text-gray-400 cursor-not-allowed opacity-50' %> transition-colors ml-2 px-2 py-1 rounded" 
-                            data-quarter="Q1" 
-                            onclick="showQuarterlyDetails('Q1')" 
-                            title="<%= @dashboard_active ? 'View Q1 Details' : 'Details viewing disabled by Administrator/HOD' %>">
-                      <i class="fas fa-eye text-sm"></i>
-                    </button>
-                </div>
-              </th>
-              <th colspan="3" class="px-3 py-2 text-center border-r border-gray-600">
-                <div class="flex items-center justify-center space-x-2">
-                  <input type="checkbox" id="table_q2_checkbox" class="table-quarter-checkbox" data-quarter="Q2" onchange="handleCheckboxChange(this)">
-                  <label for="table_q2_checkbox" class="text-white text-xs">Select Q2</label>
-                    <button type="button" 
-                            class="eye-icon-btn <%= @dashboard_active ? 'text-white hover:text-yellow-300' : 'text-gray-400 cursor-not-allowed opacity-50' %> transition-colors ml-2 px-2 py-1 rounded" 
-                            data-quarter="Q2" 
-                            onclick="showQuarterlyDetails('Q2')" 
-                            title="<%= @dashboard_active ? 'View Q2 Details' : 'Details viewing disabled by Administrator/HOD' %>">
-                      <i class="fas fa-eye text-sm"></i>
-                    </button>
-                </div>
-              </th>
-              <th colspan="3" class="px-3 py-2 text-center border-r border-gray-600">
-                <div class="flex items-center justify-center space-x-2">
-                  <input type="checkbox" id="table_q3_checkbox" class="table-quarter-checkbox" data-quarter="Q3" onchange="handleCheckboxChange(this)">
-                  <label for="table_q3_checkbox" class="text-white text-xs">Select Q3</label>
-                    <button type="button" 
-                            class="eye-icon-btn <%= @dashboard_active ? 'text-white hover:text-yellow-300' : 'text-gray-400 cursor-not-allowed opacity-50' %> transition-colors ml-2 px-2 py-1 rounded" 
-                            data-quarter="Q3" 
-                            onclick="showQuarterlyDetails('Q3')" 
-                            title="<%= @dashboard_active ? 'View Q3 Details' : 'Details viewing disabled by Administrator/HOD' %>">
-                      <i class="fas fa-eye text-sm"></i>
-                    </button>
-                </div>
-              </th>
-              <th colspan="3" class="px-3 py-2 text-center border-r border-gray-600">
-                <div class="flex items-center justify-center space-x-2">
-                  <input type="checkbox" id="table_q4_checkbox" class="table-quarter-checkbox" data-quarter="Q4" onchange="handleCheckboxChange(this)">
-                  <label for="table_q4_checkbox" class="text-white text-xs">Select Q4</label>
-                    <button type="button" 
-                            class="eye-icon-btn <%= @dashboard_active ? 'text-white hover:text-yellow-300' : 'text-gray-400 cursor-not-allowed opacity-50' %> transition-colors ml-2 px-2 py-1 rounded" 
-                            data-quarter="Q4" 
-                            onclick="showQuarterlyDetails('Q4')" 
-                            title="<%= @dashboard_active ? 'View Q4 Details' : 'Details viewing disabled by Administrator/HOD' %>">
-                      <i class="fas fa-eye text-sm"></i>
-                    </button>
-                </div>
-              </th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <% 
-              # Show each user_detail as a separate row (each activity gets its own row)
-              row_index = 0
-            %>
-            <% @user_details.each do |detail| %>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
               <% 
-                existing_achievements = detail.achievements.index_by(&:month)
+                # Calculate quarter statuses based on ALL activities across ALL rows
+                all_q1_statuses = []
+                all_q2_statuses = []
+                all_q3_statuses = []
+                all_q4_statuses = []
+                
+                @user_details.each do |detail|
+                  achievements = detail.achievements.index_by(&:month)
+                  # Q1 (APR-JUN)
+                  ['april', 'may', 'june'].each do |month|
+                    all_q1_statuses << achievements[month]&.status if achievements[month]&.status.present?
+                  end
+                  # Q2 (JUL-SEP)
+                  ['july', 'august', 'september'].each do |month|
+                    all_q2_statuses << achievements[month]&.status if achievements[month]&.status.present?
+                  end
+                  # Q3 (OCT-DEC)
+                  ['october', 'november', 'december'].each do |month|
+                    all_q3_statuses << achievements[month]&.status if achievements[month]&.status.present?
+                  end
+                  # Q4 (JAN-MAR)
+                  ['january', 'february', 'march'].each do |month|
+                    all_q4_statuses << achievements[month]&.status if achievements[month]&.status.present?
+                  end
+                end
+                
+                # Determine overall quarter statuses based on highest priority
+                def calculate_overall_quarter_status(statuses)
+                  return "pending" if statuses.empty?
+                  # Priority: L2 Returned > L1 Returned > L2 Approved > L1 Approved > Submitted > Pending
+                  if statuses.include?("l2_returned")
+                    "l2_returned"
+                  elsif statuses.include?("l1_returned")
+                    "l1_returned"
+                  elsif statuses.include?("l2_approved")
+                    "l2_approved"
+                  elsif statuses.include?("l1_approved")
+                    "l1_approved"
+                  elsif statuses.include?("submitted")
+                    "submitted"
+                  else
+                    "pending"
+                  end
+                end
+                
+                overall_q1_status = calculate_overall_quarter_status(all_q1_statuses)
+                overall_q2_status = calculate_overall_quarter_status(all_q2_statuses)
+                overall_q3_status = calculate_overall_quarter_status(all_q3_statuses)
+                overall_q4_status = calculate_overall_quarter_status(all_q4_statuses)
+
+                submitted_months = %w[april may june july august september october november december january february march]
+                monthly_summary_totals = submitted_months.each_with_object({}) do |month, totals|
+                  totals[month] = { target: 0.0, achievement: 0.0, has_target: false, has_achievement: false }
+                end
+                add_monthly_summary = lambda do |month, target, achievement|
+                  target_number = target.to_s.delete(",").to_f
+                  achievement_number = achievement.to_s.delete(",").to_f
+
+                  if target.present? && target.to_s.strip != "0" && target_number.positive?
+                    monthly_summary_totals[month][:target] += target_number
+                    monthly_summary_totals[month][:has_target] = true
+                  end
+
+                  if achievement.present?
+                    monthly_summary_totals[month][:achievement] += achievement_number
+                    monthly_summary_totals[month][:has_achievement] = true
+                  end
+                end
               %>
-              <% row_index += 1 %>
-              <tr class="<%= row_index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200 submitted-activity-row" 
-                  data-detail-id="<%= detail.id %>"
-                  data-department="<%= detail.department.department_type %>">
-                <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.department.department_type %></td>
-                <td class="px-4 py-3 text-sm text-gray-800 font-medium border-r border-gray-200"><%= detail.employee_detail&.employee_name || 'N/A' %></td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200">
-                  <%= detail.activity.activity_name %>
-                </td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200">
-                  <%= detail.activity.theme_name.present? ? detail.activity.theme_name : 'No Theme' %>
-                </td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center">
-                  <%= detail.activity.unit %>
-                </td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
-                  <%= detail.weight.present? ? "#{detail.weight.to_f.to_i}%" : '0%' %>
-                </td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
-                  <%= detail.weightage_for_quarter(:q1).present? ? "#{detail.weightage_for_quarter(:q1).to_f.to_i}%" : '0%' %>
-                </td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
-                  <%= detail.weightage_for_quarter(:q2).present? ? "#{detail.weightage_for_quarter(:q2).to_f.to_i}%" : '0%' %>
-                </td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
-                  <%= detail.weightage_for_quarter(:q3).present? ? "#{detail.weightage_for_quarter(:q3).to_f.to_i}%" : '0%' %>
-                </td>
-                <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center font-semibold">
-                  <%= detail.weightage_for_quarter(:q4).present? ? "#{detail.weightage_for_quarter(:q4).to_f.to_i}%" : '0%' %>
-                </td>
-
-                <!-- Q1 Columns -->
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Check for quarterly achievement first (case-insensitive), then quarterly target, then calculated achievement
-                    q1_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q1' }
-                    if q1_quarterly_achievement&.achievement.present?
-                      q1_display = q1_quarterly_achievement.achievement.to_f
-                      q1_is_target = false
-                      q1_is_quarterly_achievement = true
-                    elsif detail.q1.present?
-                      q1_display = detail.q1
-                      q1_is_target = true
-                      q1_is_quarterly_achievement = false
-                    else
-                      q1_display = calculate_quarterly_achievement_percentage(detail, ['april', 'may', 'june'])
-                      q1_is_target = false
-                      q1_is_quarterly_achievement = false
-                    end
-                  %>
-                  <span class="<%= q1_display.present? ? (q1_is_quarterly_achievement ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : (q1_is_target ? 'text-blue-700 font-semibold bg-blue-50 px-3 py-1 rounded-full' : 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full')) : 'text-gray-400' %>" 
-                        data-quarter="q1" 
-                        data-detail-id="<%= detail.id %>"
-                        data-achievement-value="<%= q1_display %>">
-                    <%= q1_display.present? ? (q1_is_target ? q1_display : "#{format_achievement_value(q1_display)}%") : '-' %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Check for quarterly achievement remarks first (case-insensitive), then monthly remarks
-                    q1_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q1' }
-                    if q1_quarterly_achievement&.employee_remarks.present?
-                      q1_remarks = q1_quarterly_achievement.employee_remarks
-                    else
-                      q1_remarks = get_quarterly_remarks(detail, ['april', 'may', 'june'])
-                    end
-                  %>
-                  <span class="<%= q1_remarks != '-' ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
-                    <%= q1_remarks %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # For weightage score calculation, we need the percentage value, not the raw target
-                    q1_achievement_for_score = q1_is_target ? nil : (q1_is_quarterly_achievement ? q1_display : q1_display)
-                    q1_weightage_score = calculate_weightage_score(detail.weightage_for_quarter(:q1), q1_achievement_for_score)
-                  %>
-                  <span class="<%= q1_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
-                    <%= q1_weightage_score.present? ? q1_weightage_score : '-' %>
-                  </span>
-                </td>
-
-                <!-- Q2 Columns -->
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Check for quarterly achievement first (case-insensitive), then quarterly target, then calculated achievement
-                    q2_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q2' }
-                    if q2_quarterly_achievement&.achievement.present?
-                      q2_display = q2_quarterly_achievement.achievement.to_f
-                      q2_is_target = false
-                      q2_is_quarterly_achievement = true
-                    elsif detail.q2.present?
-                      q2_display = detail.q2
-                      q2_is_target = true
-                      q2_is_quarterly_achievement = false
-                    else
-                      q2_display = calculate_quarterly_achievement_percentage(detail, ['july', 'august', 'september'])
-                      q2_is_target = false
-                      q2_is_quarterly_achievement = false
-                    end
-                  %>
-                  <span class="<%= q2_display.present? ? (q2_is_quarterly_achievement ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : (q2_is_target ? 'text-blue-700 font-semibold bg-blue-50 px-3 py-1 rounded-full' : 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full')) : 'text-gray-400' %>" 
-                        data-quarter="q2" 
-                        data-detail-id="<%= detail.id %>"
-                        data-achievement-value="<%= q2_display %>">
-                    <%= q2_display.present? ? (q2_is_target ? q2_display : "#{format_achievement_value(q2_display)}%") : '-' %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Check for quarterly achievement remarks first (case-insensitive), then monthly remarks
-                    q2_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q2' }
-                    if q2_quarterly_achievement&.employee_remarks.present?
-                      q2_remarks = q2_quarterly_achievement.employee_remarks
-                    else
-                      q2_remarks = get_quarterly_remarks(detail, ['july', 'august', 'september'])
-                    end
-                  %>
-                  <span class="<%= q2_remarks != '-' ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
-                    <%= q2_remarks %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # For weightage score calculation, we need the percentage value, not the raw target
-                    q2_achievement_for_score = q2_is_target ? nil : (q2_is_quarterly_achievement ? q2_display : q2_display)
-                    q2_weightage_score = calculate_weightage_score(detail.weightage_for_quarter(:q2), q2_achievement_for_score)
-                  %>
-                  <span class="<%= q2_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
-                    <%= q2_weightage_score.present? ? q2_weightage_score : '-' %>
-                  </span>
-                </td>
-
-                <!-- Q3 Columns -->
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Check for quarterly achievement first (case-insensitive), then quarterly target, then calculated achievement
-                    q3_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q3' }
-                    if q3_quarterly_achievement&.achievement.present?
-                      q3_display = q3_quarterly_achievement.achievement.to_f
-                      q3_is_target = false
-                      q3_is_quarterly_achievement = true
-                    elsif detail.q3.present?
-                      q3_display = detail.q3
-                      q3_is_target = true
-                      q3_is_quarterly_achievement = false
-                    else
-                      q3_display = calculate_quarterly_achievement_percentage(detail, ['october', 'november', 'december'])
-                      q3_is_target = false
-                      q3_is_quarterly_achievement = false
-                    end
-                  %>
-                  <span class="<%= q3_display.present? ? (q3_is_quarterly_achievement ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : (q3_is_target ? 'text-blue-700 font-semibold bg-blue-50 px-3 py-1 rounded-full' : 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full')) : 'text-gray-400' %>" 
-                        data-quarter="q3" 
-                        data-detail-id="<%= detail.id %>"
-                        data-achievement-value="<%= q3_display %>">
-                    <%= q3_display.present? ? (q3_is_target ? q3_display : "#{format_achievement_value(q3_display)}%") : '-' %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Check for quarterly achievement remarks first (case-insensitive), then monthly remarks
-                    q3_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q3' }
-                    if q3_quarterly_achievement&.employee_remarks.present?
-                      q3_remarks = q3_quarterly_achievement.employee_remarks
-                    else
-                      q3_remarks = get_quarterly_remarks(detail, ['october', 'november', 'december'])
-                    end
-                  %>
-                  <span class="<%= q3_remarks != '-' ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
-                    <%= q3_remarks %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # For weightage score calculation, we need the percentage value, not the raw target
-                    q3_achievement_for_score = q3_is_target ? nil : (q3_is_quarterly_achievement ? q3_display : q3_display)
-                    q3_weightage_score = calculate_weightage_score(detail.weightage_for_quarter(:q3), q3_achievement_for_score)
-                  %>
-                  <span class="<%= q3_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
-                    <%= q3_weightage_score.present? ? q3_weightage_score : '-' %>
-                  </span>
-                </td>
-
-                <!-- Q4 Columns -->
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Check for quarterly achievement first (case-insensitive), then quarterly target, then calculated achievement
-                    q4_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q4' }
-                    if q4_quarterly_achievement&.achievement.present?
-                      q4_display = q4_quarterly_achievement.achievement.to_f
-                      q4_is_target = false
-                      q4_is_quarterly_achievement = true
-                    elsif detail.q4.present?
-                      q4_display = detail.q4
-                      q4_is_target = true
-                      q4_is_quarterly_achievement = false
-                    else
-                      q4_display = calculate_quarterly_achievement_percentage(detail, ['january', 'february', 'march'])
-                      q4_is_target = false
-                      q4_is_quarterly_achievement = false
-                    end
-                  %>
-                  <span class="<%= q4_display.present? ? (q4_is_quarterly_achievement ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : (q4_is_target ? 'text-blue-700 font-semibold bg-blue-50 px-3 py-1 rounded-full' : 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full')) : 'text-gray-400' %>" 
-                        data-quarter="q4" 
-                        data-detail-id="<%= detail.id %>"
-                        data-achievement-value="<%= q4_display %>">
-                    <%= q4_display.present? ? (q4_is_target ? q4_display : "#{format_achievement_value(q4_display)}%") : '-' %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Check for quarterly achievement remarks first (case-insensitive), then monthly remarks
-                    q4_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q4' }
-                    if q4_quarterly_achievement&.employee_remarks.present?
-                      q4_remarks = q4_quarterly_achievement.employee_remarks
-                    else
-                      q4_remarks = get_quarterly_remarks(detail, ['january', 'february', 'march'])
-                    end
-                  %>
-                  <span class="<%= q4_remarks != '-' ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
-                    <%= q4_remarks %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # For weightage score calculation, we need the percentage value, not the raw target
-                    q4_achievement_for_score = q4_is_target ? nil : (q4_is_quarterly_achievement ? q4_display : q4_display)
-                    q4_weightage_score = calculate_weightage_score(detail.weightage_for_quarter(:q4), q4_achievement_for_score)
-                  %>
-                  <span class="<%= q4_weightage_score.present? ? 'text-green-700 font-semibold bg-green-50 px-3 py-1 rounded-full' : 'text-gray-400' %>">
-                    <%= q4_weightage_score.present? ? q4_weightage_score : '-' %>
-                  </span>
-                </td>
-              </tr>
-            <% end %>
               
-              <!-- TOTAL COUNT ROW -->
-              <tr class="bg-green-100 border-t-2 border-green-300">
-                <td class="px-4 py-3 text-sm font-bold text-green-800 border-r border-gray-200" colspan="5">
-                  TOTAL COUNT
-                </td>
-                <td class="px-4 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Calculate total weightage
-                    total_weightage = 0
-                    @user_details.each do |detail|
-                      if detail.weight.present?
-                        total_weightage += detail.weight.to_f
-                      end
-                    end
-                  %>
-                  <span id="total-weightage-display" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                    <%= total_weightage.to_i %>%
-                  </span>
-                </td>
-                <% [:q1, :q2, :q3, :q4].each do |quarter| %>
-                  <td class="px-4 py-3 text-sm text-center border-r border-gray-200">
+              <% @user_details.each_with_index do |detail, index| %>
+                <% existing_achievements = detail.achievements.index_by(&:month) %>
+                <tr class="<%= index.even? ? 'bg-gray-50' : 'bg-white' %> hover:bg-gray-100 transition-colors duration-200" data-detail-id="<%= detail.id %>">
+                  <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= index + 1 %></td>
+                  <td class="activity-cell px-4 py-3 text-sm text-gray-800 border-r border-gray-200"><%= detail.activity.activity_name %></td>
+                  <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= detail.activity.unit %></td>
+                  <td class="px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center"><%= annual_target_display(detail) %></td>
+
+                    <!-- Q1 (APR-JUN) -->
                     <%
-                      total_quarter_weightage = @user_details.sum { |detail| detail.weightage_for_quarter(quarter).to_f }
+                      q1_months = ['april', 'may', 'june']
+                      # Use overall quarter status instead of calculating per row
+                      q1_status = overall_q1_status
+                      
+                      q1_targets = []
+                      q1_achievements = []
+                      q1_remarks = []
                     %>
-                    <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                      <%= total_quarter_weightage.to_i %>%
-                    </span>
-                  </td>
-                <% end %>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Calculate total Q1 achievements
-                    total_q1_achievements = 0
-                    total_q1_count = 0
-                    @user_details.each do |detail|
-                      q1_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q1' }
-                      if q1_quarterly_achievement&.achievement.present?
-                        total_q1_achievements += q1_quarterly_achievement.achievement.to_f
-                        total_q1_count += 1
-                      end
-                    end
-                    total_q1_sum = total_q1_achievements
-                  %>
-                  <span id="q1-achievement-total" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                    <%= total_q1_sum.to_i %>%
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <span class="text-blue-700 font-bold bg-blue-50 px-3 py-1 rounded-full">
-                    <%= total_q1_count %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    # Calculate total Q1 weightage score
-                    total_q1_weightage = 0
-                    @user_details.each do |detail|
-                      q1_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q1' }
-                      if q1_quarterly_achievement&.achievement.present? && detail.weightage_for_quarter(:q1).present?
-                        weight = detail.weightage_for_quarter(:q1).to_f
-                        achievement = q1_quarterly_achievement.achievement.to_f
-                        weight_decimal = weight > 1 ? weight / 100 : weight
-                        total_q1_weightage += (weight_decimal * achievement)
-                      end
-                    end
-                  %>
-                  <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                    <%= total_q1_weightage.round(2) %>%
-                  </span>
-                </td>
-                
-                <!-- Q2 Totals -->
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    total_q2_achievements = 0
-                    total_q2_count = 0
-                    @user_details.each do |detail|
-                      q2_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q2' }
-                      if q2_quarterly_achievement&.achievement.present?
-                        total_q2_achievements += q2_quarterly_achievement.achievement.to_f
-                        total_q2_count += 1
-                      end
-                    end
-                    total_q2_sum = total_q2_achievements
-                  %>
-                  <span id="q2-achievement-total" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                    <%= total_q2_sum.round(1) %>%
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <span class="text-blue-700 font-bold bg-blue-50 px-3 py-1 rounded-full">
-                    <%= total_q2_count %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    total_q2_weightage = 0
-                    @user_details.each do |detail|
-                      q2_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q2' }
-                      if q2_quarterly_achievement&.achievement.present? && detail.weightage_for_quarter(:q2).present?
-                        weight = detail.weightage_for_quarter(:q2).to_f
-                        achievement = q2_quarterly_achievement.achievement.to_f
-                        weight_decimal = weight > 1 ? weight / 100 : weight
-                        total_q2_weightage += (weight_decimal * achievement)
-                      end
-                    end
-                  %>
-                  <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                    <%= total_q2_weightage.round(2) %>
-                  </span>
-                </td>
-                
-                <!-- Q3 Totals -->
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    total_q3_achievements = 0
-                    total_q3_count = 0
-                    @user_details.each do |detail|
-                      q3_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q3' }
-                      if q3_quarterly_achievement&.achievement.present?
-                        total_q3_achievements += q3_quarterly_achievement.achievement.to_f
-                        total_q3_count += 1
-                      end
-                    end
-                    total_q3_sum = total_q3_achievements
-                  %>
-                  <span id="q3-achievement-total" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                    <%= total_q3_sum.round(1) %>%
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <span class="text-blue-700 font-bold bg-blue-50 px-3 py-1 rounded-full">
-                    <%= total_q3_count %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    total_q3_weightage = 0
-                    @user_details.each do |detail|
-                      q3_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q3' }
-                      if q3_quarterly_achievement&.achievement.present? && detail.weightage_for_quarter(:q3).present?
-                        weight = detail.weightage_for_quarter(:q3).to_f
-                        achievement = q3_quarterly_achievement.achievement.to_f
-                        weight_decimal = weight > 1 ? weight / 100 : weight
-                        total_q3_weightage += (weight_decimal * achievement)
-                      end
-                    end
-                  %>
-                  <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                    <%= total_q3_weightage.round(2) %>
-                  </span>
-                </td>
-                
-                <!-- Q4 Totals -->
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    total_q4_achievements = 0
-                    total_q4_count = 0
-                    @user_details.each do |detail|
-                      q4_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q4' }
-                      if q4_quarterly_achievement&.achievement.present?
-                        total_q4_achievements += q4_quarterly_achievement.achievement.to_f
-                        total_q4_count += 1
-                      end
-                    end
-                    total_q4_sum = total_q4_achievements
-                  %>
-                  <span id="q4-achievement-total" class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                    <%= total_q4_sum.round(1) %>%
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <span class="text-blue-700 font-bold bg-blue-50 px-3 py-1 rounded-full">
-                    <%= total_q4_count %>
-                  </span>
-                </td>
-                <td class="px-3 py-3 text-sm text-center border-r border-gray-200">
-                  <% 
-                    total_q4_weightage = 0
-                    @user_details.each do |detail|
-                      q4_quarterly_achievement = detail.achievements.find { |a| a.month.to_s.downcase == 'q4' }
-                      if q4_quarterly_achievement&.achievement.present? && detail.weightage_for_quarter(:q4).present?
-                        weight = detail.weightage_for_quarter(:q4).to_f
-                        achievement = q4_quarterly_achievement.achievement.to_f
-                        weight_decimal = weight > 1 ? weight / 100 : weight
-                        total_q4_weightage += (weight_decimal * achievement)
-                      end
-                    end
-                  %>
-                  <span class="text-green-700 font-bold bg-green-50 px-3 py-1 rounded-full">
-                    <%= total_q4_weightage.round(2) %>
-                  </span>
-                </td>
-              </tr>
+                    
+                    <% q1_months.each do |month| %>
+                      <% target_value = clean_spreadsheet_display_value(detail.send(month.to_sym)) %>
+                      <% achievement_record = existing_achievements[month] %>
+                      <% achievement = achievement_record&.achievement %>
+                      <% remarks = achievement_record&.employee_remarks %>
+                      <% l1_remarks = achievement_record&.achievement_remark&.l1_remarks %>
+                      <% l2_remarks = achievement_record&.achievement_remark&.l2_remarks %>
+                      <% reporting_manager_remarks = achievement_record&.achievement_remark&.reporting_manager_remarks.presence || l1_remarks %>
+                      <% l1_percentage = achievement_record&.achievement_remark&.l1_percentage %>
+                      <% l2_percentage = achievement_record&.achievement_remark&.l2_percentage %>
+                      <% progress_percentage = target_value.present? && target_value.to_s.strip != "0" && target_value.to_s.delete(",").to_f.positive? && achievement.present? ? ((achievement.to_s.delete(",").to_f / target_value.to_s.delete(",").to_f) * 100.0).round(2) : nil %>
+                      <% month_status = achievement_record&.status || 'pending' %>
+                      
+                      <% q1_targets << target_value.to_f %>
+                      <% q1_achievements << achievement.to_f %>
+                      <% q1_remarks << {month: month, target: target_value, achievement: achievement, remarks: remarks, reporting_manager_remarks: reporting_manager_remarks, l1_remarks: l1_remarks, l2_remarks: l2_remarks, l1_percentage: l1_percentage, l2_percentage: l2_percentage, status: month_status} %>
+                      <% month_review_payload = { month: month, activity: detail.activity.activity_name, target: target_value, achievement: achievement, remarks: remarks, reporting_manager_remarks: reporting_manager_remarks, l1_remarks: l1_remarks, l2_remarks: l2_remarks, l1_percentage: l1_percentage, l2_percentage: l2_percentage, status: month_status, employee: detail.employee_detail&.employee_name, l1_name: detail.employee_detail&.l1_employer_name, l2_name: detail.employee_detail&.l2_employer_name } %>
+                      <% add_monthly_summary.call(month, target_value, achievement) %>
+                      
+                      <td class="px-2 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-orange-50">
+                        <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
+                          <%= target_value.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-orange-50">
+                        <span class="<%= achievement.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                          <%= achievement.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-orange-50">
+                        <span class="<%= progress_percentage ? 'text-emerald-700 font-semibold bg-emerald-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                          <%= progress_percentage ? "#{format('%.2f', progress_percentage)}%" : '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-orange-50">
+                        <span class="<%= remarks.presence ? 'text-orange-700 font-medium bg-orange-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                          <%= remarks.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-orange-50">
+                        <span class="<%= reporting_manager_remarks.presence ? 'text-indigo-700 font-medium bg-indigo-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                          <%= reporting_manager_remarks.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-orange-50">
+                        <button type="button"
+                                class="monthly-details-btn review-eye-button"
+                                title="View <%= short_month_label(month) %> L1/L2 Details"
+                                data-quarter="Month"
+                                data-month-review="<%= month_review_payload.to_json.gsub('"', '&quot;') %>">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                            <circle cx="12" cy="12" r="2.5" />
+                          </svg>
+                        </button>
+                      </td>
+                    <% end %>
+                    
+                    <!-- Q1 Details -->
+                    <td class="px-2 py-3 text-center border-r border-gray-200 bg-orange-50">
+                      <button
+                        type="button"
+                        class="review-eye-button details-btn"
+                        title="View Q1 Details"
+                        data-quarter="Q1 (APR-JUN)"
+                        data-months="<%= q1_months.join(',') %>"
+                        data-activity-name="<%= detail.activity.activity_name %>"
+                        data-employee-name="<%= detail.employee_detail&.employee_name || 'N/A' %>"
+                        data-l1-name="<%= detail.employee_detail&.l1_employer_name || 'N/A' %>"
+                        data-l2-name="<%= detail.employee_detail&.l2_employer_name || 'N/A' %>"
+                        data-department="<%= detail.department.department_type %>"
+                        data-detail-id="<%= detail.id %>"
+                        data-q1-data="<%= q1_remarks.to_json.gsub('"', '&quot;') %>">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                      </button>
+                    </td>
+                    
+                    <!-- Q1 Status -->
+                    <td class="px-2 py-3 text-center border-r border-gray-200 bg-orange-50">
+                      <%
+                        q1_status_config = case q1_status
+                        when "pending"
+                          { color: "bg-yellow-100 text-yellow-800", text: "Pending", icon: "fas fa-clock" }
+                        when "l1_approved"
+                          { color: "bg-green-100 text-green-800", text: "L1 Approved", icon: "fas fa-check-circle" }
+                        when "l1_returned"
+                          { color: "bg-red-100 text-red-800", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+                        when "l2_approved"
+                          { color: "bg-emerald-100 text-emerald-800", text: "L2 Approved", icon: "fas fa-check-double" }
+                        when "l2_returned"
+                          { color: "bg-orange-100 text-orange-800", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+                        when "submitted"
+                          { color: "bg-blue-100 text-blue-800", text: "Submitted", icon: "fas fa-paper-plane" }
+                        else
+                          { color: "bg-gray-100 text-gray-600", text: "No Status", icon: "fas fa-question-circle" }
+                        end
+                      %>
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <%= q1_status_config[:color] %>">
+                        <i class="<%= q1_status_config[:icon] %> mr-1 text-xs"></i>
+                        <%= q1_status_config[:text] %>
+                      </span>
+                    </td>
+
+                    <!-- Q2 (JUL-SEP) -->
+                    <%
+                      q2_months = ['july', 'august', 'september']
+                      # Use overall quarter status instead of calculating per row
+                      q2_status = overall_q2_status
+                      
+                      q2_targets = []
+                      q2_achievements = []
+                      q2_remarks = []
+                    %>
+                    
+                    <% q2_months.each do |month| %>
+                      <% target_value = clean_spreadsheet_display_value(detail.send(month.to_sym)) %>
+                      <% achievement_record = existing_achievements[month] %>
+                      <% achievement = achievement_record&.achievement %>
+                      <% remarks = achievement_record&.employee_remarks %>
+                      <% l1_remarks = achievement_record&.achievement_remark&.l1_remarks %>
+                      <% l2_remarks = achievement_record&.achievement_remark&.l2_remarks %>
+                      <% reporting_manager_remarks = achievement_record&.achievement_remark&.reporting_manager_remarks.presence || l1_remarks %>
+                      <% l1_percentage = achievement_record&.achievement_remark&.l1_percentage %>
+                      <% l2_percentage = achievement_record&.achievement_remark&.l2_percentage %>
+                      <% progress_percentage = target_value.present? && target_value.to_s.strip != "0" && target_value.to_s.delete(",").to_f.positive? && achievement.present? ? ((achievement.to_s.delete(",").to_f / target_value.to_s.delete(",").to_f) * 100.0).round(2) : nil %>
+                      <% month_status = achievement_record&.status || 'pending' %>
+                      
+                      <% q2_targets << target_value.to_f %>
+                      <% q2_achievements << achievement.to_f %>
+                      <% q2_remarks << {month: month, target: target_value, achievement: achievement, remarks: remarks, reporting_manager_remarks: reporting_manager_remarks, l1_remarks: l1_remarks, l2_remarks: l2_remarks, l1_percentage: l1_percentage, l2_percentage: l2_percentage, status: month_status} %>
+                      <% month_review_payload = { month: month, activity: detail.activity.activity_name, target: target_value, achievement: achievement, remarks: remarks, reporting_manager_remarks: reporting_manager_remarks, l1_remarks: l1_remarks, l2_remarks: l2_remarks, l1_percentage: l1_percentage, l2_percentage: l2_percentage, status: month_status, employee: detail.employee_detail&.employee_name, l1_name: detail.employee_detail&.l1_employer_name, l2_name: detail.employee_detail&.l2_employer_name } %>
+                      <% add_monthly_summary.call(month, target_value, achievement) %>
+                      
+                      <td class="px-2 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-purple-50">
+                        <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
+                          <%= target_value.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-purple-50">
+                        <span class="<%= achievement.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                          <%= achievement.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-purple-50">
+                        <span class="<%= progress_percentage ? 'text-emerald-700 font-semibold bg-emerald-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                          <%= progress_percentage ? "#{format('%.2f', progress_percentage)}%" : '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-purple-50">
+                        <span class="<%= remarks.presence ? 'text-purple-700 font-medium bg-purple-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                          <%= remarks.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-purple-50">
+                        <span class="<%= reporting_manager_remarks.presence ? 'text-indigo-700 font-medium bg-indigo-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                          <%= reporting_manager_remarks.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-purple-50">
+                        <button type="button"
+                                class="monthly-details-btn review-eye-button"
+                                title="View <%= short_month_label(month) %> L1/L2 Details"
+                                data-quarter="Month"
+                                data-month-review="<%= month_review_payload.to_json.gsub('"', '&quot;') %>">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                            <circle cx="12" cy="12" r="2.5" />
+                          </svg>
+                        </button>
+                      </td>
+                    <% end %>
+                    
+                    <!-- Q2 Details -->
+                    <td class="px-2 py-3 text-center border-r border-gray-200 bg-purple-50">
+                      <button
+                        type="button"
+                        class="review-eye-button details-btn"
+                        title="View Q2 Details"
+                        data-quarter="Q2 (JUL-SEP)"
+                        data-months="<%= q2_months.join(',') %>"
+                        data-activity-name="<%= detail.activity.activity_name %>"
+                        data-employee-name="<%= detail.employee_detail&.employee_name || 'N/A' %>"
+                        data-l1-name="<%= detail.employee_detail&.l1_employer_name || 'N/A' %>"
+                        data-l2-name="<%= detail.employee_detail&.l2_employer_name || 'N/A' %>"
+                        data-department="<%= detail.department.department_type %>"
+                        data-detail-id="<%= detail.id %>"
+                        data-q2-data="<%= q2_remarks.to_json.gsub('"', '&quot;') %>">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                      </button>
+                    </td>
+                    
+                    <!-- Q2 Status -->
+                    <td class="px-2 py-3 text-center border-r border-gray-200 bg-purple-50">
+                      <%
+                        q2_status_config = case q2_status
+                        when "pending"
+                          { color: "bg-yellow-100 text-yellow-800", text: "Pending", icon: "fas fa-clock" }
+                        when "l1_approved"
+                          { color: "bg-green-100 text-green-800", text: "L1 Approved", icon: "fas fa-check-circle" }
+                        when "l1_returned"
+                          { color: "bg-red-100 text-red-800", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+                        when "l2_approved"
+                          { color: "bg-emerald-100 text-emerald-800", text: "L2 Approved", icon: "fas fa-check-double" }
+                        when "l2_returned"
+                          { color: "bg-orange-100 text-orange-800", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+                        when "submitted"
+                          { color: "bg-blue-100 text-blue-800", text: "Submitted", icon: "fas fa-paper-plane" }
+                        else
+                          { color: "bg-gray-100 text-gray-600", text: "No Status", icon: "fas fa-question-circle" }
+                        end
+                      %>
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <%= q2_status_config[:color] %>">
+                        <i class="<%= q2_status_config[:icon] %> mr-1 text-xs"></i>
+                        <%= q2_status_config[:text] %>
+                      </span>
+                    </td>
+                    
+                    <!-- Q3 (OCT-DEC) -->
+                    <%
+                      q3_months = ['october', 'november', 'december']
+                      # Use overall quarter status instead of calculating per row
+                      q3_status = overall_q3_status
+                      
+                      q3_targets = []
+                      q3_achievements = []
+                      q3_remarks = []
+                    %>
+                    
+                    <% q3_months.each do |month| %>
+                      <% target_value = clean_spreadsheet_display_value(detail.send(month.to_sym)) %>
+                      <% achievement_record = existing_achievements[month] %>
+                      <% achievement = achievement_record&.achievement %>
+                      <% remarks = achievement_record&.employee_remarks %>
+                      <% l1_remarks = achievement_record&.achievement_remark&.l1_remarks %>
+                      <% l2_remarks = achievement_record&.achievement_remark&.l2_remarks %>
+                      <% reporting_manager_remarks = achievement_record&.achievement_remark&.reporting_manager_remarks.presence || l1_remarks %>
+                      <% l1_percentage = achievement_record&.achievement_remark&.l1_percentage %>
+                      <% l2_percentage = achievement_record&.achievement_remark&.l2_percentage %>
+                      <% progress_percentage = target_value.present? && target_value.to_s.strip != "0" && target_value.to_s.delete(",").to_f.positive? && achievement.present? ? ((achievement.to_s.delete(",").to_f / target_value.to_s.delete(",").to_f) * 100.0).round(2) : nil %>
+                      <% month_status = achievement_record&.status || 'pending' %>
+                      
+                      <% q3_targets << target_value.to_f %>
+                      <% q3_achievements << achievement.to_f %>
+                      <% q3_remarks << {month: month, target: target_value, achievement: achievement, remarks: remarks, reporting_manager_remarks: reporting_manager_remarks, l1_remarks: l1_remarks, l2_remarks: l2_remarks, l1_percentage: l1_percentage, l2_percentage: l2_percentage, status: month_status} %>
+                      <% month_review_payload = { month: month, activity: detail.activity.activity_name, target: target_value, achievement: achievement, remarks: remarks, reporting_manager_remarks: reporting_manager_remarks, l1_remarks: l1_remarks, l2_remarks: l2_remarks, l1_percentage: l1_percentage, l2_percentage: l2_percentage, status: month_status, employee: detail.employee_detail&.employee_name, l1_name: detail.employee_detail&.l1_employer_name, l2_name: detail.employee_detail&.l2_employer_name } %>
+                      <% add_monthly_summary.call(month, target_value, achievement) %>
+                      
+                      <td class="px-2 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-blue-50">
+                        <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
+                          <%= target_value.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-blue-50">
+                        <span class="<%= achievement.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                          <%= achievement.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-blue-50">
+                        <span class="<%= progress_percentage ? 'text-emerald-700 font-semibold bg-emerald-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                          <%= progress_percentage ? "#{format('%.2f', progress_percentage)}%" : '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-blue-50">
+                        <span class="<%= remarks.presence ? 'text-blue-700 font-medium bg-blue-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                          <%= remarks.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-blue-50">
+                        <span class="<%= reporting_manager_remarks.presence ? 'text-indigo-700 font-medium bg-indigo-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                          <%= reporting_manager_remarks.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-blue-50">
+                        <button type="button"
+                                class="monthly-details-btn review-eye-button"
+                                title="View <%= short_month_label(month) %> L1/L2 Details"
+                                data-quarter="Month"
+                                data-month-review="<%= month_review_payload.to_json.gsub('"', '&quot;') %>">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                            <circle cx="12" cy="12" r="2.5" />
+                          </svg>
+                        </button>
+                      </td>
+                    <% end %>
+                    
+                    <!-- Q3 Details -->
+                    <td class="px-2 py-3 text-center border-r border-gray-200 bg-blue-50">
+                      <button
+                        type="button"
+                        class="review-eye-button details-btn"
+                        title="View Q3 Details"
+                        data-quarter="Q3 (OCT-DEC)"
+                        data-months="<%= q3_months.join(',') %>"
+                        data-activity-name="<%= detail.activity.activity_name %>"
+                        data-employee-name="<%= detail.employee_detail&.employee_name || 'N/A' %>"
+                        data-l1-name="<%= detail.employee_detail&.l1_employer_name || 'N/A' %>"
+                        data-l2-name="<%= detail.employee_detail&.l2_employer_name || 'N/A' %>"
+                        data-department="<%= detail.department.department_type %>"
+                        data-detail-id="<%= detail.id %>"
+                        data-q3-data="<%= q3_remarks.to_json.gsub('"', '&quot;') %>">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                      </button>
+                    </td>
+                    
+                    <!-- Q3 Status -->
+                    <td class="px-2 py-3 text-center border-r border-gray-200 bg-blue-50">
+                      <%
+                        q3_status_config = case q3_status
+                        when "pending"
+                          { color: "bg-yellow-100 text-yellow-800", text: "Pending", icon: "fas fa-clock" }
+                        when "l1_approved"
+                          { color: "bg-green-100 text-green-800", text: "L1 Approved", icon: "fas fa-check-circle" }
+                        when "l1_returned"
+                          { color: "bg-red-100 text-red-800", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+                        when "l2_approved"
+                          { color: "bg-emerald-100 text-emerald-800", text: "L2 Approved", icon: "fas fa-check-double" }
+                        when "l2_returned"
+                          { color: "bg-orange-100 text-orange-800", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+                        when "submitted"
+                          { color: "bg-blue-100 text-blue-800", text: "Submitted", icon: "fas fa-paper-plane" }
+                        else
+                          { color: "bg-gray-100 text-gray-600", text: "No Status", icon: "fas fa-question-circle" }
+                        end
+                      %>
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <%= q3_status_config[:color] %>">
+                        <i class="<%= q3_status_config[:icon] %> mr-1 text-xs"></i>
+                        <%= q3_status_config[:text] %>
+                      </span>
+                    </td>
+
+                    <!-- Q4 (JAN-MAR) -->
+                    <%
+                      q4_months = ['january', 'february', 'march']
+                      # Use overall quarter status instead of calculating per row
+                      q4_status = overall_q4_status
+                      
+                      q4_targets = []
+                      q4_achievements = []
+                      q4_remarks = []
+                    %>
+                    
+                    <% q4_months.each do |month| %>
+                      <% target_value = clean_spreadsheet_display_value(detail.send(month.to_sym)) %>
+                      <% achievement_record = existing_achievements[month] %>
+                      <% achievement = achievement_record&.achievement %>
+                      <% remarks = achievement_record&.employee_remarks %>
+                      <% l1_remarks = achievement_record&.achievement_remark&.l1_remarks %>
+                      <% l2_remarks = achievement_record&.achievement_remark&.l2_remarks %>
+                      <% reporting_manager_remarks = achievement_record&.achievement_remark&.reporting_manager_remarks.presence || l1_remarks %>
+                      <% l1_percentage = achievement_record&.achievement_remark&.l1_percentage %>
+                      <% l2_percentage = achievement_record&.achievement_remark&.l2_percentage %>
+                      <% progress_percentage = target_value.present? && target_value.to_s.strip != "0" && target_value.to_s.delete(",").to_f.positive? && achievement.present? ? ((achievement.to_s.delete(",").to_f / target_value.to_s.delete(",").to_f) * 100.0).round(2) : nil %>
+                      <% month_status = achievement_record&.status || 'pending' %>
+                      
+                      <% q4_targets << target_value.to_f %>
+                      <% q4_achievements << achievement.to_f %>
+                      <% q4_remarks << {month: month, target: target_value, achievement: achievement, remarks: remarks, reporting_manager_remarks: reporting_manager_remarks, l1_remarks: l1_remarks, l2_remarks: l2_remarks, l1_percentage: l1_percentage, l2_percentage: l2_percentage, status: month_status} %>
+                      <% month_review_payload = { month: month, activity: detail.activity.activity_name, target: target_value, achievement: achievement, remarks: remarks, reporting_manager_remarks: reporting_manager_remarks, l1_remarks: l1_remarks, l2_remarks: l2_remarks, l1_percentage: l1_percentage, l2_percentage: l2_percentage, status: month_status, employee: detail.employee_detail&.employee_name, l1_name: detail.employee_detail&.l1_employer_name, l2_name: detail.employee_detail&.l2_employer_name } %>
+                      <% add_monthly_summary.call(month, target_value, achievement) %>
+                      
+                      <td class="px-2 py-3 text-sm text-gray-800 text-center border-r border-gray-200 bg-green-50">
+                        <span class="<%= target_value.presence ? 'text-gray-800 font-medium' : 'text-gray-400' %>">
+                          <%= target_value.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-green-50">
+                        <span class="<%= achievement.presence ? 'text-green-700 font-semibold bg-green-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                          <%= achievement.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-green-50">
+                        <span class="<%= progress_percentage ? 'text-emerald-700 font-semibold bg-emerald-50 px-2 py-1 rounded' : 'text-gray-400' %>">
+                          <%= progress_percentage ? "#{format('%.2f', progress_percentage)}%" : '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-green-50">
+                        <span class="<%= remarks.presence ? 'text-green-700 font-medium bg-green-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                          <%= remarks.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-green-50">
+                        <span class="<%= reporting_manager_remarks.presence ? 'text-indigo-700 font-medium bg-indigo-50 px-2 py-1 rounded text-xs' : 'text-gray-400' %>">
+                          <%= reporting_manager_remarks.presence || '-' %>
+                        </span>
+                      </td>
+                      <td class="px-2 py-3 text-sm text-center border-r border-gray-200 bg-green-50">
+                        <button type="button"
+                                class="monthly-details-btn review-eye-button"
+                                title="View <%= short_month_label(month) %> L1/L2 Details"
+                                data-quarter="Month"
+                                data-month-review="<%= month_review_payload.to_json.gsub('"', '&quot;') %>">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                            <circle cx="12" cy="12" r="2.5" />
+                          </svg>
+                        </button>
+                      </td>
+                    <% end %>
+                    
+                    <!-- Q4 Details -->
+                    <td class="px-2 py-3 text-center border-r border-gray-200 bg-green-50">
+                      <button
+                        type="button"
+                        class="review-eye-button details-btn"
+                        title="View Q4 Details"
+                        data-quarter="Q4 (JAN-MAR)"
+                        data-months="<%= q4_months.join(',') %>"
+                        data-activity-name="<%= detail.activity.activity_name %>"
+                        data-employee-name="<%= detail.employee_detail&.employee_name || 'N/A' %>"
+                        data-l1-name="<%= detail.employee_detail&.l1_employer_name || 'N/A' %>"
+                        data-l2-name="<%= detail.employee_detail&.l2_employer_name || 'N/A' %>"
+                        data-department="<%= detail.department.department_type %>"
+                        data-detail-id="<%= detail.id %>"
+                        data-q4-data="<%= q4_remarks.to_json.gsub('"', '&quot;') %>">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                      </button>
+                    </td>
+                    
+                    <!-- Q4 Status -->
+                    <td class="px-2 py-3 text-center border-r border-gray-200 bg-green-50">
+                      <%
+                        q4_status_config = case q4_status
+                        when "pending"
+                          { color: "bg-yellow-100 text-yellow-800", text: "Pending", icon: "fas fa-clock" }
+                        when "l1_approved"
+                          { color: "bg-green-100 text-green-800", text: "L1 Approved", icon: "fas fa-check-circle" }
+                        when "l1_returned"
+                          { color: "bg-red-100 text-red-800", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+                        when "l2_approved"
+                          { color: "bg-emerald-100 text-emerald-800", text: "L2 Approved", icon: "fas fa-check-double" }
+                        when "l2_returned"
+                          { color: "bg-orange-100 text-orange-800", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+                        when "submitted"
+                          { color: "bg-blue-100 text-blue-800", text: "Submitted", icon: "fas fa-paper-plane" }
+                        else
+                          { color: "bg-gray-100 text-gray-600", text: "No Status", icon: "fas fa-question-circle" }
+                        end
+                      %>
+                      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold <%= q4_status_config[:color] %>">
+                        <i class="<%= q4_status_config[:icon] %> mr-1 text-xs"></i>
+                        <%= q4_status_config[:text] %>
+                      </span>
+                    </td>
+                </tr>
+              <% end %>
             </tbody>
           </table>
+        </div>
+
+        <%
+          financial_summary_quarters = {
+            "Q1 (APR-JUN)" => %w[april may june],
+            "Q2 (JUL-SEP)" => %w[july august september],
+            "Q3 (OCT-DEC)" => %w[october november december],
+            "Q4 (JAN-MAR)" => %w[january february march]
+          }
+        %>
+        <div class="mt-6 rounded-xl border border-gray-200 bg-gray-50 p-4">
+          <h3 class="mb-4 text-lg font-bold text-gray-800 flex items-center">
+            <i class="fas fa-chart-line mr-2 text-gray-600"></i>
+            Financial year summary
+          </h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <% financial_summary_quarters.each do |quarter_label, quarter_months| %>
+              <%
+                quarter_target_total = 0.0
+                quarter_achievement_total = 0.0
+                quarter_l1_remarks = []
+                quarter_l2_remarks = []
+                quarter_l1_percentages = []
+                quarter_l2_percentages = []
+
+                @user_details.each do |detail|
+                  achievements_by_month = detail.achievements.index_by(&:month)
+                  quarter_months.each do |month|
+                    target_value = clean_spreadsheet_display_value(detail.public_send(month))
+                    achievement_record = achievements_by_month[month]
+                    has_achievement = achievement_record&.achievement.present?
+                    if has_achievement
+                      quarter_target_total += target_value.to_s.delete(",").to_f if target_value.present? && target_value.to_s.strip != "0"
+                      quarter_achievement_total += achievement_record.achievement.to_s.delete(",").to_f
+                    end
+                    quarter_l1_remarks << achievement_record.achievement_remark.l1_remarks if achievement_record&.achievement_remark&.l1_remarks.present?
+                    quarter_l2_remarks << achievement_record.achievement_remark.l2_remarks if achievement_record&.achievement_remark&.l2_remarks.present?
+                    quarter_l1_percentages << achievement_record.achievement_remark.l1_percentage.to_f if achievement_record&.achievement_remark&.l1_percentage.present?
+                    quarter_l2_percentages << achievement_record.achievement_remark.l2_percentage.to_f if achievement_record&.achievement_remark&.l2_percentage.present?
+                  end
+                end
+
+                quarter_percentage = quarter_target_total.positive? ? ((quarter_achievement_total / quarter_target_total) * 100.0).round(2) : nil
+                quarter_l1_average = quarter_l1_percentages.any? ? (quarter_l1_percentages.sum / quarter_l1_percentages.size).round(1) : nil
+                quarter_l2_average = quarter_l2_percentages.any? ? (quarter_l2_percentages.sum / quarter_l2_percentages.size).round(1) : nil
+                financial_summary_payload = {
+                  quarter: quarter_label,
+                  target: quarter_target_total,
+                  achievement: quarter_achievement_total,
+                  percentage: quarter_percentage,
+                  l1_remarks: quarter_l1_remarks.uniq.join("; "),
+                  l2_remarks: quarter_l2_remarks.uniq.join("; "),
+                  l1_percentage: quarter_l1_average,
+                  l2_percentage: quarter_l2_average
+                }
+              %>
+              <button type="button"
+                      class="financial-summary-btn rounded-lg border border-gray-200 bg-white p-4 text-left shadow-sm hover:border-gray-400 hover:shadow-md transition"
+                      data-financial-summary="<%= financial_summary_payload.to_json.gsub('"', '&quot;') %>">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="font-semibold text-gray-800"><%= quarter_label %></span>
+                  <span class="review-eye-button">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z" />
+                      <circle cx="12" cy="12" r="2.5" />
+                    </svg>
+                  </span>
+                </div>
+                <div class="mt-3 text-sm text-gray-600">
+                  <div>Target: <span class="font-semibold text-gray-900"><%= number_with_precision(quarter_target_total, precision: 2, strip_insignificant_zeros: true) %></span></div>
+                  <div>Achievement: <span class="font-semibold text-gray-900"><%= number_with_precision(quarter_achievement_total, precision: 2, strip_insignificant_zeros: true) %></span></div>
+                  <div>Achievement against target: <span class="font-semibold text-emerald-700"><%= quarter_percentage.present? ? "#{number_with_precision(quarter_percentage, precision: 2, strip_insignificant_zeros: true)}%" : "-" %></span></div>
+                  <div class="mt-2 border-t border-gray-100 pt-2">L1 Avg %: <span class="font-semibold text-blue-700"><%= quarter_l1_average.present? ? "#{number_with_precision(quarter_l1_average, precision: 2, strip_insignificant_zeros: true)}%" : "-" %></span></div>
+                  <div>L2 Avg %: <span class="font-semibold text-green-700"><%= quarter_l2_average.present? ? "#{number_with_precision(quarter_l2_average, precision: 2, strip_insignificant_zeros: true)}%" : "-" %></span></div>
+                </div>
+              </button>
+            <% end %>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="px-6 pb-8">
-      <h3 class="text-lg font-bold text-gray-800 mb-3">Final summary</h3>
-      <div class="final-summary-grid">
-        <% {
-          "Q1 (APR-JUN)" => "q1",
-          "Q2 (JUL-SEP)" => "q2",
-          "Q3 (OCT-DEC)" => "q3",
-          "Q4 (JAN-MAR)" => "q4"
-        }.each do |label, quarter_key| %>
-          <%
-            quarter_achievements = @user_details.flat_map(&:achievements).select { |achievement| achievement.month.to_s.downcase == quarter_key }
-            target_total = @user_details.sum { |detail| detail.public_send(quarter_key).to_f }
-            achievement_total = quarter_achievements.sum { |achievement| achievement.achievement.to_f }
-            approved_count = quarter_achievements.count { |achievement| achievement.status.to_s.include?("approved") }
-          %>
-          <div class="final-summary-card">
-            <div class="flex items-center justify-between mb-3">
-              <strong><%= label %></strong>
-              <button type="button" class="summary-eye" onclick="showQuarterlyDetails('<%= quarter_key.upcase %>')" title="View <%= label %> details">
-                <i class="fas fa-eye"></i>
+    <!-- Details Modal -->
+    <div id="detailsModal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
+      <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="bg-gray-800 text-white px-6 py-4 rounded-t-lg">
+          <div class="flex justify-between items-center">
+            <h3 class="text-xl font-semibold">Quarterly achievement details</h3>
+            <div class="flex items-center space-x-3">
+              <span id="modalQuarter" class="bg-gray-600 text-gray-200 px-3 py-1 rounded-full text-sm font-medium"></span>
+              <button id="closeModal" class="text-white hover:text-gray-200 transition-colors">
+                <i class="fas fa-times text-xl"></i>
               </button>
             </div>
-            <p>Target: <%= target_total.to_i == target_total ? target_total.to_i : target_total.round(2) %></p>
-            <p>Achievement: <%= achievement_total.to_i == achievement_total ? achievement_total.to_i : achievement_total.round(2) %></p>
-            <p>Approved records: <%= approved_count %></p>
           </div>
-        <% end %>
+        </div>
+        
+        <!-- Modal Content -->
+        <div class="p-6 bg-gray-50">
+          <div id="reviewMetricSummary" class="mb-6 grid grid-cols-1 sm:grid-cols-4 gap-3"></div>
+          <div id="monthlyEmployeeSummary" class="hidden mb-6 rounded-lg border border-sky-200 bg-sky-50 p-5">
+            <h4 class="text-sky-700 font-semibold text-lg mb-4 flex items-center">
+              <i class="fas fa-eye mr-2"></i>Month details
+            </h4>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <span class="text-sm text-gray-600">Activity:</span>
+                <div id="monthActivityName" class="mt-1 font-bold text-gray-800">N/A</div>
+              </div>
+              <div>
+                <span class="text-sm text-gray-600">Employee remarks:</span>
+                <div id="monthEmployeeRemarks" class="mt-1 font-bold text-gray-800">No remarks</div>
+              </div>
+              <div>
+                <span class="text-sm text-gray-600">Reporting manager remarks:</span>
+                <div id="monthReportingManagerRemarks" class="mt-1 font-bold text-gray-800">No remarks</div>
+              </div>
+              <div>
+                <span class="text-sm text-gray-600">Status:</span>
+                <div id="monthReviewStatus" class="mt-1 font-bold text-gray-800">Pending</div>
+              </div>
+            </div>
+          </div>
+          <!-- L1 and L2 Summary Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <!-- L1 Summary Card -->
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
+              <h4 class="text-red-600 font-semibold text-lg mb-4 flex items-center">
+                <i class="fas fa-user-tie mr-2"></i><span id="l1SummaryTitle">L1 Summary</span>
+              </h4>
+              <div class="space-y-3">
+                <div>
+                  <span class="text-sm text-gray-600">Percentage:</span>
+                  <span id="l1Percentage" class="ml-2 font-bold text-gray-800">N/A</span>
+                </div>
+                <div>
+                  <span class="text-sm text-gray-600">Remarks:</span>
+                  <div id="l1Remarks" class="mt-1 font-bold text-gray-800">No remarks</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- L2 Summary Card -->
+            <div class="bg-purple-50 border border-purple-200 rounded-lg p-6">
+              <h4 class="text-purple-600 font-semibold text-lg mb-4 flex items-center">
+                <i class="fas fa-user-shield mr-2"></i><span id="l2SummaryTitle">L2 Summary</span>
+              </h4>
+              <div class="space-y-3">
+                <div>
+                  <span class="text-sm text-gray-600">Percentage:</span>
+                  <span id="l2Percentage" class="ml-2 font-bold text-gray-800">N/A</span>
+                </div>
+                <div>
+                  <span class="text-sm text-gray-600">Remarks:</span>
+                  <div id="l2Remarks" class="mt-1 font-bold text-gray-800">No remarks</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Modal Footer -->
+        <div class="bg-gray-50 px-6 py-4 rounded-b-lg">
+          <button id="closeModalBtn" class="w-full bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center justify-center">
+            Close details
+          </button>
+        </div>
       </div>
     </div>
 
-    </div>
-<% else %>
-  <!-- No data message -->
-  <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
-    <div class="flex justify-between items-center">
-      <h2 class="text-4xl font-bold text-gray-800 flex items-center">
-        <i class="fas fa-check-circle me-3 text-green-600 text-2xl"></i>
-        Submitted view achievements
-      </h2>
-      <form action="<%= submitted_view_data_path %>" method="get" class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm">
-        <label for="submitted-view-empty-year" class="text-sm font-semibold text-slate-700">Financial Year</label>
-        <%= select_tag :year,
-            options_for_select(@available_years.map { |year| [display_financial_year(year), year] }, @selected_year),
-            id: "submitted-view-empty-year",
-            class: "border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-800 text-sm",
-            onchange: "this.form.submit();" %>
-      </form>
-    </div>
-  </div>
-  <div class="p-6">
-    <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-8 text-center">
-      <div class="text-gray-500">
-        <i class="fas fa-clipboard-list text-6xl mb-4 text-blue-500"></i>
-        <h3 class="text-xl font-semibold text-gray-700 mb-2">No Submitted Data Available</h3>
-        <p class="text-gray-500 mb-4">
-          <span class="block mb-2 font-semibold text-gray-600">Financial Year: <%= display_financial_year(@selected_year) %></span>
-          <% case current_user.role %>
-          <% when "employee" %>
-            You haven't submitted any monthly achievements yet. Please submit your achievements first to view them here.
-          <% when "hod" %>
-            No employees in your department have submitted their monthly achievements yet.
-          <% when "l1_employer" %>
-            No employees under your supervision have submitted their monthly achievements yet.
-          <% when "l2_employer" %>
-            No employees under your supervision have submitted their monthly achievements yet.
-          <% else %>
-            There are no submitted monthly achievements to display at this time.
+    <script>
+      // Enhanced modal functionality that works without page refresh
+      function initializeQuarterlyModal() {
+        const modal = document.getElementById('detailsModal');
+        const closeModal = document.getElementById('closeModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const detailButtons = document.querySelectorAll('.details-btn, .monthly-details-btn, .financial-summary-btn');
+
+        console.log('Initializing modal...');
+        console.log('Modal found:', !!modal);
+        console.log('Close modal found:', !!closeModal);
+        console.log('Close modal btn found:', !!closeModalBtn);
+        console.log('Detail buttons found:', detailButtons.length);
+
+        if (!modal) {
+          console.log('Modal not found, retrying...');
+          setTimeout(initializeQuarterlyModal, 100);
+          return;
+        }
+
+        function getStatusConfig(status) {
+          switch(status) {
+            case 'l2_approved':
+              return { color: 'bg-emerald-100 text-emerald-800', text: 'L2 Approved', icon: 'fas fa-check-double' };
+            case 'l1_approved':
+              return { color: 'bg-green-100 text-green-800', text: 'L1 Approved', icon: 'fas fa-check-circle' };
+            case 'l2_returned':
+              return { color: 'bg-orange-100 text-orange-800', text: 'L2 Returned', icon: 'fas fa-exclamation-triangle' };
+            case 'l1_returned':
+              return { color: 'bg-red-100 text-red-800', text: 'L1 Returned', icon: 'fas fa-exclamation-triangle' };
+            case 'submitted':
+              return { color: 'bg-blue-100 text-blue-800', text: 'Submitted', icon: 'fas fa-paper-plane' };
+            default:
+              return { color: 'bg-yellow-100 text-yellow-800', text: 'Pending', icon: 'fas fa-clock' };
+          }
+        }
+
+        function openModal(button) {
+          const data = button.dataset;
+
+          function hasDisplayValue(value) {
+            return value !== null &&
+              value !== undefined &&
+              value.toString().trim() !== '' &&
+              value.toString().trim().toLowerCase() !== 'null' &&
+              value.toString().trim().toLowerCase() !== 'undefined' &&
+              value.toString().trim().toLowerCase() !== 'nil';
+          }
+          
+          const metricSummary = document.getElementById('reviewMetricSummary');
+          const monthlyEmployeeSummary = document.getElementById('monthlyEmployeeSummary');
+          const monthActivityName = document.getElementById('monthActivityName');
+          const monthEmployeeRemarks = document.getElementById('monthEmployeeRemarks');
+          const monthReportingManagerRemarks = document.getElementById('monthReportingManagerRemarks');
+          const monthReviewStatus = document.getElementById('monthReviewStatus');
+
+          function parseDatasetJson(value) {
+            return JSON.parse(value.replace(/&amp;quot;/g, '"').replace(/&quot;/g, '"'));
+          }
+
+          function parseReviewNumber(value) {
+            const number = parseFloat((value ?? '').toString().replace(/,/g, ''));
+            return Number.isFinite(number) ? number : null;
+          }
+
+          function titleizeMonth(value) {
+            const labels = {
+              april: 'APR',
+              may: 'MAY',
+              june: 'JUN',
+              july: 'JUL',
+              august: 'AUG',
+              september: 'SEP',
+              october: 'OCT',
+              november: 'NOV',
+              december: 'DEC',
+              january: 'JAN',
+              february: 'FEB',
+              march: 'MAR'
+            };
+            const key = `${value || ''}`.toLowerCase();
+            return labels[key] || 'Month';
+          }
+
+          function formatNumber(value) {
+            const number = parseReviewNumber(value);
+            if (!Number.isFinite(number)) return '-';
+            return Number.isInteger(number) ? number.toString() : number.toFixed(2).replace(/\.?0+$/, '');
+          }
+
+          function formatPercent(value) {
+            return hasDisplayValue(value) ? `${formatNumber(value)}%` : 'N/A';
+          }
+
+          function setMonthlySummaryVisibility(visible) {
+            if (!monthlyEmployeeSummary) return;
+            monthlyEmployeeSummary.classList.toggle('hidden', !visible);
+          }
+
+          function renderMetricSummary(title, target, achievement, percentage) {
+            if (!metricSummary) return;
+            const displayPercentage = hasDisplayValue(percentage) ? `${formatNumber(percentage)}%` : '-';
+            metricSummary.innerHTML = `
+              <div class="rounded-lg border border-gray-200 bg-white p-3">
+                <div class="text-xs font-semibold text-gray-500">Period</div>
+                <div class="mt-1 font-bold text-gray-900">${title || '-'}</div>
+              </div>
+              <div class="rounded-lg border border-gray-200 bg-white p-3">
+                <div class="text-xs font-semibold text-gray-500">Target</div>
+                <div class="mt-1 font-bold text-gray-900">${formatNumber(target)}</div>
+              </div>
+              <div class="rounded-lg border border-gray-200 bg-white p-3">
+                <div class="text-xs font-semibold text-gray-500">Achievement</div>
+                <div class="mt-1 font-bold text-gray-900">${formatNumber(achievement)}</div>
+              </div>
+              <div class="rounded-lg border border-gray-200 bg-white p-3">
+                <div class="text-xs font-semibold text-gray-500">Achievement against target</div>
+                <div class="mt-1 font-bold text-emerald-700">${displayPercentage}</div>
+              </div>
+            `;
+          }
+
+          if (data.monthReview) {
+            const monthData = parseDatasetJson(data.monthReview);
+            const target = parseReviewNumber(monthData.target);
+            const achievement = parseReviewNumber(monthData.achievement);
+            const achievementPercentage = target && target > 0 && achievement !== null ? ((achievement / target) * 100).toFixed(2) : null;
+            const monthTitle = titleizeMonth(monthData.month);
+            const statusConfig = getStatusConfig(monthData.status);
+
+            document.getElementById('modalQuarter').textContent = monthTitle;
+            const l1SummaryTitle = document.getElementById('l1SummaryTitle');
+            const l2SummaryTitle = document.getElementById('l2SummaryTitle');
+            if (l1SummaryTitle) l1SummaryTitle.textContent = `L1 Monthly Summary - ${monthData.l1_name || 'N/A'}`;
+            if (l2SummaryTitle) l2SummaryTitle.textContent = `L2 Monthly Summary - ${monthData.l2_name || 'N/A'}`;
+            renderMetricSummary(monthTitle, target, achievement, achievementPercentage);
+            setMonthlySummaryVisibility(true);
+            if (monthActivityName) monthActivityName.textContent = hasDisplayValue(monthData.activity) ? monthData.activity : 'N/A';
+            if (monthEmployeeRemarks) monthEmployeeRemarks.textContent = hasDisplayValue(monthData.remarks) ? monthData.remarks : 'No remarks';
+            if (monthReportingManagerRemarks) monthReportingManagerRemarks.textContent = hasDisplayValue(monthData.reporting_manager_remarks) ? monthData.reporting_manager_remarks : 'No remarks';
+            if (monthReviewStatus) {
+              monthReviewStatus.innerHTML = `<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${statusConfig.color}"><i class="${statusConfig.icon} mr-1 text-xs"></i>${statusConfig.text}</span>`;
+            }
+            document.getElementById('l1Percentage').textContent = formatPercent(monthData.l1_percentage);
+            document.getElementById('l1Remarks').textContent = hasDisplayValue(monthData.l1_remarks) ? monthData.l1_remarks : 'No remarks';
+            document.getElementById('l2Percentage').textContent = formatPercent(monthData.l2_percentage);
+            document.getElementById('l2Remarks').textContent = hasDisplayValue(monthData.l2_remarks) ? monthData.l2_remarks : 'No remarks';
+
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            return;
+          }
+
+          if (data.financialSummary) {
+            const summaryData = parseDatasetJson(data.financialSummary);
+            document.getElementById('modalQuarter').textContent = summaryData.quarter || 'Financial Summary';
+            const l1SummaryTitle = document.getElementById('l1SummaryTitle');
+            const l2SummaryTitle = document.getElementById('l2SummaryTitle');
+            if (l1SummaryTitle) l1SummaryTitle.textContent = 'L1 Quarter Summary';
+            if (l2SummaryTitle) l2SummaryTitle.textContent = 'L2 Quarter Summary';
+            setMonthlySummaryVisibility(false);
+            renderMetricSummary(summaryData.quarter, summaryData.target, summaryData.achievement, summaryData.percentage);
+            document.getElementById('l1Percentage').textContent = formatPercent(summaryData.l1_percentage);
+            document.getElementById('l1Remarks').textContent = hasDisplayValue(summaryData.l1_remarks) ? summaryData.l1_remarks : 'No remarks';
+            document.getElementById('l2Percentage').textContent = formatPercent(summaryData.l2_percentage);
+            document.getElementById('l2Remarks').textContent = hasDisplayValue(summaryData.l2_remarks) ? summaryData.l2_remarks : 'No remarks';
+
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            return;
+          }
+
+          // Populate quarter info
+          document.getElementById('modalQuarter').textContent = data.quarter || 'N/A';
+          const l1SummaryTitle = document.getElementById('l1SummaryTitle');
+          const l2SummaryTitle = document.getElementById('l2SummaryTitle');
+          if (l1SummaryTitle) l1SummaryTitle.textContent = `L1 Summary - ${data.l1Name || 'N/A'}`;
+          if (l2SummaryTitle) l2SummaryTitle.textContent = `L2 Summary - ${data.l2Name || 'N/A'}`;
+          setMonthlySummaryVisibility(false);
+          
+          // Get quarterly data based on which quarter was clicked
+          let quarterData = [];
+          console.log('Button dataset:', data);
+          
+          if (data.q3Data) {
+            quarterData = parseDatasetJson(data.q3Data);
+            console.log('Using Q3 data, length:', quarterData.length);
+          } else if (data.q4Data) {
+            quarterData = parseDatasetJson(data.q4Data);
+            console.log('Using Q4 data, length:', quarterData.length);
+          } else if (data.q1Data) {
+            quarterData = parseDatasetJson(data.q1Data);
+            console.log('Using Q1 data, length:', quarterData.length);
+          } else if (data.q2Data) {
+            quarterData = parseDatasetJson(data.q2Data);
+            console.log('Using Q2 data, length:', quarterData.length);
+          }
+          
+          console.log('Quarter data:', quarterData);
+          
+          let totalTarget = 0;
+          let totalAchievement = 0;
+          let quarterStatuses = [];
+          
+          // Collect all L1 and L2 data for overall summary
+          let allL1Remarks = [];
+          let allL1Percentages = [];
+          let allL2Remarks = [];
+          let allL2Percentages = [];
+          
+          console.log('Processing quarter data:', quarterData);
+          
+          quarterData.forEach((monthData, index) => {
+            console.log(`Month ${index}:`, monthData);
+            
+            const target = parseReviewNumber(monthData.target) || 0;
+            const achievement = parseReviewNumber(monthData.achievement) || 0;
+            const hasAchievementValue = hasDisplayValue(monthData.achievement);
+            const percentage = target > 0 ? ((achievement / target) * 100).toFixed(1) : '0';
+            
+            if (hasAchievementValue) {
+              totalTarget += target;
+              totalAchievement += achievement;
+            }
+            quarterStatuses.push(monthData.status);
+            
+            // Collect L1 and L2 data - be more inclusive and handle different data sources
+            console.log(`Month ${monthData.month} - L1 Remarks: "${monthData.l1_remarks}", L1 Percentage: "${monthData.l1_percentage}"`);
+            console.log(`Month ${monthData.month} - L2 Remarks: "${monthData.l2_remarks}", L2 Percentage: "${monthData.l2_percentage}"`);
+            console.log(`Month ${monthData.month} - Status: "${monthData.status}"`);
+            
+            // Collect L1 data - include any non-empty remarks from achievement_remark or achievement table
+            const l1Remarks = monthData.l1_remarks;
+            const l1Percentage = monthData.l1_percentage;
+            
+            if (hasDisplayValue(l1Remarks)) {
+              allL1Remarks.push(l1Remarks.toString().trim());
+            }
+            
+            if (hasDisplayValue(l1Percentage) && parseReviewNumber(l1Percentage) !== null) {
+              allL1Percentages.push(parseReviewNumber(l1Percentage));
+            }
+            
+            // Collect L2 data - include any non-empty remarks from achievement_remark or achievement table
+            const l2Remarks = monthData.l2_remarks;
+            const l2Percentage = monthData.l2_percentage;
+            
+            if (hasDisplayValue(l2Remarks)) {
+              allL2Remarks.push(l2Remarks.toString().trim());
+            }
+            
+            if (hasDisplayValue(l2Percentage) && parseReviewNumber(l2Percentage) !== null) {
+              allL2Percentages.push(parseReviewNumber(l2Percentage));
+            }
+          });
+          
+          console.log('Collected L1 Remarks:', allL1Remarks);
+          console.log('Collected L1 Percentages:', allL1Percentages);
+          console.log('Collected L2 Remarks:', allL2Remarks);
+          console.log('Collected L2 Percentages:', allL2Percentages);
+          
+          // Calculate overall L1 and L2 averages
+          const derivedQuarterPercentage = totalTarget > 0 ? ((totalAchievement / totalTarget) * 100).toFixed(1) : null;
+          let overallL1Percentage = allL1Percentages.length > 0 ?
+            (allL1Percentages.reduce((a, b) => a + b, 0) / allL1Percentages.length).toFixed(1) : derivedQuarterPercentage;
+          let overallL2Percentage = allL2Percentages.length > 0 ?
+            (allL2Percentages.reduce((a, b) => a + b, 0) / allL2Percentages.length).toFixed(1) : derivedQuarterPercentage;
+          
+          // Combine all L1 and L2 remarks - show unique remarks only once
+          let uniqueL1Remarks = [...new Set(allL1Remarks)];
+          let uniqueL2Remarks = [...new Set(allL2Remarks)];
+          
+          let overallL1Remarks = uniqueL1Remarks.length > 0 ? uniqueL1Remarks.join('; ') : 'No remarks';
+          let overallL2Remarks = uniqueL2Remarks.length > 0 ? uniqueL2Remarks.join('; ') : 'No remarks';
+          
+          // Only show data if it exists, otherwise show appropriate message
+          if (overallL1Remarks === 'No remarks' && overallL2Remarks === 'No remarks' &&
+              overallL1Percentage === null &&
+              overallL2Percentage === null) {
+            // Check if any achievements have been submitted for this quarter
+            const hasAnyAchievements = quarterData.some(monthData => hasDisplayValue(monthData.achievement));
+            
+            if (hasAnyAchievements) {
+              // Check the status of achievements to determine appropriate message
+              const hasSubmitted = quarterStatuses.includes('submitted');
+              const hasL1Approved = quarterStatuses.includes('l1_approved');
+              const hasL1Returned = quarterStatuses.includes('l1_returned');
+              const hasL2Approved = quarterStatuses.includes('l2_approved');
+              const hasL2Returned = quarterStatuses.includes('l2_returned');
+              
+              if (hasL2Approved) {
+                overallL1Remarks = 'L1 Review Completed';
+                overallL2Remarks = 'L2 Review Completed';
+              } else if (hasL2Returned) {
+                overallL1Remarks = 'L1 Review Completed';
+                overallL2Remarks = 'L2 Review Completed - Returned for Revision';
+              } else if (hasL1Approved) {
+                overallL1Remarks = 'L1 Review Completed';
+                overallL2Remarks = 'Pending L2 Review';
+              } else if (hasL1Returned) {
+                overallL1Remarks = 'L1 Review Completed - Returned for Revision';
+                overallL2Remarks = 'Pending L2 Review';
+              } else if (hasSubmitted) {
+                overallL1Remarks = 'Pending L1 Review';
+                overallL2Remarks = 'Pending L2 Review';
+              } else {
+                overallL1Remarks = 'Pending L1 Review';
+                overallL2Remarks = 'Pending L2 Review';
+              }
+            } else {
+              // No achievements submitted yet
+              overallL1Remarks = 'No achievements submitted';
+              overallL2Remarks = 'No achievements submitted';
+            }
+            console.log('No L1/L2 data found, showing appropriate status');
+          }
+          
+          console.log('Final L1 Remarks:', overallL1Remarks);
+          console.log('Final L2 Remarks:', overallL2Remarks);
+          renderMetricSummary(data.quarter || 'Quarter', totalTarget, totalAchievement, derivedQuarterPercentage);
+          
+          // Update L1 Summary
+          document.getElementById('l1Percentage').textContent = overallL1Percentage !== null ? overallL1Percentage + '%' : 'N/A';
+          document.getElementById('l1Remarks').textContent = overallL1Remarks;
+          
+          // Update L2 Summary
+          document.getElementById('l2Percentage').textContent = overallL2Percentage !== null ? overallL2Percentage + '%' : 'N/A';
+          document.getElementById('l2Remarks').textContent = overallL2Remarks;
+          
+          
+          modal.classList.remove('hidden');
+          document.body.style.overflow = 'hidden';
+        }
+
+        function closeModalFunction() {
+          modal.classList.add('hidden');
+          document.body.style.overflow = 'auto';
+        }
+
+        // Add click event listeners to all detail buttons
+        console.log('Found detail buttons:', detailButtons.length);
+        detailButtons.forEach((button, index) => {
+          console.log(`Setting up button ${index}:`, button);
+          
+          // Simple click handler
+          button.onclick = function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('Button clicked, opening modal');
+            openModal(this);
+          };
+        });
+
+        // Close modal event listeners
+        if (closeModal) {
+          closeModal.onclick = closeModalFunction;
+        }
+        
+        if (closeModalBtn) {
+          closeModalBtn.onclick = closeModalFunction;
+        }
+
+        // Close on outside click
+        modal.onclick = function(e) {
+          if (e.target === modal) {
+            closeModalFunction();
+          }
+        };
+
+        // Close on escape key
+        document.onkeydown = function(e) {
+          if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+            closeModalFunction();
+          }
+        };
+
+        console.log('Quarterly modal initialized successfully');
+        
+
+      }
+
+      // Initialize modal on multiple events to ensure it works
+      document.addEventListener('DOMContentLoaded', initializeQuarterlyModal);
+      document.addEventListener('turbo:load', initializeQuarterlyModal);
+      document.addEventListener('turbo:render', initializeQuarterlyModal);
+      
+      // Also initialize when the page is ready
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeQuarterlyModal);
+      } else {
+        initializeQuarterlyModal();
+      }
+    </script>
+    <% else %>
+      <!-- No submitted data message -->
+      <div class="bg-gray-100 px-6 py-4 border-b border-gray-200 rounded-t-xl">
+        <div class="flex justify-between items-center">
+          <h2 class="text-4xl font-bold text-gray-800 flex items-center">
+            <i class="fas fa-check-circle me-3 text-green-600 text-2xl"></i>
+            Submitted view achievements
+          </h2>
+          <%= form_with url: submitted_view_data_path, method: :get, local: true, class: "flex items-center gap-2" do |form| %>
+            <%= form.label :financial_year, "Financial year", class: "text-sm font-semibold text-gray-700" %>
+            <%= form.select :financial_year,
+                options_for_select(@financial_years, @selected_financial_year),
+                {},
+                class: "bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700",
+                onchange: "this.form.submit();" %>
           <% end %>
-        </p>
-        <% if current_user.employee? %>
-          <div class="mt-6">
-            <%= link_to get_user_detail_user_details_path, 
-                        class: "text-white px-6 py-3 rounded-lg transition-all duration-200 flex items-center justify-center mx-auto w-fit shadow-md hover:shadow-lg transform hover:scale-105", style: "background-color: #2d374b;", onmouseover: "this.style.backgroundColor='#1a202c'", onmouseout: "this.style.backgroundColor='#2d374b'" do %>
-              <i class="fas fa-plus me-2"></i>
-              <span class="font-semibold">Submit Your Achievements</span>
+        </div>
+      </div>
+      
+      <div class="p-6">
+        <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-12 text-center no-data-container">
+          <!-- No Data Icon -->
+          <div class="mb-6">
+            <div class="inline-flex items-center justify-center mb-4 no-data-icon">
+              <i class="fas fa-file-alt text-6xl text-gray-400"></i>
+            </div>
+          </div>
+          
+          <!-- No Data Message -->
+          <h3 class="text-2xl font-bold text-gray-800 mb-4 no-data-title">No submitted data available</h3>
+          <p class="text-gray-600 text-lg mb-8 max-w-md mx-auto no-data-description">
+            You haven't submitted any quarterly achievements for <%= @selected_financial_year %> yet. Please submit your achievements first to view them here.
+          </p>
+          
+          <!-- Submit Button -->
+          <div class="flex justify-center">
+            <%= link_to get_user_detail_user_details_path(year: @selected_financial_year), 
+                        class: "bg-gray-600 hover:bg-gray-700 text-white px-8 py-3 rounded-lg transition-all duration-300 flex items-center shadow-md hover:shadow-lg transform hover:scale-105 no-data-button" do %>
+              <i class="fas fa-plus mr-2"></i>
+              <span class="font-semibold">Submit your achievements</span>
             <% end %>
           </div>
-        <% end %>
+        </div>
       </div>
-    </div>
-  </div>
-<% end %>
-
-
+    <% end %>
+</div>
 <style>
+.review-eye-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  margin-top: 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid #7dd3fc;
+  background: #e0f2fe;
+  color: #0369a1;
+  box-shadow: 0 2px 8px rgba(3, 105, 161, 0.18);
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.review-eye-button:hover {
+  background: #bae6fd;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(3, 105, 161, 0.24);
+}
+
+.review-eye-button svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.monthly-details-btn.review-eye-button,
+.details-btn.review-eye-button,
+.financial-summary-btn .review-eye-button {
+  margin-top: 0;
+}
+
 .main-content {
   margin-left: 240px;
   padding: 2rem;
@@ -945,91 +1294,10 @@
 }
 
 .table {
-  min-width: 1800px; /* Increased width for 3 columns per quarter */
+  min-width: 2300px;
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-}
-
-.month-eye-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
-  gap: 10px;
-  margin-bottom: 18px;
-}
-
-.month-eye-link,
-.summary-eye {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border: 1px solid #b7e3ff;
-  border-radius: 999px;
-  background: #e7f7ff;
-  color: #0369a1;
-  font-weight: 800;
-  text-decoration: none;
-  padding: 8px 12px;
-}
-
-.month-head-cell {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.month-head-eye {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  background: #e7f7ff;
-  color: #0369a1;
-  text-decoration: none;
-}
-
-.submitted-month-cell {
-  min-width: 170px;
-  line-height: 1.6;
-  vertical-align: top;
-}
-
-.submitted-remarks {
-  margin-top: 6px;
-  border-radius: 6px;
-  background: #eef4ff;
-  color: #1d4ed8;
-  padding: 3px 6px;
-}
-
-.final-summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
-}
-
-.final-summary-card {
-  border: 1px solid #dbe3ee;
-  border-radius: 10px;
-  background: #fff;
-  padding: 16px;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
-}
-
-.final-summary-card p {
-  margin: 4px 0;
-  color: #475569;
-  font-size: 13px;
-}
-
-.summary-eye {
-  width: 34px;
-  height: 34px;
-  padding: 0;
 }
 
 .table th, .table td {
@@ -1040,11 +1308,25 @@
   vertical-align: middle;
 }
 
+.table .activity-column,
+.table .activity-cell {
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+}
+
+.table .activity-cell {
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  text-align: left;
+  line-height: 1.5;
+}
+
 .table th {
   background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
   color: white;
   font-weight: 600;
-  text-transform: uppercase;
   font-size: 0.75rem;
   letter-spacing: 0.05em;
 }
@@ -1213,741 +1495,144 @@ input[type="submit"] {
   to { transform: rotate(360deg); }
 }
 
-/* Checkbox styling */
-.quarter-checkbox {
-  width: 18px;
-  height: 18px;
-  accent-color: #f59e0b;
-  cursor: pointer;
+/* No Data State Animations and Styling */
+.no-data-container {
+  animation: fadeInUp 0.8s ease-out;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
-.quarter-checkbox:checked {
-  background-color: #f59e0b;
-}
-
-/* Table checkbox styling */
-.table-quarter-checkbox {
-  width: 16px;
-  height: 16px;
-  accent-color: #f59e0b;
-  cursor: pointer;
-  margin-right: 4px;
-}
-
-.table-quarter-checkbox:checked {
-  background-color: #f59e0b;
-}
-
-.table-quarter-checkbox + label {
-  cursor: pointer;
-  user-select: none;
-}
-
-/* Edit button styling */
-#edit-quarterly-btn {
+.no-data-icon {
+  animation: pulse 2s infinite;
   transition: all 0.3s ease;
-  border: none;
-  outline: none;
 }
 
-#edit-quarterly-btn:not(:disabled) {
-  background-color: #eab308 !important; /* yellow-500 */
-  color: #000000 !important; /* black text */
-  cursor: pointer !important;
-  opacity: 1 !important;
+.no-data-icon:hover {
+  transform: scale(1.1);
 }
 
-#edit-quarterly-btn:not(:disabled):hover {
-  background-color: #ca8a04 !important; /* yellow-600 */
-  transform: translateY(-2px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+.no-data-title {
+  animation: slideInDown 0.6s ease-out 0.2s both;
+  color: #374151;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
-#edit-quarterly-btn:disabled {
-  background-color: #9ca3af !important; /* gray-400 */
-  color: #ffffff !important; /* white text */
-  cursor: not-allowed !important;
-  opacity: 0.6 !important;
-  transform: none !important;
-  box-shadow: none !important;
+.no-data-description {
+  animation: slideInUp 0.6s ease-out 0.4s both;
+  color: #6b7280;
+  line-height: 1.6;
 }
+
+.no-data-button {
+  animation: slideInUp 0.6s ease-out 0.6s both;
+  background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+  border: 1px solid #374151;
+  position: relative;
+  overflow: hidden;
+}
+
+.no-data-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
+}
+
+.no-data-button:hover::before {
+  left: 100%;
+}
+
+.no-data-button:hover {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.no-data-button:active {
+  transform: translateY(0) scale(1.02);
+}
+
+/* Animation Keyframes */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+/* Enhanced gray color scheme for the entire page */
+.main-content {
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+/* Gray-themed header */
+.bg-gray-100 {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+  border-color: #cbd5e1;
+}
+
+/* Enhanced table styling with gray accents */
+.table th {
+  background: linear-gradient(135deg, #374151 0%, #1f2937 100%);
+}
+
+.table tbody tr {
+  background: #fafafa;
+  transition: all 0.3s ease;
+}
+
+.table tbody tr:hover {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Gray-themed status badges */
+.bg-yellow-100 { background-color: #fef3c7; }
+.bg-green-100 { background-color: #d1fae5; }
+.bg-red-100 { background-color: #fee2e2; }
+.bg-blue-100 { background-color: #dbeafe; }
+.bg-orange-100 { background-color: #fed7aa; }
+.bg-emerald-100 { background-color: #a7f3d0; }
+.bg-purple-100 { background-color: #e9d5ff; }
 </style>
-
-<script>
-// Global function to handle checkbox changes (called by inline onchange)
-function handleCheckboxChange(checkbox) {
-  console.log('Inline handler - Checkbox changed:', checkbox.dataset.quarter, 'checked:', checkbox.checked);
-  
-  const editButton = document.getElementById('edit-quarterly-btn');
-  if (!editButton) {
-    console.error('Edit button not found in inline handler');
-    return;
-  }
-  
-  const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
-  console.log('Inline handler - Checked boxes:', checkedBoxes.length);
-  
-  if (checkedBoxes.length > 0) {
-    // Enable button
-    editButton.disabled = false;
-    editButton.style.backgroundColor = '#eab308'; // yellow-500
-    editButton.style.color = '#000000'; // black text
-    editButton.style.cursor = 'pointer';
-    editButton.style.opacity = '1';
-    console.log('Inline handler - Button enabled');
-    
-    // Ensure click handler is attached
-    if (!editButton._clickHandlerAttached) {
-      console.log('Attaching click handler to button');
-      editButton.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        console.log('Edit button clicked!');
-        
-        const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
-        console.log('Checked boxes on click:', checkedBoxes.length);
-        
-        if (checkedBoxes.length === 0) {
-          alert('Please select at least one quarter to edit.');
-          return false;
-        }
-        
-        // Get selected quarters
-        const selectedQuarters = Array.from(checkedBoxes).map(cb => cb.dataset.quarter);
-        console.log('Selected quarters:', selectedQuarters);
-        
-        // Redirect to quarterly edit page with the first selected quarter
-        const selectedQuarter = selectedQuarters[0];
-        const editUrl = '<%= quarterly_edit_all_user_details_path %>?quarter=' + selectedQuarter + '&year=<%= @selected_year %>';
-        
-        console.log('Redirecting to:', editUrl);
-        window.location.href = editUrl;
-        
-        return false;
-      });
-      editButton._clickHandlerAttached = true;
-    }
-  } else {
-    // Disable button
-    editButton.disabled = true;
-    editButton.style.backgroundColor = '#9ca3af'; // gray-400
-    editButton.style.color = '#ffffff'; // white text
-    editButton.style.cursor = 'not-allowed';
-    editButton.style.opacity = '0.6';
-    console.log('Inline handler - Button disabled');
-  }
-}
-
-// Global function to handle edit button clicks (called by inline onclick)
-function handleEditButtonClick(event) {
-  event.preventDefault();
-  event.stopPropagation();
-  
-  console.log('Inline button click handler triggered');
-  
-  const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
-  console.log('Button clicked - checked boxes:', checkedBoxes.length);
-  
-  if (checkedBoxes.length === 0) {
-    alert('Please select at least one quarter to edit.');
-    return false;
-  }
-  
-  // Get selected quarters
-  const selectedQuarters = Array.from(checkedBoxes).map(cb => cb.dataset.quarter);
-  console.log('Selected quarters:', selectedQuarters);
-  
-  // Redirect to quarterly edit page with the first selected quarter
-  const selectedQuarter = selectedQuarters[0];
-  const editUrl = '<%= quarterly_edit_all_user_details_path %>?quarter=' + selectedQuarter + '&year=<%= @selected_year %>';
-  
-  console.log('Redirecting to:', editUrl);
-  window.location.href = editUrl;
-  
-  return false;
-}
-
-// Wait for DOM to be fully loaded
-document.addEventListener('DOMContentLoaded', function() {
-  console.log('DOM loaded, initializing quarterly edit functionality...');
-  
-  // Get elements
-  const tableCheckboxes = document.querySelectorAll('.table-quarter-checkbox');
-  const editButton = document.getElementById('edit-quarterly-btn');
-  
-  console.log('Found checkboxes:', tableCheckboxes.length);
-  console.log('Found edit button:', editButton);
-  
-  if (!editButton) {
-    console.error('Edit button not found!');
-    return;
-  }
-  
-  // Function to update edit button state
-  function updateEditButton() {
-    const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
-    console.log('Updating button state. Checked boxes:', checkedBoxes.length);
-    
-    if (checkedBoxes.length > 0) {
-      // Enable button - make it yellow and clickable
-      editButton.disabled = false;
-      editButton.style.backgroundColor = '#eab308'; // yellow-500
-      editButton.style.color = '#000000'; // black text
-      editButton.style.cursor = 'pointer';
-      editButton.style.opacity = '1';
-      console.log('Button enabled');
-    } else {
-      // Disable button - make it gray and not clickable
-      editButton.disabled = true;
-      editButton.style.backgroundColor = '#9ca3af'; // gray-400
-      editButton.style.color = '#ffffff'; // white text
-      editButton.style.cursor = 'not-allowed';
-      editButton.style.opacity = '0.6';
-      console.log('Button disabled');
-    }
-  }
-  
-  // Add event listeners to table checkboxes
-  tableCheckboxes.forEach((checkbox, index) => {
-    console.log(`Adding listener to checkbox ${index}:`, checkbox.dataset.quarter);
-    
-    // Remove any existing listeners first
-    checkbox.removeEventListener('change', checkbox._changeHandler);
-    
-    // Create new change handler
-    checkbox._changeHandler = function() {
-      console.log('Checkbox changed:', this.dataset.quarter, 'checked:', this.checked);
-      updateEditButton();
-    };
-    
-    // Add the event listener
-    checkbox.addEventListener('change', checkbox._changeHandler);
-    
-    // Also add click event as backup
-    checkbox.addEventListener('click', function() {
-      console.log('Checkbox clicked:', this.dataset.quarter, 'checked:', this.checked);
-      setTimeout(updateEditButton, 10); // Small delay to ensure state is updated
-    });
-  });
-  
-  // Add click event listener to edit button
-  editButton.addEventListener('click', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('Edit button clicked!');
-    
-    const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
-    console.log('Checked boxes on click:', checkedBoxes.length);
-    
-    if (checkedBoxes.length === 0) {
-      alert('Please select at least one quarter to edit.');
-      return false;
-    }
-    
-    // Get selected quarters
-    const selectedQuarters = Array.from(checkedBoxes).map(cb => cb.dataset.quarter);
-    console.log('Selected quarters:', selectedQuarters);
-    
-    // Redirect to quarterly edit page with the first selected quarter
-    const selectedQuarter = selectedQuarters[0];
-    const editUrl = '<%= quarterly_edit_all_user_details_path %>?quarter=' + selectedQuarter + '&year=<%= @selected_year %>';
-    
-    console.log('Redirecting to:', editUrl);
-    window.location.href = editUrl;
-    
-    return false;
-  });
-  
-  // Initialize button state
-  updateEditButton();
-  
-  // Run additional checks to ensure everything is working
-  setTimeout(function() {
-    console.log('Running delayed check...');
-    updateEditButton();
-    
-    // Test if button is properly set up
-    console.log('Button disabled state:', editButton.disabled);
-    console.log('Button background color:', editButton.style.backgroundColor);
-    
-    // Re-attach event listeners in case they weren't attached properly
-    const checkboxes = document.querySelectorAll('.table-quarter-checkbox');
-    checkboxes.forEach((checkbox, index) => {
-      if (!checkbox._changeHandler) {
-        console.log(`Re-attaching listener to checkbox ${index}`);
-        checkbox._changeHandler = function() {
-          console.log('Checkbox changed (re-attached):', this.dataset.quarter, 'checked:', this.checked);
-          updateEditButton();
-        };
-        checkbox.addEventListener('change', checkbox._changeHandler);
-      }
-    });
-  }, 200);
-  
-  // Final check after everything should be loaded
-  setTimeout(function() {
-    console.log('Final initialization check...');
-    updateEditButton();
-    
-    // Force update button state
-    const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
-    console.log('Final check - checked boxes:', checkedBoxes.length);
-    if (checkedBoxes.length > 0) {
-      editButton.disabled = false;
-      editButton.style.backgroundColor = '#eab308';
-      editButton.style.cursor = 'pointer';
-    }
-  }, 1000);
-});
-
-// Also run on window load as backup
-window.addEventListener('load', function() {
-  console.log('Window loaded, running backup initialization...');
-  setTimeout(function() {
-    const editButton = document.getElementById('edit-quarterly-btn');
-    if (editButton) {
-      const checkedBoxes = document.querySelectorAll('.table-quarter-checkbox:checked');
-      if (checkedBoxes.length > 0) {
-        editButton.disabled = false;
-        editButton.style.backgroundColor = '#eab308';
-        editButton.style.cursor = 'pointer';
-      } else {
-        editButton.disabled = true;
-        editButton.style.backgroundColor = '#9ca3af';
-        editButton.style.cursor = 'not-allowed';
-      }
-    }
-  }, 100);
-});
-</script>
-
-<!-- Quarterly Achievement Details Modal -->
-<div id="quarterlyDetailsModal" class="fixed inset-0 hidden z-50 flex items-center justify-center">
-  <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4">
-    <!-- Modal Header -->
-    <div class="bg-gray-700 text-white px-6 py-4 rounded-t-lg flex justify-between items-center">
-      <div>
-        <h3 class="text-lg font-semibold">Quarterly Achievement Details</h3>
-        <span id="modalQuarterTitle" class="text-sm font-medium"></span>
-      </div>
-      <button onclick="refreshQuarterlyDetails()" class="text-white hover:text-gray-200 transition-colors" title="Refresh Data">
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-        </svg>
-      </button>
-    </div>
-    
-    <!-- Modal Body -->
-    <div class="p-6 max-h-[70vh] overflow-y-auto">
-      <div class="text-xs text-gray-500 text-center mb-4" id="lastUpdated">
-        Auto-refreshing every 10 seconds
-      </div>
-      <div id="modalSummariesContainer" class="space-y-8">
-        <!-- Dynamic content will be inserted here by JavaScript -->
-        <div class="flex flex-col items-center justify-center py-12">
-            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-            <p class="text-gray-500 font-medium">Fetching details...</p>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Modal Footer -->
-    <div class="bg-gray-100 px-6 py-4 rounded-b-lg flex justify-center gap-3">
-      <button onclick="refreshQuarterlyDetails()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
-        </svg>
-        Refresh
-      </button>
-      <button onclick="closeQuarterlyDetails()" class="bg-gray-700 text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors">
-        Close Details
-      </button>
-    </div>
-  </div>
-</div>
-
-<script>
-// Global variable to store modal refresh interval
-let modalRefreshInterval = null;
-let currentModalQuarter = null;
-
-// Function to fetch and update quarterly details
-function fetchQuarterlyDetails(quarter, showLoading = true) {
-  // Update modal title with correct months for each quarter
-  const quarterMonths = {
-    'Q1': 'Q1 (APR-MAY-JUN)',
-    'Q2': 'Q2 (JUL-AUG-SEP)', 
-    'Q3': 'Q3 (OCT-NOV-DEC)',
-    'Q4': 'Q4 (JAN-FEB-MAR)'
-  };
-  document.getElementById('modalQuarterTitle').textContent = quarterMonths[quarter] || quarter;
-  
-  // Show loading state if requested
-  const container = document.getElementById('modalSummariesContainer');
-  if (showLoading) {
-    container.innerHTML = `
-      <div class="flex flex-col items-center justify-center py-12">
-          <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-          <p class="text-gray-500 font-medium">Fetching details...</p>
-      </div>`;
-  }
-  
-  // Fetch real data from server with cache busting
-  const timestamp = new Date().getTime();
-  fetch(`/quarterly_details?quarter=${quarter}&t=${timestamp}`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-      'Cache-Control': 'no-cache'
-    }
-  })
-  .then(response => {
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-    return response.json();
-  })
-  .then(data => {
-    console.log('Received data:', data);
-    
-    // Update last updated timestamp
-    const now = new Date();
-    const timeString = now.toLocaleTimeString();
-    const lastUpdatedEl = document.getElementById('lastUpdated');
-    if (lastUpdatedEl) {
-      lastUpdatedEl.textContent = `Last updated: ${timeString} (Auto-refreshing every 10 seconds)`;
-    }
-    
-    // Clear container
-    container.innerHTML = '';
-    
-    if (!data.summaries || data.summaries.length === 0) {
-      container.innerHTML = `
-        <div class="text-center py-12 text-gray-500">
-          <i class="fas fa-info-circle text-4xl mb-4"></i>
-          <p class="text-lg">No data available for ${quarter}</p>
-        </div>`;
-      return;
-    }
-    
-    // Helper to get status color classes
-    const getStatusColorClass = (status) => {
-      if (!status) return 'bg-gray-100 text-gray-800';
-      const s = status.toLowerCase();
-      
-      // Success / Approved statuses
-      if (s.includes('approved')) return 'bg-green-100 text-green-800 border border-green-200';
-      
-      // Return / Alert statuses
-      if (s.includes('returned') || s.includes('rejected')) {
-        if (s.includes('employee')) return 'bg-orange-100 text-orange-800 border border-orange-200';
-        return 'bg-red-100 text-red-800 border border-red-200';
-      }
-      
-      // Progress statuses
-      if (s.includes('pending')) return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-      if (s.includes('submitted')) return 'bg-blue-100 text-blue-800 border border-blue-200';
-      
-      // Default
-      return 'bg-gray-100 text-gray-800 border border-gray-200';
-    };
-    
-    // Group summaries by employee if needed, but for now just show them
-    data.summaries.forEach((summary) => {
-      const summaryHtml = `
-        <div class="department-summary-block border border-gray-200 rounded-lg overflow-hidden shadow-sm mb-3">
-          <div class="bg-gray-50 px-3 py-1.5 border-b border-gray-200 flex justify-between items-center">
-            <div class="flex items-center space-x-2">
-              <span class="text-blue-600 font-bold text-xs uppercase tracking-tight">${summary.department_name}</span>
-              <span class="text-gray-300">|</span>
-              <span class="text-gray-700 font-medium text-xs">${summary.employee_name}</span>
-            </div>
-            <span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">${summary.activity_count} Activities</span>
-          </div>
-          <div class="p-2.5">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
-              <!-- L1 Compact -->
-              <div class="bg-orange-50/50 border border-orange-100 rounded p-2 flex flex-col justify-between h-full">
-                <div class="flex justify-between items-center mb-1">
-                  <span class="text-[10px] font-bold text-orange-800 uppercase tracking-wider">L1 Summary</span>
-                  <span class="text-sm font-black text-orange-700">${summary.l1.percentage}</span>
-                </div>
-                <div class="bg-blue-50/50 p-1.5 rounded border border-blue-100 mb-1.5 min-h-[30px] flex items-center">
-                  <span class="text-blue-700 italic text-[12px] leading-tight font-medium" title="${summary.l1.remarks}">
-                    ${summary.l1.remarks && summary.l1.remarks !== 'No remarks' ? `"${summary.l1.remarks}"` : '<span class="text-gray-400">No remarks</span>'}
-                  </span>
-                </div>
-                <!-- Status badge intentionally hidden in popup -->
-              </div>
-              
-              <!-- L2 Compact -->
-              <div class="bg-purple-50/50 border border-purple-100 rounded p-2 flex flex-col justify-between h-full">
-                <div class="flex justify-between items-center mb-1">
-                  <span class="text-[10px] font-bold text-purple-800 uppercase tracking-wider">L2 Summary</span>
-                  <span class="text-sm font-black text-purple-700">${summary.l2.percentage}</span>
-                </div>
-                <div class="bg-blue-50/50 p-1.5 rounded border border-blue-100 mb-1.5 min-h-[30px] flex items-center">
-                  <span class="text-blue-700 italic text-[12px] leading-tight font-medium" title="${summary.l2.remarks}">
-                    ${summary.l2.remarks && summary.l2.remarks !== 'No remarks' ? `"${summary.l2.remarks}"` : '<span class="text-gray-400">No remarks</span>'}
-                  </span>
-                </div>
-                <!-- Status badge intentionally hidden in popup -->
-              </div>
-              
-              <!-- L3 Compact -->
-              <div class="bg-blue-50/50 border border-blue-100 rounded p-2 flex flex-col justify-between h-full">
-                <div class="flex justify-between items-center mb-1">
-                  <span class="text-[10px] font-bold text-blue-800 uppercase tracking-wider">L3 Summary</span>
-                  <span class="text-sm font-black text-blue-700">${summary.l3.percentage}</span>
-                </div>
-                <div class="bg-blue-50/50 p-1.5 rounded border border-blue-100 mb-1.5 min-h-[30px] flex items-center">
-                  <span class="text-blue-700 italic text-[12px] leading-tight font-medium" title="${summary.l3.remarks}">
-                    ${summary.l3.remarks && summary.l3.remarks !== 'No remarks' ? `"${summary.l3.remarks}"` : '<span class="text-gray-400">No remarks</span>'}
-                  </span>
-                </div>
-                <!-- Status badge intentionally hidden in popup -->
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-      container.insertAdjacentHTML('beforeend', summaryHtml);
-    });
-  })
-  .catch(error => {
-    console.error('Error fetching quarterly details:', error);
-    container.innerHTML = `
-      <div class="text-center py-12 text-red-500">
-        <i class="fas fa-exclamation-triangle text-4xl mb-4"></i>
-        <p class="text-lg font-bold">Error loading data</p>
-        <p class="text-sm">${error.message}</p>
-      </div>`;
-  });
-}
-
-// Function to show quarterly details modal
-function showQuarterlyDetails(quarter) {
-  // Check active state from dashboard
-  const isDashboardActive = <%= @dashboard_active ? 'true' : 'false' %>;
-  
-  if (!isDashboardActive) {
-    alert('Quarterly Achievement Details viewing has been disabled by the Administrator/HOD.');
-    return;
-  }
-
-  console.log('Showing details for quarter:', quarter);
-  currentModalQuarter = quarter;
-  
-  // Show the modal first
-  document.getElementById('quarterlyDetailsModal').classList.remove('hidden');
-  
-  // Fetch initial data
-  fetchQuarterlyDetails(quarter, true);
-  
-  // Start auto-refresh every 10 seconds while modal is open
-  if (modalRefreshInterval) {
-    clearInterval(modalRefreshInterval);
-  }
-  modalRefreshInterval = setInterval(() => {
-    if (!document.getElementById('quarterlyDetailsModal').classList.contains('hidden')) {
-      console.log('Auto-refreshing quarterly details for:', quarter);
-      fetchQuarterlyDetails(quarter, false); // Don't show loading on auto-refresh
-    }
-  }, 10000); // Refresh every 10 seconds
-  
-  // Listen for real-time updates from other tabs/pages
-  window.addEventListener('storage', function(e) {
-    if (e.key === 'quarterly_details_updated' && e.newValue === quarter) {
-      console.log('Quarterly details updated from another tab, refreshing...');
-      fetchQuarterlyDetails(quarter, false);
-    }
-  });
-  
-  // Listen for custom events (same tab updates)
-  window.addEventListener('quarterlyDetailsUpdated', function(e) {
-    if (e.detail.quarter === quarter) {
-      console.log('Quarterly details updated, refreshing...');
-      fetchQuarterlyDetails(quarter, false);
-    }
-  });
-}
-
-// Function to manually refresh modal data
-function refreshQuarterlyDetails() {
-  if (currentModalQuarter) {
-    console.log('Manually refreshing quarterly details for:', currentModalQuarter);
-    fetchQuarterlyDetails(currentModalQuarter, true);
-  }
-}
-
-// Function to close quarterly details modal
-function closeQuarterlyDetails() {
-  document.getElementById('quarterlyDetailsModal').classList.add('hidden');
-  
-  // Stop auto-refresh when modal is closed
-  if (modalRefreshInterval) {
-    clearInterval(modalRefreshInterval);
-    modalRefreshInterval = null;
-  }
-  currentModalQuarter = null;
-}
-
-// Close modal when clicking outside
-document.getElementById('quarterlyDetailsModal').addEventListener('click', function(e) {
-  if (e.target === this) {
-    closeQuarterlyDetails();
-  }
-});
-
-// Close modal with Escape key
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Escape') {
-    closeQuarterlyDetails();
-  }
-});
-
-// Function to calculate and update total weightage dynamically
-function updateTotalWeightage() {
-  let totalWeightage = 0;
-  
-  // Get all weightage values from the table (6th column)
-  const weightageCells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(6)');
-  weightageCells.forEach(cell => {
-    const weightageText = cell.textContent.trim();
-    if (weightageText && !isNaN(parseFloat(weightageText))) {
-      totalWeightage += parseFloat(weightageText);
-    }
-  });
-  
-  // Update the display
-  const totalWeightageDisplay = document.getElementById('total-weightage-display');
-  if (totalWeightageDisplay) {
-    totalWeightageDisplay.textContent = Math.round(totalWeightage) + '%';
-    
-    // Add animation effect
-    totalWeightageDisplay.style.transform = 'scale(1.1)';
-    totalWeightageDisplay.style.transition = 'transform 0.2s ease';
-    
-    setTimeout(() => {
-      totalWeightageDisplay.style.transform = 'scale(1)';
-    }, 200);
-  }
-}
-
-// Function to calculate and update achievement totals dynamically
-function updateAchievementTotals() {
-  // Calculate Q1 achievement total
-  let q1Total = 0;
-  const q1Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(11)'); // Q1 achievement column
-  q1Cells.forEach(cell => {
-    const cellText = cell.textContent.trim();
-    const percentage = cellText.replace('%', '');
-    if (percentage && !isNaN(parseFloat(percentage))) {
-      q1Total += parseFloat(percentage);
-    }
-  });
-  
-  // Update Q1 total
-  const q1Display = document.getElementById('q1-achievement-total');
-  if (q1Display) {
-    q1Display.textContent = Math.round(q1Total) + '%';
-    animateUpdate(q1Display);
-  }
-  
-  // Calculate Q2 achievement total
-  let q2Total = 0;
-  const q2Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(14)'); // Q2 achievement column
-  q2Cells.forEach(cell => {
-    const cellText = cell.textContent.trim();
-    const percentage = cellText.replace('%', '');
-    if (percentage && !isNaN(parseFloat(percentage))) {
-      q2Total += parseFloat(percentage);
-    }
-  });
-  
-  // Update Q2 total
-  const q2Display = document.getElementById('q2-achievement-total');
-  if (q2Display) {
-    q2Display.textContent = Math.round(q2Total) + '%';
-    animateUpdate(q2Display);
-  }
-  
-  // Calculate Q3 achievement total
-  let q3Total = 0;
-  const q3Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(17)'); // Q3 achievement column
-  q3Cells.forEach(cell => {
-    const cellText = cell.textContent.trim();
-    const percentage = cellText.replace('%', '');
-    if (percentage && !isNaN(parseFloat(percentage))) {
-      q3Total += parseFloat(percentage);
-    }
-  });
-  
-  // Update Q3 total
-  const q3Display = document.getElementById('q3-achievement-total');
-  if (q3Display) {
-    q3Display.textContent = Math.round(q3Total) + '%';
-    animateUpdate(q3Display);
-  }
-  
-  // Calculate Q4 achievement total
-  let q4Total = 0;
-  const q4Cells = document.querySelectorAll('tbody tr:not(.bg-green-100) td:nth-child(20)'); // Q4 achievement column
-  q4Cells.forEach(cell => {
-    const cellText = cell.textContent.trim();
-    const percentage = cellText.replace('%', '');
-    if (percentage && !isNaN(parseFloat(percentage))) {
-      q4Total += parseFloat(percentage);
-    }
-  });
-  
-  // Update Q4 total
-  const q4Display = document.getElementById('q4-achievement-total');
-  if (q4Display) {
-    q4Display.textContent = Math.round(q4Total) + '%';
-    animateUpdate(q4Display);
-  }
-}
-
-// Helper function for animation
-function animateUpdate(element) {
-  element.style.transform = 'scale(1.1)';
-  element.style.transition = 'transform 0.2s ease';
-  
-  setTimeout(() => {
-    element.style.transform = 'scale(1)';
-  }, 200);
-}
-
-// Initialize dynamic weightage calculation on page load
-document.addEventListener('DOMContentLoaded', function() {
-  // Update total weightage when page loads
-  updateTotalWeightage();
-  
-  // Update achievement totals when page loads
-  updateAchievementTotals();
-  
-  // Add event listeners for any dynamic changes
-  const table = document.querySelector('.table');
-  if (table) {
-    // Use MutationObserver to watch for changes in the table
-    const observer = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        if (mutation.type === 'childList' || mutation.type === 'characterData') {
-          updateTotalWeightage();
-          updateAchievementTotals();
-        }
-      });
-    });
-    
-    observer.observe(table, {
-      childList: true,
-      subtree: true,
-      characterData: true
-    });
-  }
-});
-</script>

@@ -782,6 +782,7 @@ class EmployeeDetailsController < ApplicationController
     # FIXED: For L1 view, show separate records for each department
     # Don't deduplicate by employee code - we want to show each department separately
     @employee_details = all_employees
+    @monthly_employee_data = build_monthly_employee_data(@employee_details)
 
     # Group employees by quarters for display
     @quarterly_data = group_employees_by_quarters(@employee_details)
@@ -1334,6 +1335,7 @@ def l2
   # FIXED: Don't deduplicate employees - show separate records for each department with L1 approved achievements
   # This allows the same employee to appear multiple times if they have L1 approved achievements in different departments
   @employee_details = filtered_employees
+  @monthly_employee_data = build_monthly_employee_data(@employee_details, l2_only: true)
 end
 
   def show_l2
@@ -1990,9 +1992,17 @@ end
   end
 
   def set_financial_year_context
-    @selected_year = normalize_financial_year(params[:year])
+    @selected_year = normalize_financial_year(
+      params[:year].presence ||
+        params[:financial_year].presence ||
+        params[:selected_financial_year].presence
+    )
     @selected_year_db = database_financial_year_value(UserDetail, @selected_year)
     @available_years = financial_year_options(UserDetail.distinct.pluck(:year))
+    @selected_financial_year = @selected_year
+    @financial_year_options = @available_years.map { |year| [ display_financial_year(year), year ] }
+    @month_options = review_month_options
+    @selected_review_month = params[:month].presence_in(@month_options.map(&:last))
   end
 
   def scoped_user_details_for_year(scope)
@@ -2021,10 +2031,141 @@ end
   end
 
   def include_legacy_yearless_records?
-    params[:year].blank? || @selected_year == current_financial_year_label
+    params[:year].blank? && params[:financial_year].blank? && params[:selected_financial_year].blank? ||
+      @selected_year == current_financial_year_label
   end
 
   private
+
+  def review_month_options
+    [
+      [ "APR", "april" ],
+      [ "MAY", "may" ],
+      [ "JUN", "june" ],
+      [ "JUL", "july" ],
+      [ "AUG", "august" ],
+      [ "SEP", "september" ],
+      [ "OCT", "october" ],
+      [ "NOV", "november" ],
+      [ "DEC", "december" ],
+      [ "JAN", "january" ],
+      [ "FEB", "february" ],
+      [ "MAR", "march" ]
+    ]
+  end
+
+  def build_monthly_employee_data(employee_details, l2_only: false)
+    month_labels = review_month_options.to_h { |label, value| [ value, label ] }
+    selected_months = @selected_review_month.present? ? [ @selected_review_month ] : month_labels.keys
+    monthly_data = {}
+
+    Array(employee_details).each do |employee|
+      filtered_user_details_for_selected_year(employee.user_details).each do |user_detail|
+        next if @selected_department.present? && user_detail.department&.department_type != @selected_department
+
+        selected_months.each do |month|
+          achievements = user_detail.achievements.select do |achievement|
+            achievement.month.to_s.downcase == month && achievement.achievement.present?
+          end
+          next if achievements.empty?
+
+          status = review_status_for(achievements)
+          next if l2_only && !l2_review_visible?(achievements, status)
+
+          key = [
+            employee.id,
+            user_detail.department_id,
+            month,
+            @selected_year
+          ].join(":")
+
+          monthly_data[key] ||= {
+            employee: employee,
+            department: user_detail.department,
+            department_id: user_detail.department_id,
+            month: month,
+            month_label: month_labels[month],
+            quarter_name: quarter_for_month(month),
+            financial_year: @selected_year,
+            status: status,
+            status_config: review_status_config(status)
+          }
+        end
+      end
+    end
+
+    monthly_data.sort_by { |_key, data| [ data[:employee].employee_name.to_s.downcase, data[:department]&.department_type.to_s.downcase, data[:month].to_s ] }.to_h
+  end
+
+  def review_status_for(achievements)
+    statuses = achievements.map { |achievement| achievement.status.presence || "pending" }
+
+    %w[
+      l3_approved
+      l3_returned
+      l2_approved
+      l2_returned
+      returned_to_employee
+      l1_returned
+      l1_approved
+      submitted
+      pending
+    ].find { |status| statuses.include?(status) } || "pending"
+  end
+
+  def l2_review_visible?(achievements, status)
+    return true if %w[l1_approved l2_approved l2_returned l3_approved l3_returned].include?(status)
+
+    achievements.any? do |achievement|
+      remark = achievement.achievement_remark
+      l1_review_present = remark&.l1_percentage.present? ||
+        (remark&.l1_remarks.present? && remark.l1_remarks != "No remarks for this quarter")
+      returned_by_l2_or_l3 = status == "returned_to_employee" &&
+        (remark&.l2_remarks.present? || remark&.l3_remarks.present?)
+
+      l1_review_present || returned_by_l2_or_l3
+    end
+  end
+
+  def review_status_config(status)
+    case status
+    when "pending"
+      { color: "bg-yellow-100 text-yellow-800 border-yellow-300", text: "Pending Review", icon: "fas fa-clock" }
+    when "l1_approved"
+      { color: "bg-sky-100 text-sky-800 border-sky-300", text: "L1 Approved", icon: "fas fa-check-circle" }
+    when "l1_returned"
+      { color: "bg-red-100 text-red-800 border-red-300", text: "L1 Returned", icon: "fas fa-exclamation-triangle" }
+    when "returned_to_employee"
+      { color: "bg-orange-100 text-orange-800 border-orange-300", text: "Returned to Employee", icon: "fas fa-exclamation-triangle" }
+    when "l2_approved"
+      { color: "bg-emerald-100 text-emerald-800 border-emerald-300", text: "L2 Approved", icon: "fas fa-check-double" }
+    when "l2_returned"
+      { color: "bg-orange-100 text-orange-800 border-orange-300", text: "L2 Returned", icon: "fas fa-exclamation-triangle" }
+    when "l3_approved"
+      { color: "bg-green-100 text-green-800 border-green-300", text: "L3 Approved", icon: "fas fa-check-circle" }
+    when "l3_returned"
+      { color: "bg-red-100 text-red-800 border-red-300", text: "L3 Returned", icon: "fas fa-exclamation-triangle" }
+    when "submitted"
+      { color: "bg-blue-100 text-blue-800 border-blue-300", text: "Submitted", icon: "fas fa-paper-plane" }
+    else
+      { color: "bg-gray-100 text-gray-600 border-gray-300", text: "No Status", icon: "fas fa-question-circle" }
+    end
+  end
+
+  def quarter_for_month(month)
+    case month.to_s
+    when "april", "may", "june"
+      "Q1"
+    when "july", "august", "september"
+      "Q2"
+    when "october", "november", "december"
+      "Q3"
+    when "january", "february", "march"
+      "Q4"
+    else
+      ""
+    end
+  end
 
   def set_employee_detail
     @employee_detail = EmployeeDetail.find(params[:id])

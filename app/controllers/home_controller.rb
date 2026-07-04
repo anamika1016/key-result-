@@ -142,6 +142,8 @@ class HomeController < ApplicationController
   end
 
   def submitted_view_data
+    @selected_month = params[:month].presence || "april"
+
     # Filter data based on user role and permissions, showing records with either achievements OR quarterly data
     case current_user.role
     when "employee"
@@ -532,9 +534,11 @@ class HomeController < ApplicationController
   end
 
   def set_financial_year_context
-    @selected_year = normalize_financial_year(params[:year])
+    @selected_year = normalize_financial_year(params[:year].presence || params[:financial_year].presence)
     @selected_year_db = database_financial_year_value(UserDetail, @selected_year)
     @available_years = financial_year_options(UserDetail.distinct.pluck(:year))
+    @selected_financial_year = @selected_year
+    @financial_years = @available_years
   end
 
   private

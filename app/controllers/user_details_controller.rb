@@ -789,6 +789,7 @@ class UserDetailsController < ApplicationController
       [ "FEB", "february" ],
       [ "MAR", "march" ]
     ]
+    @active_month_options = @month_options
     @selected_month = params[:month].presence_in(@month_options.map(&:last)) || @month_options.first.last
 
     if [ "employee", "l1_employer", "l2_employer" ].include?(current_user.role)
@@ -1244,7 +1245,7 @@ class UserDetailsController < ApplicationController
 
   def export
     @user_details = UserDetail.includes(:employee_detail, :department, :activity)
-                              .where(year: @selected_year)
+                              .where(year: @selected_year_db)
                               .limit(5000)
 
     respond_to do |format|
@@ -1609,10 +1610,17 @@ class UserDetailsController < ApplicationController
     @selected_year_db = database_financial_year_value(UserDetail, @selected_year)
     existing_years = UserDetail.distinct.order(year: :desc).pluck(:year).compact
     @available_years = financial_year_options(existing_years + [ @selected_year ])
+    @selected_financial_year = @selected_year
+    @financial_years = @available_years
   end
 
   def selected_year_param
-    normalize_financial_year(params[:year].presence || params.dig(:user_detail, :year).presence)
+    normalize_financial_year(
+      params[:year].presence ||
+        params[:financial_year].presence ||
+        params.dig(:user_detail, :year).presence ||
+        params.dig(:user_detail, :financial_year).presence
+    )
   end
 
   # New SMS functionality using SMS service
