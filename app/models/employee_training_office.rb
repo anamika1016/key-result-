@@ -12,13 +12,18 @@ class EmployeeTrainingOffice < ApplicationRecord
       office_type = row.office_type.to_s.strip
       next if office_type.blank?
 
-      grouped[office_type] ||= { offices: [], fpos: [] }
+      grouped[office_type] ||= { offices: [], fpos: [], fpos_by_office: {} }
 
       office_name = row.office_name.to_s.strip
       fpo_name = row.fpo_name.to_s.strip
 
       grouped[office_type][:offices] << office_name if office_name.present? && !grouped[office_type][:offices].include?(office_name)
       grouped[office_type][:fpos] << fpo_name if fpo_name.present? && !grouped[office_type][:fpos].include?(fpo_name)
+
+      next if office_name.blank? || fpo_name.blank?
+
+      grouped[office_type][:fpos_by_office][office_name] ||= []
+      grouped[office_type][:fpos_by_office][office_name] << fpo_name unless grouped[office_type][:fpos_by_office][office_name].include?(fpo_name)
     end
   end
 

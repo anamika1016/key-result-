@@ -384,7 +384,7 @@
   </div>
 
   <script type="application/json" id="employee-training-office-options"><%= raw(json_escape(@office_options_by_type.to_json)) %></script>
-  <script type="application/json" id="employee-training-fpo-options"><%= raw(json_escape(@fpo_options_by_type.to_json)) %></script>
+  <script type="application/json" id="employee-training-fpo-options"><%= raw(json_escape(@fpo_options_by_office.to_json)) %></script>
   <script type="application/json" id="employee-training-topic-options"><%= raw(json_escape(@topics_by_thematic_department.to_json)) %></script>
 
   <script>
@@ -418,7 +418,7 @@
 
       if (officeTypeSelect && officeNameSelect && fpoNameSelect && officeOptionsJson && fpoOptionsJson) {
         const officeOptionsByType = JSON.parse(officeOptionsJson.textContent || "{}");
-        const fpoOptionsByType = JSON.parse(fpoOptionsJson.textContent || "{}");
+        const fpoOptionsByOffice = JSON.parse(fpoOptionsJson.textContent || "{}");
 
         const selectedOfficeTypes = function () {
           return Array.from(officeTypeCheckboxes)
@@ -495,7 +495,13 @@
 
           if (fpoNameLabel) {
             if (selectedValues.length === 0) {
-              fpoNameLabel.textContent = selectedOfficeTypes().length > 0 ? "Select FPO" : "Select Office Type First";
+              if (selectedOfficeTypes().length === 0) {
+                fpoNameLabel.textContent = "Select Office Type First";
+              } else if (selectedOfficeNames().length === 0) {
+                fpoNameLabel.textContent = "Select Office Name First";
+              } else {
+                fpoNameLabel.textContent = "Select FPO";
+              }
             } else if (selectedValues.length <= 2) {
               fpoNameLabel.textContent = selectedValues.join(", ");
             } else {
@@ -535,7 +541,10 @@
             checkbox.value = officeName;
             checkbox.checked = previouslySelected.includes(officeName);
             checkbox.setAttribute("data-office-name-checkbox", "");
-            checkbox.addEventListener("change", syncOfficeNameSelect);
+            checkbox.addEventListener("change", function () {
+              syncOfficeNameSelect();
+              fillFpoNames();
+            });
 
             const text = document.createElement("span");
             text.textContent = officeName;
@@ -557,12 +566,17 @@
 
         const fillFpoNames = function () {
           const selectedTypes = selectedOfficeTypes();
+          const selectedNames = selectedOfficeNames();
           const previouslySelected = selectedFpoNames();
           const fpoNames = [];
 
           selectedTypes.forEach(function (officeType) {
-            (fpoOptionsByType[officeType] || []).forEach(function (fpoName) {
-              if (!fpoNames.includes(fpoName)) fpoNames.push(fpoName);
+            const fposByOfficeName = fpoOptionsByOffice[officeType] || {};
+
+            selectedNames.forEach(function (officeName) {
+              (fposByOfficeName[officeName] || []).forEach(function (fpoName) {
+                if (!fpoNames.includes(fpoName)) fpoNames.push(fpoName);
+              });
             });
           });
 
@@ -597,7 +611,13 @@
           if (fpoNames.length === 0) {
             const emptyOption = document.createElement("div");
             emptyOption.className = "employee-training-multi-option";
-            emptyOption.textContent = selectedTypes.length > 0 ? "No FPO found" : "Select Office Type First";
+            if (selectedTypes.length === 0) {
+              emptyOption.textContent = "Select Office Type First";
+            } else if (selectedNames.length === 0) {
+              emptyOption.textContent = "Select Office Name First";
+            } else {
+              emptyOption.textContent = "No FPO found";
+            }
             fpoNameMenu.appendChild(emptyOption);
           }
 
@@ -630,7 +650,7 @@
 
         if (fpoNameTrigger && fpoNameMulti) {
           fpoNameTrigger.addEventListener("click", function () {
-            if (selectedOfficeTypes().length > 0) fpoNameMulti.classList.toggle("open");
+            if (selectedOfficeTypes().length > 0 && selectedOfficeNames().length > 0) fpoNameMulti.classList.toggle("open");
           });
         }
 

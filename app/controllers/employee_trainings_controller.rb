@@ -61,6 +61,9 @@ class EmployeeTrainingsController < ApplicationController
 
     @office_options_by_type = office_option_groups.transform_values { |values| values[:offices].sort }
     @fpo_options_by_type = office_option_groups.transform_values { |values| values[:fpos].sort }
+    @fpo_options_by_office = office_option_groups.transform_values do |values|
+      values[:fpos_by_office].transform_values(&:sort)
+    end
     @office_type_options = office_option_groups.keys.sort
     @office_options = @office_options_by_type.values.flatten.uniq.sort
     @fpo_options = @fpo_options_by_type.values.flatten.uniq.sort
