@@ -189,7 +189,15 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :employee_trainings, only: [ :index, :show, :new, :create ]
+  resources :employee_trainings, only: [ :index, :show, :new, :create ] do
+    collection do
+      get :master_data
+      post :create_master_project
+      post :create_master_office
+      post :import_master_data
+      get :download_master_template
+    end
+  end
   resources :employee_training_thematics, only: [ :index, :create, :destroy ]
   resources :employee_training_topics, only: [ :index, :create, :destroy ]
 

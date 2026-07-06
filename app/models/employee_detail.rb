@@ -108,18 +108,27 @@ scope :l1_pending_records, -> { where(status: [ "pending", "returned" ]) }
 scope :l3_pending_records, -> { where(status: [ "l2_approved" ]) }
 
 # Scopes for L1, L2, L3 filtering with includes
-scope :for_l1_user, ->(employee_code_or_email) {
-  where("TRIM(l1_code) = ? OR l1_employer_name = ?", employee_code_or_email.strip, employee_code_or_email)
+scope :for_l1_user, ->(user_or_value) {
+  values = manager_lookup_values(user_or_value)
+  where("TRIM(l1_code) IN (:values) OR LOWER(REGEXP_REPLACE(TRIM(l1_employer_name), '\\s+', ' ', 'g')) IN (:normalized_values)",
+        values: values,
+        normalized_values: values.map(&:downcase))
   .includes(user_details: [ :department, :activity, achievements: :achievement_remark ])
 }
 
-scope :for_l2_user, ->(employee_code) {
-  where("TRIM(l2_code) = ? OR l2_employer_name = ?", employee_code.strip, employee_code)
+scope :for_l2_user, ->(user_or_value) {
+  values = manager_lookup_values(user_or_value)
+  where("TRIM(l2_code) IN (:values) OR LOWER(REGEXP_REPLACE(TRIM(l2_employer_name), '\\s+', ' ', 'g')) IN (:normalized_values)",
+        values: values,
+        normalized_values: values.map(&:downcase))
   .includes(user_details: [ :department, :activity, achievements: :achievement_remark ])
 }
 
-scope :for_l3_user, ->(employee_code) {
-  where("TRIM(l3_code) = ? OR l3_employer_name = ?", employee_code.strip, employee_code)
+scope :for_l3_user, ->(user_or_value) {
+  values = manager_lookup_values(user_or_value)
+  where("TRIM(l3_code) IN (:values) OR LOWER(REGEXP_REPLACE(TRIM(l3_employer_name), '\\s+', ' ', 'g')) IN (:normalized_values)",
+        values: values,
+        normalized_values: values.map(&:downcase))
   .includes(user_details: [ :department, :activity, achievements: :achievement_remark ])
 }
 
@@ -140,6 +149,21 @@ scope :with_l2_approved_achievements, -> {
   # ✅ Allow only safe associations (empty if none)
   def self.ransackable_associations(auth_object = nil)
     []
+  end
+
+  def self.manager_lookup_values(user_or_value)
+    values = if user_or_value.respond_to?(:employee_code)
+      [
+        user_or_value.employee_code,
+        user_or_value.email,
+        user_or_value.try(:display_name),
+        user_or_value.try(:mapped_employee_detail)&.employee_name
+      ]
+    else
+      [ user_or_value ]
+    end
+
+    values.compact.map { |value| value.to_s.squish }.reject(&:blank?).uniq
   end
 
   def set_default_status

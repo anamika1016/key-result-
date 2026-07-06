@@ -1,4 +1,7 @@
 class UserDetailsController < ApplicationController
+  REMARKS_MAX_LENGTH = 500
+  MAX_MANUAL_KRI_ROWS = 3
+
   require "ostruct"
   require "set"
   before_action :set_user_detail, only: [ :show, :edit, :update, :destroy ]
@@ -1277,6 +1280,7 @@ class UserDetailsController < ApplicationController
       user_accounts_created = 0
       user_accounts_updated = 0
       batch_size = 100
+      import_row_occurrences = Hash.new(0)
 
       # Build cache of existing users ONCE for entire import (much faster for 1000+ users)
       Rails.logger.info "Building cache of existing users for bulk import..."
@@ -1432,15 +1436,38 @@ class UserDetailsController < ApplicationController
               nil
             end
 
-            activity = Activity.find_or_create_by!(
-              activity_name: activity_name.to_s.strip,
-              department_id: department.id,
-              year: row_year
-            ) do |a|
-              a.unit = unit.to_s.strip if unit.present?
-              a.weight = processed_weightage if processed_weightage.present?
-              a.theme_name = activity_theme_name.to_s.strip if activity_theme_name.present?
-            end
+            target_attributes = imported_target_attributes(
+              annual_target: annual_target,
+              monthly_targets: monthly_targets,
+              processed_weightage: processed_weightage,
+              weightage_q1: weightage_q1,
+              weightage_q2: weightage_q2,
+              weightage_q3: weightage_q3,
+              weightage_q4: weightage_q4
+            )
+            import_row_key = imported_activity_occurrence_key(
+              employee: employee,
+              department: department,
+              year: row_year,
+              activity_name: activity_name,
+              activity_theme_name: activity_theme_name,
+              unit: unit,
+              target_attributes: target_attributes
+            )
+            occurrence_index = import_row_occurrences[import_row_key]
+            import_row_occurrences[import_row_key] += 1
+
+            activity = import_activity_for_row(
+              department: department,
+              employee: employee,
+              year: row_year,
+              activity_name: activity_name,
+              activity_theme_name: activity_theme_name,
+              unit: unit,
+              processed_weightage: processed_weightage,
+              target_attributes: target_attributes,
+              occurrence_index: occurrence_index
+            )
 
             # Update activity fields if provided and different
             update_activity_fields = {}
@@ -1458,15 +1485,7 @@ class UserDetailsController < ApplicationController
                 year: row_year
               )
 
-              user_detail.total_weightage = processed_weightage if processed_weightage.present?
-              user_detail.weightage_q1 = normalize_percentage(weightage_q1) if weightage_q1.present?
-              user_detail.weightage_q2 = normalize_percentage(weightage_q2) if weightage_q2.present?
-              user_detail.weightage_q3 = normalize_percentage(weightage_q3) if weightage_q3.present?
-              user_detail.weightage_q4 = normalize_percentage(weightage_q4) if weightage_q4.present?
-              user_detail.annual_target = annual_target if annual_target.present?
-              monthly_targets.each do |month, value|
-                user_detail.public_send("#{month}=", value) if value.present?
-              end
+              user_detail.assign_attributes(target_attributes)
               user_detail.save!
               success_count += 1
             rescue ActiveRecord::RecordInvalid => e
@@ -1536,6 +1555,75 @@ class UserDetailsController < ApplicationController
     end
 
     nil
+  end
+
+  def imported_target_attributes(annual_target:, monthly_targets:, processed_weightage:, weightage_q1:, weightage_q2:, weightage_q3:, weightage_q4:)
+    attrs = {}
+    attrs[:total_weightage] = processed_weightage if processed_weightage.present?
+    attrs[:weightage_q1] = normalize_percentage(weightage_q1) if weightage_q1.present?
+    attrs[:weightage_q2] = normalize_percentage(weightage_q2) if weightage_q2.present?
+    attrs[:weightage_q3] = normalize_percentage(weightage_q3) if weightage_q3.present?
+    attrs[:weightage_q4] = normalize_percentage(weightage_q4) if weightage_q4.present?
+    attrs[:annual_target] = annual_target if annual_target.present?
+
+    monthly_targets.each do |month, value|
+      attrs[month] = value if value.present?
+    end
+
+    attrs
+  end
+
+  def imported_activity_occurrence_key(employee:, department:, year:, activity_name:, activity_theme_name:, unit:, target_attributes:)
+    [
+      employee.id,
+      department.id,
+      year.to_s,
+      activity_theme_name.to_s.strip.downcase,
+      activity_name.to_s.strip.downcase,
+      unit.to_s.strip.downcase,
+      target_attributes.sort_by { |attribute, _| attribute.to_s }.map { |attribute, value| "#{attribute}=#{value.to_s.strip}" }.join("|")
+    ].join("::")
+  end
+
+  def import_activity_for_row(department:, employee:, year:, activity_name:, activity_theme_name:, unit:, processed_weightage:, target_attributes:, occurrence_index:)
+    normalized_activity_name = activity_name.to_s.strip
+    normalized_theme_name = activity_theme_name.to_s.strip.presence
+
+    matching_scope = Activity.where(
+      department_id: department.id,
+      year: year,
+      activity_name: normalized_activity_name
+    )
+    matching_scope = matching_scope.where(theme_name: normalized_theme_name) if normalized_theme_name.present?
+    matching_scope = matching_scope.where(unit: unit.to_s.strip) if unit.present?
+
+    matching_activities = matching_scope.includes(:user_details).select do |candidate|
+      user_detail = candidate.user_details.detect do |detail|
+        detail.employee_detail_id == employee.id &&
+          detail.department_id == department.id &&
+          detail.year.to_s == year.to_s
+      end
+
+      user_detail.blank? || imported_target_match?(user_detail, target_attributes)
+    end
+
+    activity = matching_activities[occurrence_index]
+
+    activity ||= department.activities.create!(
+      year: year,
+      activity_name: normalized_activity_name,
+      theme_name: normalized_theme_name,
+      unit: unit.to_s.strip.presence,
+      weight: processed_weightage
+    )
+
+    activity
+  end
+
+  def imported_target_match?(user_detail, target_attributes)
+    target_attributes.all? do |attribute, value|
+      user_detail.public_send(attribute).to_s.strip == value.to_s.strip
+    end
   end
 
   def extract_month_value(details, month)

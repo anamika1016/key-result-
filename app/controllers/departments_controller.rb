@@ -923,6 +923,8 @@ class DepartmentsController < ApplicationController
     # Create departments and activities
     ActiveRecord::Base.transaction do
       departments_hash.each_value do |dept_data|
+        import_row_occurrences = Hash.new(0)
+        imported_user_detail_ids = []
         # Check if department already exists (by department_type only, not employee)
         existing_department = Department.find_by(
           department_type: dept_data[:department_type]
@@ -933,25 +935,40 @@ class DepartmentsController < ApplicationController
 
           # Department exists, add activities and employee to it
           dept_data[:activities].each do |act|
-            # Check if activity already exists to avoid duplicates
-            activity = existing_department.activities.find_or_create_by!(
+            occurrence_key = department_import_activity_occurrence_key(
+              employee: employee,
+              department: existing_department,
               year: dept_data[:year],
-              activity_name: act[:activity_name],
-              theme_name: act[:theme_name]
-            ) do |a|
-              a.unit = act[:unit]
-              a.weight = act[:weight]
-            end
+              activity_attrs: act
+            )
+            occurrence_index = import_row_occurrences[occurrence_key]
+            import_row_occurrences[occurrence_key] += 1
+            activity = department_import_activity_for_row(
+              department: existing_department,
+              employee: employee,
+              year: dept_data[:year],
+              activity_attrs: act,
+              occurrence_index: occurrence_index
+            )
 
             if employee
-              UserDetail.find_or_create_by!(
+              user_detail = UserDetail.find_or_create_by!(
                 department_id: existing_department.id,
                 activity_id: activity.id,
                 employee_detail_id: employee.id,
                 year: dept_data[:year]
-              ).update!(weightage_attributes_from(act))
+              )
+              user_detail.update!(weightage_attributes_from(act))
+              imported_user_detail_ids << user_detail.id
             end
           end
+
+          remove_stale_imported_user_details(
+            department: existing_department,
+            employee: employee,
+            year: dept_data[:year],
+            imported_user_detail_ids: imported_user_detail_ids
+          )
         else
           # Create new department
           department = Department.create!(
@@ -971,12 +988,13 @@ class DepartmentsController < ApplicationController
               weight: act[:weight]
             )
             if employee
-              UserDetail.find_or_create_by!(
+              user_detail = UserDetail.find_or_create_by!(
                 department_id: department.id,
                 activity_id: activity.id,
                 employee_detail_id: employee.id,
                 year: dept_data[:year]
-              ).update!(weightage_attributes_from(act))
+              )
+              user_detail.update!(weightage_attributes_from(act))
             end
           end
         end
@@ -1328,6 +1346,72 @@ class DepartmentsController < ApplicationController
       february: activity_attr_value(activity_attrs, :february),
       march: activity_attr_value(activity_attrs, :march)
     }.compact
+  end
+
+  def department_import_activity_occurrence_key(employee:, department:, year:, activity_attrs:)
+    target_attributes = weightage_attributes_from(activity_attrs)
+    [
+      employee&.id,
+      department.id,
+      year.to_s,
+      activity_attr_value(activity_attrs, :theme_name).to_s.strip.downcase,
+      activity_attr_value(activity_attrs, :activity_name).to_s.strip.downcase,
+      activity_attr_value(activity_attrs, :unit).to_s.strip.downcase,
+      target_attributes.sort_by { |attribute, _| attribute.to_s }.map { |attribute, value| "#{attribute}=#{value.to_s.strip}" }.join("|")
+    ].join("::")
+  end
+
+  def department_import_activity_for_row(department:, employee:, year:, activity_attrs:, occurrence_index:)
+    target_attributes = weightage_attributes_from(activity_attrs)
+    normalized_theme_name = activity_attr_value(activity_attrs, :theme_name).to_s.strip.presence
+    normalized_activity_name = activity_attr_value(activity_attrs, :activity_name).to_s.strip
+
+    matching_scope = department.activities.where(
+      year: year,
+      activity_name: normalized_activity_name
+    )
+    matching_scope = matching_scope.where(theme_name: normalized_theme_name) if normalized_theme_name.present?
+    matching_scope = matching_scope.where(unit: activity_attr_value(activity_attrs, :unit).to_s.strip) if activity_attr_value(activity_attrs, :unit).present?
+
+    matching_activities = matching_scope.includes(:user_details).select do |candidate|
+      user_detail = if employee
+        candidate.user_details.detect do |detail|
+          detail.employee_detail_id == employee.id &&
+            detail.department_id == department.id &&
+            detail.year.to_s == year.to_s
+        end
+      end
+
+      user_detail.blank? || department_import_target_match?(user_detail, target_attributes)
+    end
+
+    activity = matching_activities[occurrence_index]
+
+    activity ||= department.activities.create!(
+      year: year,
+      theme_name: normalized_theme_name,
+      activity_name: normalized_activity_name,
+      unit: activity_attr_value(activity_attrs, :unit),
+      weight: activity_attr_value(activity_attrs, :weight)
+    )
+
+    activity
+  end
+
+  def department_import_target_match?(user_detail, target_attributes)
+    target_attributes.all? do |attribute, value|
+      user_detail.public_send(attribute).to_s.strip == value.to_s.strip
+    end
+  end
+
+  def remove_stale_imported_user_details(department:, employee:, year:, imported_user_detail_ids:)
+    return if employee.blank? || imported_user_detail_ids.blank?
+
+    UserDetail.where(
+      department_id: department.id,
+      employee_detail_id: employee.id,
+      year: year
+    ).where.not(id: imported_user_detail_ids).destroy_all
   end
 
   def set_department

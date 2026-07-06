@@ -727,6 +727,10 @@ class EmployeeDetailsController < ApplicationController
   # L1 Dashboard - Show quarterly data
   def l1
     authorize! :l1, EmployeeDetail
+    unless current_user.hod? || EmployeeDetail.for_l1_user(current_user).exists?
+      redirect_to root_path, alert: "❌ You are not authorized to access L1 manager details."
+      return
+    end
 
     # Get department filter parameter
     @selected_department = params[:department_filter]
@@ -746,7 +750,7 @@ class EmployeeDetailsController < ApplicationController
       # FIXED: L1 managers can see their assigned employees (with or without achievements)
       # First get all employees assigned to this L1 manager
       all_assigned_employees = EmployeeDetail
-                                .for_l1_user(current_user.employee_code)
+                                .for_l1_user(current_user)
                                 .includes(
                                   user_details: [
                                     :activity,
@@ -1216,6 +1220,11 @@ class EmployeeDetailsController < ApplicationController
   end
 
 def l2
+  unless current_user.hod? || EmployeeDetail.for_l2_user(current_user).exists?
+    redirect_to root_path, alert: "❌ You are not authorized to access L2 manager details."
+    return
+  end
+
   # Get department filter parameter
   @selected_department = params[:department_filter]
 
@@ -1231,7 +1240,7 @@ def l2
   else
       # L2 managers can only see their assigned employees with L1 approved achievements (pending L2 review)
       # FIXED: Get all EmployeeDetail records for employees assigned to this L2 manager with proper associations
-      l2_employee_codes = EmployeeDetail.for_l2_user(current_user.employee_code).pluck(:employee_code)
+      l2_employee_codes = EmployeeDetail.for_l2_user(current_user).pluck(:employee_code)
       all_employees = EmployeeDetail.where(employee_code: l2_employee_codes)
                                      .includes(
                                        user_details: [
@@ -1521,6 +1530,11 @@ end
 
   # L3 Dashboard - Show only L2 approved records
   def l3
+    unless current_user.hod? || EmployeeDetail.for_l3_user(current_user).exists?
+      redirect_to root_path, alert: "❌ You are not authorized to access L3 manager details."
+      return
+    end
+
     if current_user.hod?
       # HOD can see all employee details, but only those with L2 approved achievements
       all_employees = EmployeeDetail.includes(
@@ -1533,7 +1547,7 @@ end
     else
       # L3 managers can only see their assigned employees with L2 approved achievements
       # FIXED: Get all EmployeeDetail records for employees assigned to this L3 manager
-      l3_employee_codes = EmployeeDetail.for_l3_user(current_user.employee_code).pluck(:employee_code)
+      l3_employee_codes = EmployeeDetail.for_l3_user(current_user).pluck(:employee_code)
       all_employees = EmployeeDetail.where(employee_code: l3_employee_codes)
                                      .order(created_at: :desc)
     end
@@ -1557,6 +1571,7 @@ end
     # FIXED: Don't deduplicate employees - show separate records for each department with L2/L3 approved/returned achievements
     # This allows the same employee to appear multiple times if they have achievements in different departments
     @employee_details = filtered_employees
+    @monthly_employee_data = build_monthly_employee_data(@employee_details, l3_only: true)
   end
 
   def show_l3
@@ -1693,14 +1708,14 @@ end
           updated_status: "l3_approved"
         }
       else
-        redirect_to show_l3_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]),
+        redirect_to show_l3_employee_detail_path(@employee_detail, quarter: params[:selected_quarter], month: params[:selected_month]),
                     notice: "✅ Successfully approved #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L3"
       end
     else
       if request.xhr? || params[:action_type].present?
         render json: { success: false, message: result[:message] }, status: :unprocessable_entity
       else
-        redirect_to show_l3_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]),
+        redirect_to show_l3_employee_detail_path(@employee_detail, quarter: params[:selected_quarter], month: params[:selected_month]),
                     alert: result[:message]
       end
     end
@@ -1748,14 +1763,14 @@ end
           updated_status: "l3_returned"
         }
       else
-        redirect_to show_l3_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]),
+        redirect_to show_l3_employee_detail_path(@employee_detail, quarter: params[:selected_quarter], month: params[:selected_month]),
                     notice: "⚠️ Successfully returned #{result[:count]} activities for #{params[:selected_quarter] || 'all quarters'} by L3"
       end
     else
       if request.xhr? || params[:action_type].present?
         render json: { success: false, message: result[:message] }, status: :unprocessable_entity
       else
-        redirect_to show_l3_employee_detail_path(@employee_detail, quarter: params[:selected_quarter]),
+        redirect_to show_l3_employee_detail_path(@employee_detail, quarter: params[:selected_quarter], month: params[:selected_month]),
                     alert: result[:message]
       end
     end
@@ -2054,7 +2069,7 @@ end
     ]
   end
 
-  def build_monthly_employee_data(employee_details, l2_only: false)
+  def build_monthly_employee_data(employee_details, l2_only: false, l3_only: false)
     month_labels = review_month_options.to_h { |label, value| [ value, label ] }
     selected_months = @selected_review_month.present? ? [ @selected_review_month ] : month_labels.keys
     monthly_data = {}
@@ -2071,6 +2086,7 @@ end
 
           status = review_status_for(achievements)
           next if l2_only && !l2_review_visible?(achievements, status)
+          next if l3_only && !l3_review_visible?(achievements, status)
 
           key = [
             employee.id,
@@ -2124,6 +2140,15 @@ end
         (remark&.l2_remarks.present? || remark&.l3_remarks.present?)
 
       l1_review_present || returned_by_l2_or_l3
+    end
+  end
+
+  def l3_review_visible?(achievements, status)
+    return true if %w[l2_approved l3_approved l3_returned].include?(status)
+
+    achievements.any? do |achievement|
+      remark = achievement.achievement_remark
+      status == "returned_to_employee" && remark&.l3_remarks.present?
     end
   end
 
@@ -2182,20 +2207,23 @@ end
 
   def can_act_as_l1?(employee_detail)
     current_user.hod? ||
-    current_user.employee_code == employee_detail.l1_code&.strip ||
-    current_user.email == employee_detail.l1_employer_name
+    manager_matches_current_user?(employee_detail.l1_code, employee_detail.l1_employer_name)
   end
 
   def can_act_as_l2?(employee_detail)
     current_user.hod? ||
-    current_user.employee_code == employee_detail.l2_code&.strip ||
-    current_user.email == employee_detail.l2_employer_name
+    manager_matches_current_user?(employee_detail.l2_code, employee_detail.l2_employer_name)
   end
 
   def can_act_as_l3?(employee_detail)
     current_user.hod? ||
-    current_user.employee_code == employee_detail.l3_code&.strip ||
-    current_user.email == employee_detail.l3_employer_name
+    manager_matches_current_user?(employee_detail.l3_code, employee_detail.l3_employer_name)
+  end
+
+  def manager_matches_current_user?(manager_code, manager_name_or_email)
+    lookup_values = EmployeeDetail.manager_lookup_values(current_user)
+    lookup_values.include?(manager_code.to_s.strip) ||
+      lookup_values.map(&:downcase).include?(manager_name_or_email.to_s.squish.downcase)
   end
 
   def get_quarter_months(quarter)
@@ -3106,7 +3134,9 @@ def process_quarterly_l3_approval
               existing_l2_remarks = remark.l2_remarks
 
               # Set L3 data
-              remark.l3_remarks = params[:l3_remarks] || params[:remarks] if params[:l3_remarks].present? || params[:remarks].present?
+              row_l3_remarks = params.dig(:manager_remarks, detail.id.to_s, achievement.month.to_s)
+              l3_remarks_value = row_l3_remarks.presence || params[:l3_remarks].presence || params[:remarks].presence
+              remark.l3_remarks = l3_remarks_value if l3_remarks_value.present?
               remark.l3_percentage = (params[:l3_percentage] || params[:percentage]).to_f if params[:l3_percentage].present? || params[:percentage].present?
 
               # Restore L1 and L2 data if they were present
@@ -3139,7 +3169,9 @@ def process_quarterly_l3_approval
             existing_l2_remarks = remark.l2_remarks
 
             # Set L3 data (saved so L2 can see why it was returned)
-            remark.l3_remarks = params[:l3_remarks] || params[:remarks] if params[:l3_remarks].present? || params[:remarks].present?
+            row_l3_remarks = params.dig(:manager_remarks, detail.id.to_s, achievement.month.to_s)
+            l3_remarks_value = row_l3_remarks.presence || params[:l3_remarks].presence || params[:remarks].presence
+            remark.l3_remarks = l3_remarks_value if l3_remarks_value.present?
             remark.l3_percentage = (params[:l3_percentage] || params[:percentage]).to_f if params[:l3_percentage].present? || params[:percentage].present?
 
             # Restore L1 and L2 data if they were present

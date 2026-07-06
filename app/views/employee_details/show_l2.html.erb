@@ -14,27 +14,27 @@
 
   <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Employee Code</p>
+      <p class="text-xs font-semibold text-gray-500 tracking-wide mb-1">Employee Code</p>
       <p class="text-sm font-semibold text-gray-900"><%= @employee_detail.employee_code.presence || "N/A" %></p>
     </div>
     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Employee Name</p>
+      <p class="text-xs font-semibold text-gray-500 tracking-wide mb-1">Employee Name</p>
       <p class="text-sm font-semibold text-gray-900"><%= @employee_detail.employee_name.presence || "N/A" %></p>
     </div>
     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Department</p>
+      <p class="text-xs font-semibold text-gray-500 tracking-wide mb-1">Department</p>
       <p class="text-sm font-semibold text-gray-900"><%= @employee_detail.department.presence || "N/A" %></p>
     </div>
     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Post</p>
+      <p class="text-xs font-semibold text-gray-500 tracking-wide mb-1">Post</p>
       <p class="text-sm font-semibold text-gray-900"><%= @employee_detail.post.presence || "N/A" %></p>
     </div>
     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Location</p>
+      <p class="text-xs font-semibold text-gray-500 tracking-wide mb-1">Location</p>
       <p class="text-sm font-semibold text-gray-900"><%= @employee_detail.office_name.presence || @employee_detail.office_type.presence || "N/A" %></p>
     </div>
     <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
-      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Financial Year</p>
+      <p class="text-xs font-semibold text-gray-500 tracking-wide mb-1">Financial Year</p>
       <p class="text-sm font-semibold text-gray-900"><%= @selected_financial_year.presence || "All" %></p>
     </div>
   </div>
@@ -180,19 +180,20 @@
           <table class="table table-hover w-full min-w-full">
             <thead class="bg-gray-800">
               <tr>
-                <th class="serial-column px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">S.No</th>
+                <th class="serial-column px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">S.No</th>
                 <th class="kri-column px-4 py-3 text-left text-xs font-medium text-white tracking-wider border-r border-gray-600">Key result areas</th>
-                <th class="unit-column px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600">Unit of Measurement</th>
-                <th class="annual-target-column px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600"><%= annual_target_fy_label(@selected_financial_year) %></th>
+                <th class="measurement-column px-4 py-3 text-left text-xs font-medium text-white tracking-wider border-r border-gray-600">Measurement description</th>
+                <th class="unit-column px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600">Unit of Measurement</th>
+                <th class="annual-target-column px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600"><%= annual_target_fy_label(@selected_financial_year) %></th>
 
                 <!-- DYNAMIC MONTH COLUMNS -->
                 <% display_months.each do |month_symbol, month_name| %>
-                  <th class="month-target-column px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Target</th>
-                  <th class="month-achievement-column px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Achievement</th>
-                  <th class="month-progress-column px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700">% Progress</th>
-                  <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700">Employee <%= month_name %> Remarks</th>
-                  <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= manager_remarks_column_label("L1", month_name) %></th>
-                  <th class="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider border-r border-gray-600 bg-gray-700"><%= manager_remarks_column_label("L2", month_name) %></th>
+                  <th class="month-target-column px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Target</th>
+                  <th class="month-achievement-column px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-gray-700"><%= month_name %> Achievement</th>
+                  <th class="month-progress-column px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-gray-700">% Progress</th>
+                  <th class="employee-remarks-column px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-gray-700">Employee <%= month_name %> Remarks</th>
+                  <th class="reporting-manager-remarks-column px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-gray-700"><%= manager_remarks_column_label("L1", month_name) %></th>
+                  <th class="reporting-manager-remarks-column px-4 py-3 text-center text-xs font-medium text-white tracking-wider border-r border-gray-600 bg-gray-700"><%= manager_remarks_column_label("L2", month_name) %></th>
                 <% end %>
               </tr>
             </thead>
@@ -204,12 +205,15 @@
                   target_is_numeric = target_text.match?(/\A-?\d+(?:\.\d+)?\z/)
                   target_value.present? && (!target_is_numeric || target_text.to_f.positive?)
                 end
+                row_present_for_display = lambda do |detail, display_months|
+                  display_months.any? { |month_symbol, _| target_present_for_display.call(detail, month_symbol) }
+                end
                 visible_detail_index = 0
               %>
               <% @user_details.each do |detail| %>
                 <% 
                   existing_achievements = detail.achievements.index_by(&:month)
-                  has_quarterly_data = detail.activity.present? && display_months.any? { |month_symbol, _| target_present_for_display.call(detail, month_symbol) }
+                  has_quarterly_data = detail.activity.present? && row_present_for_display.call(detail, display_months)
                 %>
                 <% if has_quarterly_data %>
                   <% visible_detail_index += 1 %>
@@ -218,6 +222,9 @@
                       <%= visible_detail_index %>
                     </td>
                     <td class="kri-cell px-4 py-3 text-sm text-gray-800 border-r border-gray-200">
+                      <%= detail.activity&.theme_name.presence || detail.activity&.activity_name || 'N/A' %>
+                    </td>
+                    <td class="measurement-cell px-4 py-3 text-sm text-gray-800 border-r border-gray-200">
                       <%= detail.activity&.activity_name || 'N/A' %>
                     </td>
                     <td class="unit-cell px-4 py-3 text-sm text-gray-800 border-r border-gray-200 text-center">
@@ -604,6 +611,9 @@
         <input type="hidden" name="user_detail_id" value="<%= params[:user_detail_id] %>">
       <% end %>
       <input type="hidden" name="selected_quarter" value="<%= params[:quarter] %>">
+      <% if params[:department_id].present? %>
+        <input type="hidden" name="department_id" value="<%= params[:department_id] %>">
+      <% end %>
       <input type="hidden" name="selected_financial_year" value="<%= @selected_financial_year %>">
       <% if params[:month].present? %>
         <input type="hidden" name="selected_month" value="<%= params[:month] %>">
@@ -988,6 +998,7 @@
     formData.append('selected_quarter', '<%= params[:quarter] %>');
     formData.append('selected_month', '<%= params[:month] %>');
     formData.append('selected_financial_year', '<%= @selected_financial_year %>');
+    formData.append('department_id', '<%= params[:department_id] %>');
     
     fetch('<%= edit_l1_employee_detail_path(@employee_detail) %>', {
       method: 'PATCH',
@@ -1059,6 +1070,7 @@
     formData.append('selected_quarter', '<%= params[:quarter] %>');
     formData.append('selected_month', '<%= params[:month] %>');
     formData.append('selected_financial_year', '<%= @selected_financial_year %>');
+    formData.append('department_id', '<%= params[:department_id] %>');
     
     fetch('<%= edit_l2_employee_detail_path(@employee_detail) %>', {
       method: 'PATCH',
@@ -1154,8 +1166,8 @@
 }
 
 .table {
-  min-width: 980px;
-  width: 100%;
+  min-width: max-content;
+  width: max-content;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
@@ -1165,15 +1177,27 @@
   padding: 8px 12px;
   text-align: center;
   border-right: 1px solid #e5e7eb;
-  white-space: nowrap;
+  white-space: normal;
   vertical-align: middle;
 }
 
 .kri-column,
 .kri-cell {
-  width: 22rem;
-  min-width: 22rem;
-  max-width: 22rem;
+  width: 18rem;
+  min-width: 18rem;
+  max-width: 18rem;
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.measurement-column,
+.measurement-cell {
+  width: 20rem;
+  min-width: 20rem;
+  max-width: 20rem;
   white-space: normal !important;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -1211,10 +1235,37 @@
 
 .month-achievement-column,
 .achievement-cell {
+  width: 8.5rem;
+  min-width: 8.5rem;
+  max-width: 8.5rem;
+  white-space: normal !important;
+}
+
+.month-progress-column,
+.progress-cell {
   width: 7.5rem;
   min-width: 7.5rem;
   max-width: 7.5rem;
   white-space: normal !important;
+}
+
+.employee-remarks-column,
+.remarks-cell,
+.reporting-manager-remarks-column,
+.reporting-manager-remarks-cell {
+  width: 14rem;
+  min-width: 14rem;
+  max-width: 14rem;
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+.remarks-cell > div,
+.reporting-manager-remarks-cell > div {
+  max-width: 100% !important;
+  overflow: visible !important;
 }
 
 .table th {

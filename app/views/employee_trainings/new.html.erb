@@ -217,7 +217,12 @@
         <span class="employee-training-eyebrow">Training</span>
         <h1 class="employee-training-title">Training of Trainer (TOT)</h1>
       </div>
-      <%= link_to "View Submitted Trainings", employee_trainings_path, class: "inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100" %>
+      <div class="flex flex-wrap gap-2">
+        <% if current_user.hod? %>
+          <%= link_to "Upload Master Excel", master_data_employee_trainings_path, class: "inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100" %>
+        <% end %>
+        <%= link_to "View Submitted Trainings", employee_trainings_path, class: "inline-flex items-center justify-center rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100" %>
+      </div>
     </div>
 
     <%= form_with url: employee_trainings_path, method: :post, local: true, html: { multipart: true, class: "employee-training-card" } do %>

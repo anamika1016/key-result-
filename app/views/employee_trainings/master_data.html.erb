@@ -1,0 +1,149 @@
+<div class="main-content sidebar-aware-content w-auto px-4 sm:px-8 py-6 sm:py-8" style="background:#f8fafc; min-height:100vh; font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;">
+  <div class="mx-auto max-w-6xl space-y-6">
+    <% if notice.present? %>
+      <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm font-semibold text-green-800"><%= notice %></div>
+    <% end %>
+
+    <% if alert.present? %>
+      <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800"><%= alert %></div>
+    <% end %>
+
+    <div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p class="mb-1 text-xs font-bold uppercase tracking-wide text-blue-600">Training master</p>
+          <h1 class="text-2xl font-bold text-slate-900">TOT master upload</h1>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <%= link_to "Download Template", download_master_template_employee_trainings_path(format: :xlsx), class: "inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100" %>
+          <%= link_to "Back to TOT Form", new_employee_training_path, class: "inline-flex items-center justify-center rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-100" %>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
+      <section class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="mb-5 flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Project master</h2>
+            <p class="mt-1 text-sm text-slate-500">Sirf Project Name add/upload karein.</p>
+          </div>
+          <span class="rounded-full bg-blue-50 px-3 py-1 text-sm font-bold text-blue-700"><%= @employee_training_projects.count(&:active?) %> active</span>
+        </div>
+
+        <%= form_with url: create_master_project_employee_trainings_path, method: :post, local: true, class: "grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[1fr_auto]" do %>
+          <div>
+            <%= label_tag :project_name, "Project Name", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= text_field_tag :project_name, nil, required: true, placeholder: "Enter project name", class: "w-full rounded-lg border border-slate-300 px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" %>
+          </div>
+          <div class="flex items-end">
+            <%= submit_tag "Add Project", class: "w-full rounded-lg bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-blue-700 md:w-auto" %>
+          </div>
+        <% end %>
+
+        <%= form_with url: import_master_data_employee_trainings_path, method: :post, local: true, html: { multipart: true, class: "mt-4 grid grid-cols-1 gap-3 rounded-lg border border-blue-100 bg-blue-50 p-4 md:grid-cols-[1fr_auto]" } do %>
+          <%= hidden_field_tag :master_type, "project" %>
+          <div>
+            <%= label_tag :project_file, "Upload Project Excel", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= file_field_tag :file, id: "project_file", accept: ".xlsx,.xls", required: true, class: "block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-blue-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-blue-700" %>
+            <p class="mt-2 text-xs font-semibold text-slate-500">Excel header: project_name</p>
+          </div>
+          <div class="flex items-end">
+            <%= submit_tag "Upload Projects", class: "w-full rounded-lg bg-slate-800 px-5 py-3 text-sm font-bold text-white shadow hover:bg-slate-900 md:w-auto" %>
+          </div>
+        <% end %>
+
+        <div class="mt-5 max-h-[390px] overflow-auto rounded-lg border border-slate-200">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="sticky top-0 bg-slate-50">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600">Project Name</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white">
+              <% @employee_training_projects.each do |project| %>
+                <tr>
+                  <td class="px-4 py-3 text-slate-900"><%= project.name %></td>
+                  <td class="px-4 py-3"><span class="rounded-full <%= project.active? ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-600' %> px-2 py-1 text-xs font-bold"><%= project.active? ? "Active" : "Inactive" %></span></td>
+                </tr>
+              <% end %>
+              <% if @employee_training_projects.blank? %>
+                <tr>
+                  <td colspan="2" class="px-4 py-8 text-center text-slate-500">No projects added yet.</td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="mb-5 flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Office/FPO master</h2>
+          </div>
+          <span class="rounded-full bg-emerald-50 px-3 py-1 text-sm font-bold text-emerald-700"><%= @employee_training_offices.count(&:active?) %> active</span>
+        </div>
+
+        <%= form_with url: create_master_office_employee_trainings_path, method: :post, local: true, class: "grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-2" do %>
+          <div>
+            <%= label_tag :office_type, "Office Type", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= text_field_tag :office_type, nil, required: true, placeholder: "Enter office type", class: "w-full rounded-lg border border-slate-300 px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" %>
+          </div>
+          <div>
+            <%= label_tag :office_name, "Office Name", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= text_field_tag :office_name, nil, placeholder: "Enter office name", class: "w-full rounded-lg border border-slate-300 px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" %>
+          </div>
+          <div>
+            <%= label_tag :fpo_name, "FPO", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= text_field_tag :fpo_name, nil, placeholder: "Enter FPO name", class: "w-full rounded-lg border border-slate-300 px-4 py-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100" %>
+          </div>
+          <div class="flex items-end">
+            <%= submit_tag "Add Office/FPO", class: "w-full rounded-lg bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow hover:bg-emerald-700" %>
+          </div>
+        <% end %>
+
+        <%= form_with url: import_master_data_employee_trainings_path, method: :post, local: true, html: { multipart: true, class: "mt-4 grid grid-cols-1 gap-3 rounded-lg border border-emerald-100 bg-emerald-50 p-4 md:grid-cols-[1fr_auto]" } do %>
+          <%= hidden_field_tag :master_type, "office_fpo" %>
+          <div>
+            <%= label_tag :office_fpo_file, "Upload Office/FPO Excel", class: "mb-2 block text-sm font-semibold text-slate-700" %>
+            <%= file_field_tag :file, id: "office_fpo_file", accept: ".xlsx,.xls", required: true, class: "block w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm file:mr-4 file:rounded-md file:border-0 file:bg-emerald-100 file:px-3 file:py-2 file:text-sm file:font-bold file:text-emerald-700" %>
+            <p class="mt-2 text-xs font-semibold text-slate-500">Excel headers: office_type, office_name, fpo_name</p>
+          </div>
+          <div class="flex items-end">
+            <%= submit_tag "Upload Office/FPO", class: "w-full rounded-lg bg-slate-800 px-5 py-3 text-sm font-bold text-white shadow hover:bg-slate-900 md:w-auto" %>
+          </div>
+        <% end %>
+
+        <div class="mt-5 max-h-[390px] overflow-auto rounded-lg border border-slate-200">
+          <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="sticky top-0 bg-slate-50">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600">Office Type</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600">Office Name</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600">FPO</th>
+                <th class="px-4 py-3 text-left font-semibold text-slate-600">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 bg-white">
+              <% @employee_training_offices.each do |office| %>
+                <tr>
+                  <td class="px-4 py-3 text-slate-900"><%= office.office_type %></td>
+                  <td class="px-4 py-3 text-slate-700"><%= office.office_name.presence || "-" %></td>
+                  <td class="px-4 py-3 text-slate-700"><%= office.fpo_name.presence || "-" %></td>
+                  <td class="px-4 py-3"><span class="rounded-full <%= office.active? ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-600' %> px-2 py-1 text-xs font-bold"><%= office.active? ? "Active" : "Inactive" %></span></td>
+                </tr>
+              <% end %>
+              <% if @employee_training_offices.blank? %>
+                <tr>
+                  <td colspan="4" class="px-4 py-8 text-center text-slate-500">No office/FPO data added yet.</td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>

@@ -36,57 +36,67 @@ class Ability
     # L1 Permissions - Check if user's employee_code matches any l1_code OR email matches l1_employer_name
     # Allow reading regardless of status - status restrictions only apply to approve/return actions
     can :read, EmployeeDetail do |ed|
-      ed.l1_code&.strip == user.employee_code || ed.l1_employer_name == user.email
+      manager_matches?(ed.l1_code, ed.l1_employer_name, user)
     end
 
     can [ :approve, :return ], EmployeeDetail do |ed|
-      (ed.l1_code&.strip == user.employee_code || ed.l1_employer_name == user.email) &&
+      manager_matches?(ed.l1_code, ed.l1_employer_name, user) &&
       [ "pending", "l1_returned" ].include?(ed.status)
     end
 
     can :l1, EmployeeDetail do
       # User can access L1 view if they have any L1 assignments
-      EmployeeDetail.where("TRIM(l1_code) = ? OR l1_employer_name = ?", user.employee_code, user.email).exists?
+      EmployeeDetail.for_l1_user(user).exists?
     end
 
     # L2 Permissions - Check if user's employee_code matches any l2_code OR email matches l2_employer_name
     # Allow reading regardless of status - status restrictions only apply to approve/return actions
     can :read, EmployeeDetail do |ed|
-      ed.l2_code&.strip == user.employee_code || ed.l2_employer_name == user.email
+      manager_matches?(ed.l2_code, ed.l2_employer_name, user)
     end
 
     can :show_l2, EmployeeDetail do |ed|
-      ed.l2_code&.strip == user.employee_code || ed.l2_employer_name == user.email
+      manager_matches?(ed.l2_code, ed.l2_employer_name, user)
     end
 
     can [ :l2_approve, :l2_return ], EmployeeDetail do |ed|
-      (ed.l2_code&.strip == user.employee_code || ed.l2_employer_name == user.email) &&
+      manager_matches?(ed.l2_code, ed.l2_employer_name, user) &&
       [ "l1_approved", "l2_returned" ].include?(ed.status)
     end
 
     can :l2, EmployeeDetail do
       # User can access L2 view if they have any L2 assignments
-      EmployeeDetail.where("TRIM(l2_code) = ? OR l2_employer_name = ?", user.employee_code, user.email).exists?
+      EmployeeDetail.for_l2_user(user).exists?
     end
 
     # L3 Permissions - Check if user's employee_code matches any l3_code OR email matches l3_employer_name
     # Allow reading regardless of status - status restrictions only apply to approve/return actions
     can :read, EmployeeDetail do |ed|
-      ed.l3_code&.strip == user.employee_code || ed.l3_employer_name == user.email
+      manager_matches?(ed.l3_code, ed.l3_employer_name, user)
     end
 
     can :show_l3, EmployeeDetail do |ed|
-      ed.l3_code&.strip == user.employee_code || ed.l3_employer_name == user.email
+      manager_matches?(ed.l3_code, ed.l3_employer_name, user)
     end
 
     can [ :l3_approve, :l3_return ], EmployeeDetail do |ed|
-      (ed.l3_code&.strip == user.employee_code || ed.l3_employer_name == user.email) &&
+      manager_matches?(ed.l3_code, ed.l3_employer_name, user) &&
       [ "l2_approved", "l3_returned" ].include?(ed.status)
     end
 
     can :l3, EmployeeDetail do
       # User can access L3 view if they have any L3 assignments
-      EmployeeDetail.where("TRIM(l3_code) = ? OR l3_employer_name = ?", user.employee_code, user.email).exists?
+      EmployeeDetail.for_l3_user(user).exists?
     end
+  end
+
+  private
+
+  def manager_matches?(manager_code, manager_name_or_email, user)
+    lookup_values = EmployeeDetail.manager_lookup_values(user)
+    normalized_lookup_values = lookup_values.map(&:downcase)
+
+    lookup_values.include?(manager_code.to_s.strip) ||
+      normalized_lookup_values.include?(manager_name_or_email.to_s.squish.downcase)
   end
 end

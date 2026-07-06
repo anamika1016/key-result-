@@ -247,8 +247,14 @@
             </li>
           <% end %>
 
+          <%
+            has_l1_review_access = current_user.hod? || EmployeeDetail.for_l1_user(current_user).exists?
+            has_l2_review_access = current_user.hod? || EmployeeDetail.for_l2_user(current_user).exists?
+            has_l3_review_access = current_user.hod? || EmployeeDetail.for_l3_user(current_user).exists?
+          %>
+
           <!-- L1 Employee Details - Show if user has L1 responsibilities -->
-          <% if current_user.hod? || EmployeeDetail.exists?(l1_code: current_user.employee_code) %>
+          <% if has_l1_review_access %>
             <li class="hs-accordion" id="users-accordion">
               <%= link_to l1_employee_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(l1_employee_details_path)} text-base text-gray-800 rounded-lg" do %>
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -265,7 +271,7 @@
           <% end %>
 
           <!-- L2 Employee Details - Show if user has L2 responsibilities -->
-          <% if current_user.hod? || EmployeeDetail.exists?(l2_code: current_user.employee_code) || EmployeeDetail.exists?(l2_employer_name: current_user.email) %>
+          <% if has_l2_review_access %>
             <li class="hs-accordion" id="users-accordion">
               <%= link_to l2_employee_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(l2_employee_details_path)} text-base text-gray-800 rounded-lg" do %>
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -278,7 +284,7 @@
           <% end %>
 
           <!-- L3 Employee Details - Show if user has L3 responsibilities -->
-          <% if current_user.hod? || EmployeeDetail.exists?(l3_code: current_user.employee_code) || EmployeeDetail.exists?(l3_employer_name: current_user.email) %>
+          <% if has_l3_review_access %>
             <li class="hs-accordion" id="users-accordion">
               <%= link_to l3_employee_details_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(l3_employee_details_path)} text-base text-gray-800 rounded-lg" do %>
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -289,7 +295,7 @@
               <% end %>
             </li>
           <% end %>
-          <% training_menu_active = controller_name == "trainings" || controller_name == "employee_trainings" %>
+          <% training_menu_active = controller_name.in?(%w[trainings employee_trainings employee_training_thematics employee_training_topics]) %>
           <li>
             <details class="group" <%= "open" if training_menu_active %>>
               <summary class="flex items-center gap-x-3.5 py-2 px-2.5 <%= 'bg-gray-100' if training_menu_active %> text-base text-gray-800 rounded-lg cursor-pointer list-none">
@@ -318,6 +324,11 @@
                   <% end %>
                 </li>
                 <% if current_user.hod? %>
+                  <li>
+                    <%= link_to master_data_employee_trainings_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if controller_name == 'employee_trainings' && action_name == 'master_data'} text-sm text-gray-800 rounded-lg" do %>
+                      <span class="font-semibold">TOT Master Upload</span>
+                    <% end %>
+                  </li>
                   <li>
                     <%= link_to employee_training_thematics_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if controller_name == 'employee_training_thematics'} text-sm text-gray-800 rounded-lg" do %>
                       <span class="font-semibold">Thematic Master</span>

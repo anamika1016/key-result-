@@ -1,0 +1,23 @@
+wb = xlsx_package.workbook
+
+wb.styles do |styles|
+  header_style = styles.add_style(b: true, bg_color: "1F2937", fg_color: "FFFFFF", alignment: { horizontal: :center })
+
+  wb.add_worksheet(name: "Projects") do |sheet|
+    sheet.add_row [ "project_name" ], style: header_style
+    sheet.add_row [ "NABARD FPO MP" ]
+    sheet.add_row [ "Organic Project" ]
+    sheet.add_row [ "Livelihood Project" ]
+
+    sheet.column_widths 34
+  end
+
+  wb.add_worksheet(name: "Office FPO") do |sheet|
+    sheet.add_row [ "office_type", "office_name", "fpo_name" ], style: header_style
+    sheet.add_row [ "FCO-Pakur", "Pakur Office", "Pakur Farmer Producer Company" ]
+    sheet.add_row [ "Bhopal-HO", "Bhopal Head Office", "" ]
+    sheet.add_row [ "FPO", "", "Barhait Farmer Producer Company" ]
+
+    sheet.column_widths 24, 34, 40
+  end
+end
