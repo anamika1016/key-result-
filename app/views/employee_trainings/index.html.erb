@@ -106,6 +106,18 @@
     .employee-training-badge.amber { background: #fff7ed; border-color: #fed7aa; color: #c2410c; }
     .employee-training-view-link { color: #1d4ed8; font-weight: 800; text-decoration: none; }
     .employee-training-view-link:hover { color: #059669; }
+    .employee-training-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .employee-training-delete-button {
+      border: 1px solid #fecaca;
+      border-radius: 10px;
+      background: #fef2f2;
+      color: #b91c1c;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 8px 11px;
+    }
+    .employee-training-delete-button:hover { background: #fee2e2; }
     .employee-training-empty {
       padding: 42px 20px;
       text-align: center;
@@ -183,7 +195,18 @@
                   </td>
                   <td><%= training.employee_detail_ids.size %></td>
                   <td><%= training.user&.display_name || training.user&.email %></td>
-                  <td><%= link_to "View", employee_training_path(training), class: "employee-training-view-link" %></td>
+                  <td>
+                    <div class="employee-training-actions">
+                      <%= link_to "View", employee_training_path(training), class: "employee-training-view-link" %>
+                      <% if current_user.hod? %>
+                        <%= button_to "Delete",
+                                      employee_training_path(training),
+                                      method: :delete,
+                                      form: { data: { turbo_confirm: "Delete this training record? This cannot be undone." } },
+                                      class: "employee-training-delete-button" %>
+                      <% end %>
+                    </div>
+                  </td>
                 </tr>
               <% end %>
             </tbody>

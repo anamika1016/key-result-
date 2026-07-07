@@ -119,7 +119,7 @@ Rails.application.routes.draw do
   get "settings", to: "settings#show"
   patch "settings/profile", to: "settings#update_profile"
   patch "settings/password", to: "settings#change_password"
-  resources :help_desk_tickets, path: "help-desk", only: [ :index, :create ] do
+  resources :help_desk_tickets, path: "help-desk", only: [ :index, :create, :destroy ] do
     collection do
       get "assigned", action: :assigned_queue, as: :assigned_queue
     end
@@ -189,7 +189,7 @@ Rails.application.routes.draw do
     end
   end
 
-  resources :employee_trainings, only: [ :index, :show, :new, :create ] do
+  resources :employee_trainings, only: [ :index, :show, :new, :create, :destroy ] do
     collection do
       get :master_data
       post :create_master_project

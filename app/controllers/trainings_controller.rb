@@ -1,5 +1,6 @@
 class TrainingsController < ApplicationController
   before_action :authenticate_user!
+  before_action :ensure_hod_for_delete!, only: [ :destroy ]
   before_action :block_inactive_training_for_employees!, only: [ :show, :preview, :start_training, :update_progress, :complete_training, :assessment, :submit_assessment ]
 
   def index
@@ -442,6 +443,10 @@ class TrainingsController < ApplicationController
   end
 
   private
+
+  def ensure_hod_for_delete!
+    redirect_to trainings_path, alert: "Only HOD admin can delete training records." unless current_user.hod?
+  end
 
   def block_inactive_training_for_employees!
     return if current_user.hod?

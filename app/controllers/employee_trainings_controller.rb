@@ -4,7 +4,8 @@ require "zip"
 class EmployeeTrainingsController < ApplicationController
   before_action :authenticate_user!
   before_action :load_form_options, only: [ :new, :create ]
-  before_action :set_employee_training, only: [ :show ]
+  before_action :set_employee_training, only: [ :show, :destroy ]
+  before_action :ensure_hod_for_destroy!, only: [ :destroy ]
   before_action :require_training_master_admin!, only: [
     :master_data,
     :create_master_project,
@@ -25,6 +26,11 @@ class EmployeeTrainingsController < ApplicationController
 
   def show
     @selected_employees = @employee_training.selected_employees
+  end
+
+  def destroy
+    @employee_training.destroy
+    redirect_to employee_trainings_path, notice: "Training record deleted successfully."
   end
 
   def create
@@ -115,6 +121,10 @@ class EmployeeTrainingsController < ApplicationController
 
   def set_employee_training
     @employee_training = EmployeeTraining.find(params[:id])
+  end
+
+  def ensure_hod_for_destroy!
+    redirect_to employee_trainings_path, alert: "Only HOD admin can delete training records." unless current_user.hod?
   end
 
   def employee_training_attributes

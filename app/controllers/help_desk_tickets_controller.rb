@@ -4,6 +4,8 @@ class HelpDeskTicketsController < ApplicationController
   before_action :authorize_help_desk_response!, only: :respond
   before_action :set_requester_action_ticket, only: :finalize_resolution
   before_action :authorize_help_desk_finalization!, only: :finalize_resolution
+  before_action :set_destroy_ticket, only: :destroy
+  before_action :authorize_help_desk_destroy!, only: :destroy
 
   def index
     @help_desk_ticket = current_user.help_desk_tickets.new
@@ -130,6 +132,12 @@ class HelpDeskTicketsController < ApplicationController
     end
   end
 
+  def destroy
+    ticket_reference = @destroy_ticket.ticket_reference
+    @destroy_ticket.destroy
+    redirect_back fallback_location: help_desk_tickets_path, notice: "#{ticket_reference} deleted successfully."
+  end
+
   private
 
   def load_help_desk_context
@@ -250,6 +258,10 @@ class HelpDeskTicketsController < ApplicationController
                                              .find(params[:id])
   end
 
+  def set_destroy_ticket
+    @destroy_ticket = HelpDeskTicket.find(params[:id])
+  end
+
   def authorize_help_desk_response!
     return if @assigned_ticket.can_be_responded_by?(current_user)
 
@@ -260,6 +272,12 @@ class HelpDeskTicketsController < ApplicationController
     return if @requester_action_ticket.can_be_finalized_by?(current_user)
 
     redirect_to help_desk_tickets_path, alert: "You are not authorized to take action on this help desk ticket."
+  end
+
+  def authorize_help_desk_destroy!
+    return if current_user.hod?
+
+    redirect_to help_desk_tickets_path, alert: "Only HOD admin can delete help desk records."
   end
 
   def build_help_desk_ticket

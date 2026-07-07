@@ -179,6 +179,20 @@
               </summary>
 
               <div class="helpdesk-report-card__details">
+                <% if current_user.hod? %>
+                  <div class="helpdesk-action-panel helpdesk-no-print">
+                    <p class="helpdesk-action-panel__title">Admin Action</p>
+                    <p class="helpdesk-action-panel__copy">Delete this help desk record permanently from current list and report history.</p>
+                    <div class="helpdesk-response-form__actions">
+                      <%= button_to "Delete",
+                                    help_desk_ticket_path(ticket),
+                                    method: :delete,
+                                    form: { data: { turbo_confirm: "Delete #{ticket.ticket_reference}? This cannot be undone." } },
+                                    class: "helpdesk-danger-btn" %>
+                    </div>
+                  </div>
+                <% end %>
+
                 <div class="helpdesk-report-card__detail-grid">
                   <section class="helpdesk-person-card">
                     <p class="helpdesk-person-card__label">Request Details</p>

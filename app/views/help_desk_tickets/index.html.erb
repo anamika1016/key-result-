@@ -393,6 +393,20 @@
               <div class="helpdesk-data-table__cell helpdesk-data-table__cell--action">
                 <p class="helpdesk-cell-title">Action</p>
 
+                <% if current_user.hod? %>
+                  <div class="helpdesk-action-panel">
+                    <p class="helpdesk-action-panel__title">Admin Action</p>
+                    <p class="helpdesk-action-panel__copy">Delete this help desk record permanently.</p>
+                    <div class="helpdesk-response-form__actions">
+                      <%= button_to "Delete",
+                                    help_desk_ticket_path(ticket),
+                                    method: :delete,
+                                    form: { data: { turbo_confirm: "Delete #{ticket.ticket_reference}? This cannot be undone." } },
+                                    class: "helpdesk-danger-btn" %>
+                    </div>
+                  </div>
+                <% end %>
+
                 <% if ticket.resolved? && ticket.can_be_finalized_by?(current_user) %>
                   <%
                     approving_response_ticket = ticket.final_action_mode_approve_reject?
