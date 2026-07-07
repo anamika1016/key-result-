@@ -194,6 +194,8 @@ Rails.application.routes.draw do
       get :master_data
       post :create_master_project
       post :create_master_office
+      delete :destroy_master_projects
+      delete :destroy_master_offices
       post :import_master_data
       get :download_master_template
     end

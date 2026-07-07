@@ -10,6 +10,8 @@ class EmployeeTrainingsController < ApplicationController
     :master_data,
     :create_master_project,
     :create_master_office,
+    :destroy_master_projects,
+    :destroy_master_offices,
     :import_master_data,
     :download_master_template
   ]
@@ -115,6 +117,30 @@ class EmployeeTrainingsController < ApplicationController
     office.update!(office_type: office_type, office_name: office_name, fpo_name: fpo_name, active: true)
 
     redirect_to master_data_employee_trainings_path, notice: "Office/FPO row #{action} successfully."
+  end
+
+  def destroy_master_projects
+    project_ids = Array(params[:project_ids]).reject(&:blank?)
+
+    if project_ids.blank?
+      redirect_to master_data_employee_trainings_path, alert: "Select at least one project to delete."
+      return
+    end
+
+    deleted_count = EmployeeTrainingProject.where(id: project_ids).destroy_all.size
+    redirect_to master_data_employee_trainings_path, notice: "#{deleted_count} project(s) deleted successfully."
+  end
+
+  def destroy_master_offices
+    office_ids = Array(params[:office_ids]).reject(&:blank?)
+
+    if office_ids.blank?
+      redirect_to master_data_employee_trainings_path, alert: "Select at least one Office/FPO row to delete."
+      return
+    end
+
+    deleted_count = EmployeeTrainingOffice.where(id: office_ids).destroy_all.size
+    redirect_to master_data_employee_trainings_path, notice: "#{deleted_count} Office/FPO row(s) deleted successfully."
   end
 
   private
