@@ -245,19 +245,25 @@ class EmployeeTrainingsController < ApplicationController
 
   def import_training_office_file(file)
     workbook = Roo::Spreadsheet.open(file.path)
-    sheet = training_master_sheet(workbook, "Office FPO")
+    sheet = training_master_sheet(workbook, "Office FPO", required_headers: [ "fpo_name" ])
     headers = normalized_headers(sheet.row(1))
     result = Hash.new(0)
     result[:errors] = []
+    current_office_type = nil
+    fpo_values_read = 0
 
     ActiveRecord::Base.transaction do
       (2..sheet.last_row).each do |row_number|
         row = sheet.row(row_number)
-        office_type = master_cell(row, headers, "office_type", "ofc_type").presence
-        office_name = master_cell(row, headers, "office_name", "office").presence
-        fpo_name = master_cell(row, headers, "fpo_name", "fpo").presence
+        raw_office_type = master_cell(row, headers, "office_type", "ofc_type", "type").presence
+        office_name = master_cell(row, headers, "office_name", "office", "to_name", "training_office").presence
+        fpo_name = master_cell(row, headers, "fpo_name", "fpo", "name_of_fpo", "fpc_name", "fpo_fpc_name", "fpc_fpo_name", "farmer_producer_company").presence
 
-        next if [ office_type, office_name, fpo_name ].all?(&:blank?)
+        next if [ raw_office_type, office_name, fpo_name ].all?(&:blank?)
+
+        fpo_values_read += 1 if fpo_name.present?
+        office_type = raw_office_type || current_office_type
+        current_office_type = raw_office_type if raw_office_type.present?
 
         if office_type.blank? || (office_name.blank? && fpo_name.blank?)
           result[:errors] << "row #{row_number}"
@@ -267,6 +273,11 @@ class EmployeeTrainingsController < ApplicationController
         office = find_training_office(office_type, office_name, fpo_name)
         office.new_record? ? result[:offices_created] += 1 : result[:offices_updated] += 1
         office.update!(office_type: office_type, office_name: office_name, fpo_name: fpo_name, active: true)
+      end
+
+      if headers.key?("fpo_name") && fpo_values_read.zero? && result[:offices_created] + result[:offices_updated] > 0
+        result[:errors] << "FPO names were not found in the uploaded file. Please select the saved Excel file that has values under fpo_name."
+        raise ActiveRecord::Rollback
       end
     end
 
@@ -291,8 +302,16 @@ class EmployeeTrainingsController < ApplicationController
     end
   end
 
-  def training_master_sheet(workbook, preferred_name)
-    workbook.sheets.include?(preferred_name) ? workbook.sheet(preferred_name) : workbook.sheet(0)
+  def training_master_sheet(workbook, preferred_name, required_headers: [])
+    return workbook.sheet(preferred_name) if workbook.sheets.include?(preferred_name)
+
+    required_headers = Array(required_headers)
+    matching_sheet = workbook.sheets.find do |sheet_name|
+      headers = normalized_headers(workbook.sheet(sheet_name).row(1))
+      required_headers.all? { |header| headers.key?(header) }
+    end
+
+    matching_sheet.present? ? workbook.sheet(matching_sheet) : workbook.sheet(0)
   end
 
   def master_cell(row, headers, *keys)
@@ -307,10 +326,22 @@ class EmployeeTrainingsController < ApplicationController
   end
 
   def find_training_office(office_type, office_name, fpo_name)
-    EmployeeTrainingOffice
+    exact_match = EmployeeTrainingOffice
       .where("LOWER(office_type) = ?", office_type.downcase)
       .where("LOWER(COALESCE(office_name, '')) = ?", office_name.to_s.downcase)
       .where("LOWER(COALESCE(fpo_name, '')) = ?", fpo_name.to_s.downcase)
-      .first || EmployeeTrainingOffice.new
+      .first
+
+    exact_match || blank_fpo_training_office(office_type, office_name, fpo_name) || EmployeeTrainingOffice.new
+  end
+
+  def blank_fpo_training_office(office_type, office_name, fpo_name)
+    return if fpo_name.blank?
+
+    EmployeeTrainingOffice
+      .where("LOWER(office_type) = ?", office_type.downcase)
+      .where("LOWER(COALESCE(office_name, '')) = ?", office_name.to_s.downcase)
+      .where(fpo_name: [ nil, "" ])
+      .first
   end
 end
