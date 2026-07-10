@@ -28,7 +28,7 @@
 
       <%= form_with(model: @employee_detail, url: employee_details_path, local: true, data: { turbo: false }) do |form| %>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div>
+          <div> 
             <%= form.label :employee_name, "Employee Name", class: "block text-sm font-semibold text-gray-700 mb-1" %>
             <%= form.text_field :employee_name, class: "form-control w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500" %>
           </div>

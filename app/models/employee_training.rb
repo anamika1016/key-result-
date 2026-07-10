@@ -47,7 +47,7 @@ class EmployeeTraining < ApplicationRecord
 
   def attachments_are_allowed
     validate_attachment(training_register, "Training Register", %w[application/pdf image/jpeg image/jpg image/png], "PDF, JPG, or PNG")
-    validate_attachment(photo_upload, "Photo Upload", %w[image/jpeg image/jpg image/png], "JPG or PNG")
+    validate_attachment(photo_upload, "Photo Upload", %w[application/pdf image/jpeg image/jpg image/png], "PDF, JPG, or PNG")
   end
 
   def attachments_presence
