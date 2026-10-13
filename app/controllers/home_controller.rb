@@ -6,129 +6,53 @@ class HomeController < ApplicationController
   end
 
   def dashboard
-    # Only allow HOD to access the main dashboard
-    unless current_user.hod?
-      if EmployeeDetail.exists?(l2_code: current_user.employee_code) || EmployeeDetail.exists?(l2_employer_name: current_user.email)
-        redirect_to l2_employee_details_path and return
-      end
+    # Only HOD sees the main dashboard; everyone else lands on their profile
+    redirect_to settings_path and return unless current_user.hod?
 
-      if EmployeeDetail.exists?(l1_code: current_user.employee_code)
-        redirect_to l1_employee_details_path and return
-      end
+    today = Time.zone.today
 
-      if current_user.employee?
-        redirect_to get_user_detail_user_details_path and return
-      end
-
-      # fallback if none of above
-      render plain: "No dashboard or redirect for your role."
-      return
-    end
-
-    # Calculate dashboard statistics for HOD
+    # Employees
     @total_users = User.count
+    @total_employee_details = EmployeeDetail.count
+    @hod_count = User.where(role: "hod").count
 
-    @l1_approved_count = 0
-    @l2_approved_count = 0
-    @l3_approved_count = 0
-    @l1_returned_count = 0
-    @l2_returned_count = 0
-    @l3_returned_count = 0
-    @l1_pending_count = 0
-    @l2_pending_count = 0
-    @l3_pending_count = 0
-    @total_employee_details = 0
+    # Guest House
+    bookings = GuestHouseBooking.all
+    @guest_house_count = GuestHouse.where(active: true).count
+    @guest_house_total_rooms = GuestHouse.where(active: true).sum(:total_rooms)
+    @guest_house_booking_count = bookings.count
+    @guest_house_pending_count = bookings.where(status: %w[pending confirmed]).count
+    @guest_house_checked_in_count = bookings.where(status: "checked_in").count
+    @guest_house_checked_out_count = bookings.where(status: "checked_out").count
+    @guest_house_payment_pending_count = GuestHouseBookingGuest.where(payment_status: %w[generated uploaded]).count +
+                                         bookings.where(payment_status: %w[generated uploaded]).count
+    @guest_house_today_checkins = GuestHouseBookingGuest.where(checkin_date: today).count
+    @recent_guest_house_bookings = bookings.includes(:guest_house).recent_first.limit(5)
 
-    quarters = {
-      "Q1" => [ "april", "may", "june", "q1" ],
-      "Q2" => [ "july", "august", "september", "q2" ],
-      "Q3" => [ "october", "november", "december", "q3" ],
-      "Q4" => [ "january", "february", "march", "q4" ]
-    }
+    # Help Desk
+    tickets = HelpDeskTicket.all
+    @help_desk_total_count = tickets.count
+    @help_desk_open_count = tickets.open_for_review.count
+    @help_desk_resolved_count = tickets.where(status: "resolved").count
+    @help_desk_closed_count = tickets.where(status: "closed").count
+    @help_desk_unassigned_count = tickets.open_for_review.where(assigned_to_user_id: nil).count
+    @recent_help_desk_tickets = tickets.order(created_at: :desc).limit(5)
 
-    year_user_details = UserDetail.includes(:employee_detail, :department, achievements: :achievement_remark)
-                                  .where(year: @selected_year_db)
-                                  .where.not(employee_detail_id: nil)
+    # Training
+    @training_total_count = Training.count
+    @training_active_count = Training.where(status: true).count
+    @training_this_month_count = Training.where(month: today.month, year: today.year).count
+    @training_completed_count = UserTrainingProgress.completed.count
+    @training_in_progress_count = UserTrainingProgress.started.count
+    @training_assignment_count = UserTrainingAssignment.count
+    @tot_record_count = EmployeeTraining.count
 
-    processed_quarters = Set.new
-
-    year_user_details.find_each do |user_detail|
-      next unless user_detail.employee_detail.present? && user_detail.department.present?
-
-      quarters.each do |quarter_name, quarter_months|
-        quarter_achievements = user_detail.achievements.select { |ach| quarter_months.include?(ach.month.to_s.downcase) }
-        next if quarter_achievements.empty?
-
-        quarter_key = [ user_detail.employee_detail_id, user_detail.department_id, quarter_name ].join("_")
-        next if processed_quarters.include?(quarter_key)
-        processed_quarters.add(quarter_key)
-
-        @total_employee_details += 1
-
-        quarter_statuses = quarter_achievements.map { |ach| ach.status.presence || "pending" }
-        l1_remarks_present = quarter_achievements.any? { |ach| ach.achievement_remark&.l1_remarks.present? && ach.achievement_remark.l1_remarks != "No remarks for this quarter" }
-        l1_percentage_present = quarter_achievements.any? { |ach| ach.achievement_remark&.l1_percentage.present? && ach.achievement_remark.l1_percentage.to_f > 0 }
-        l2_remarks_present = quarter_achievements.any? { |ach| ach.achievement_remark&.l2_remarks.present? }
-        l3_remarks_present = quarter_achievements.any? { |ach| ach.achievement_remark&.l3_remarks.present? }
-
-        @l3_approved_count += 1 if quarter_statuses.include?("l3_approved")
-        @l3_returned_count += 1 if quarter_statuses.include?("l3_returned") || (quarter_statuses.include?("returned_to_employee") && l3_remarks_present)
-        @l2_approved_count += 1 if quarter_statuses.include?("l2_approved")
-        @l2_returned_count += 1 if quarter_statuses.include?("l2_returned") || (quarter_statuses.include?("returned_to_employee") && l2_remarks_present && !l3_remarks_present)
-        @l1_approved_count += 1 if quarter_statuses.include?("l1_approved") || l1_remarks_present || l1_percentage_present
-        @l1_returned_count += 1 if quarter_statuses.include?("l1_returned") || (quarter_statuses.include?("returned_to_employee") && !l2_remarks_present && !l3_remarks_present)
-
-        if quarter_statuses.none? { |status| %w[l1_approved l1_returned l2_approved l2_returned l3_approved l3_returned returned_to_employee].include?(status) } &&
-           !l1_remarks_present && !l1_percentage_present
-          @l1_pending_count += 1
-        end
-
-        if (quarter_statuses.include?("l1_approved") || l1_remarks_present || l1_percentage_present) &&
-           quarter_statuses.none? { |status| %w[l2_approved l2_returned l3_approved l3_returned returned_to_employee].include?(status) }
-          @l2_pending_count += 1
-        end
-
-        if quarter_statuses.include?("l2_approved") &&
-           quarter_statuses.none? { |status| %w[l3_approved l3_returned returned_to_employee].include?(status) }
-          @l3_pending_count += 1
-        end
-      end
-    end
-
-    # Total achievements count
-    @total_achievements = Achievement.count
-
-    # Count users by role - FIXED: Ensure all variables are properly set
-    @employee_count = User.where(role: "employee").count  # Count employee users
-    @hod_count = User.where(role: "hod").count  # This is the "Super Admin" count
-
-    # Count actual L1 and L2 employers (users assigned as employers in employee_details)
-    @l1_employer_count = User.joins("INNER JOIN employee_details ON employee_details.l1_code = users.employee_code OR employee_details.l1_employer_name = users.email")
-                             .distinct.count
-
-    @l2_employer_count = User.joins("INNER JOIN employee_details ON employee_details.l2_code = users.employee_code OR employee_details.l2_employer_name = users.email")
-                             .distinct.count
-
-    # Additional role counts
-    @admin_count = User.where(role: "hod").count  # HOD is the admin role
-
-    # Count users who have L1, L2, L3 responsibilities (not just their role)
-    @l1_user_count = User.joins("LEFT JOIN employee_details ON employee_details.l1_code = users.employee_code OR employee_details.l1_employer_name = users.email")
-                         .where("employee_details.l1_code IS NOT NULL OR employee_details.l1_employer_name IS NOT NULL OR users.role = 'hod'")
-                         .distinct.count
-
-    @l2_user_count = User.joins("LEFT JOIN employee_details ON employee_details.l2_code = users.employee_code OR employee_details.l2_employer_name = users.email")
-                         .where("employee_details.l2_code IS NOT NULL OR employee_details.l2_employer_name IS NOT NULL OR users.role = 'hod'")
-                         .distinct.count
-
-    @l3_user_count = User.joins("LEFT JOIN employee_details ON employee_details.l3_code = users.employee_code OR employee_details.l3_employer_name = users.email")
-                         .where("employee_details.l3_code IS NOT NULL OR employee_details.l3_employer_name IS NOT NULL OR users.role = 'hod'")
-                         .distinct.count
-
-    # Count departments and activities - FIXED: Ensure @total_departments is set
-    @total_departments = Department.count
-    @total_activities = Activity.count
-    @total_user_details = UserDetail.count
+    # Quiz
+    @quiz_total_count = Quiz.count
+    @quiz_active_count = Quiz.where("LOWER(TRIM(status)) = ?", "active").count
+    @quiz_participant_count = UserQuiz.count
+    @quiz_submission_count = QuizSubmission.count
+    @quiz_average_score = QuizSubmission.where.not(score: nil).average(:score)&.round(1)
   end
 
   def update_dashboard_status

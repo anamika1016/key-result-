@@ -462,40 +462,21 @@ class TrainingsController < ApplicationController
   end
 
   def render_certificate
-    configure_wkhtmltopdf_binary!
-
-    render pdf: "Certificate_#{@display_title}",
-           template: "trainings/certificate",
-           formats: [ :pdf ],
-           layout: "pdf",
-           orientation: "Landscape",
-           page_size: "A4",
-           margin: { top: 0, bottom: 0, left: 0, right: 0 },
-           no_background: false,
-           print_media_type: true,
-           disable_smart_shrinking: true,
-           zoom: 1
+    render_pdf_with_fallback filename: "Certificate_#{@display_title}",
+                             template: "trainings/certificate",
+                             orientation: "Landscape",
+                             page_size: "A4",
+                             margin: { top: 0, bottom: 0, left: 0, right: 0 },
+                             no_background: false,
+                             print_media_type: true,
+                             disable_smart_shrinking: true,
+                             zoom: 1
   end
 
   private
 
   def employee_detail_for(user)
     user.employee_detail || EmployeeDetail.find_by(employee_email: user.email)
-  end
-
-  def configure_wkhtmltopdf_binary!
-    current_path = WickedPdf.config[:exe_path].to_s
-    return if current_path.present? && File.exist?(current_path) && File.executable?(current_path)
-
-    gem_binary = begin
-      Gem.bin_path("wkhtmltopdf-binary", "wkhtmltopdf")
-    rescue Gem::Exception
-      nil
-    end
-
-    return if gem_binary.blank?
-
-    WickedPdf.config[:exe_path] = gem_binary
   end
 
   def month_trainings_for(user, year, month)

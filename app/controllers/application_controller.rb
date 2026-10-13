@@ -1,4 +1,5 @@
 class ApplicationController < ActionController::Base
+  include PdfRendering
   before_action :authenticate_user!
   before_action :set_dashboard_active
   before_action :process_help_desk_escalations

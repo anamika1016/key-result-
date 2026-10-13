@@ -18,14 +18,12 @@ class GuestHouseBookingGuestsController < ApplicationController
     @receipt_guest = @guest
     disposition = params[:download] == "1" ? "attachment" : "inline"
     filename = "Guest_House_Receipt_#{@guest.payment_receipt_number || @booking.booking_reference_label}"
-    render pdf: filename,
-           template: "guest_house_receipts/receipt",
-           formats: [ :pdf ],
-           layout: "pdf",
-           page_size: "A4",
-           margin: { top: 8, bottom: 8, left: 8, right: 8 },
-           disposition: disposition,
-           print_media_type: true
+    render_pdf_with_fallback filename: filename,
+                             template: "guest_house_receipts/receipt",
+                             page_size: "A4",
+                             margin: { top: 8, bottom: 8, left: 8, right: 8 },
+                             disposition: disposition,
+                             print_media_type: true
   end
 
   def accept
