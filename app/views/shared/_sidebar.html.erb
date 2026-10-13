@@ -151,8 +151,7 @@
       <nav class="hs-accordion-group p-3 w-full flex flex-col flex-wrap" data-hs-accordion-always-open>
         <ul class="flex flex-col space-y-1">
 
-          <!-- Dashboard - Show for HOD only -->
-          <% if current_user.hod? %>
+          <!-- Dashboard - Show for all roles -->
             <li class="hs-accordion" id="dashboard-accordion">
               <%= link_to dashboard_path, class: "flex items-center gap-x-3.5 py-2 px-2.5 #{'bg-gray-100' if current_page?(dashboard_path)} text-base text-gray-800 rounded-lg" do %>
                 <svg class="shrink-0 size-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -162,7 +161,6 @@
                 <span class="font-semibold">Dashboard</span>
               <% end %>
             </li>
-          <% end %>
 
           <!-- HOD Only - Admin Functions -->
           <% if current_user.hod? %>

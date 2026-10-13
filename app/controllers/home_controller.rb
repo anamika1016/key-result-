@@ -6,8 +6,8 @@ class HomeController < ApplicationController
   end
 
   def dashboard
-    # Only HOD sees the main dashboard; everyone else lands on their profile
-    redirect_to settings_path and return unless current_user.hod?
+    # HOD sees organisation-wide numbers; everyone else sees only their own data
+    return load_personal_dashboard unless current_user.hod?
 
     today = Time.zone.today
 
@@ -27,7 +27,7 @@ class HomeController < ApplicationController
     @guest_house_payment_pending_count = GuestHouseBookingGuest.where(payment_status: %w[generated uploaded]).count +
                                          bookings.where(payment_status: %w[generated uploaded]).count
     @guest_house_today_checkins = GuestHouseBookingGuest.where(checkin_date: today).count
-    @recent_guest_house_bookings = bookings.includes(:guest_house).recent_first.limit(5)
+    @recent_guest_house_bookings = bookings.includes(:guest_house).recent_first.limit(6)
 
     # Help Desk
     tickets = HelpDeskTicket.all
@@ -36,7 +36,7 @@ class HomeController < ApplicationController
     @help_desk_resolved_count = tickets.where(status: "resolved").count
     @help_desk_closed_count = tickets.where(status: "closed").count
     @help_desk_unassigned_count = tickets.open_for_review.where(assigned_to_user_id: nil).count
-    @recent_help_desk_tickets = tickets.order(created_at: :desc).limit(5)
+    @recent_help_desk_tickets = tickets.order(created_at: :desc).limit(6)
 
     # Training
     @training_total_count = Training.count
@@ -466,6 +466,46 @@ class HomeController < ApplicationController
   end
 
   private
+
+  def load_personal_dashboard
+    @personal_dashboard = true
+    today = Time.zone.today
+
+    # Guest House - own bookings
+    bookings = GuestHouseBooking.submitted_by(current_user)
+    @guest_house_booking_count = bookings.count
+    @guest_house_pending_count = bookings.where(status: %w[pending confirmed accepted]).count
+    @guest_house_checked_in_count = bookings.where(status: "checked_in").count
+    @guest_house_checked_out_count = bookings.where(status: "checked_out").count
+    @guest_house_payment_pending_count = bookings.where(payment_status: %w[generated uploaded]).count +
+                                         GuestHouseBookingGuest.where(guest_house_booking_id: bookings.select(:id), payment_status: %w[generated uploaded]).count
+    @recent_guest_house_bookings = bookings.includes(:guest_house).recent_first.limit(6)
+
+    # Help Desk - own tickets
+    tickets = HelpDeskTicket.where(user_id: current_user.id)
+    @help_desk_total_count = tickets.count
+    @help_desk_open_count = tickets.open_for_review.count
+    @help_desk_resolved_count = tickets.where(status: "resolved").count
+    @help_desk_closed_count = tickets.where(status: "closed").count
+    @help_desk_assigned_to_me_count = HelpDeskTicket.open_for_review.assigned_to(current_user).count
+    @recent_help_desk_tickets = tickets.order(created_at: :desc).limit(6)
+
+    # Training - own progress
+    progresses = UserTrainingProgress.where(user_id: current_user.id)
+    @training_this_month_count = Training.where(month: today.month, year: today.year, status: true).count
+    @training_assignment_count = UserTrainingAssignment.where(user_id: current_user.id).count
+    @training_completed_count = progresses.completed.count
+    @training_in_progress_count = progresses.started.count
+    @tot_record_count = EmployeeTraining.where(user_id: current_user.id).count
+
+    # Quiz - own submissions
+    submissions = QuizSubmission.where(user_id: current_user.id)
+    submissions = submissions.or(QuizSubmission.where(employee_code: current_user.employee_code)) if current_user.employee_code.present?
+    @quiz_active_count = Quiz.where("LOWER(TRIM(status)) = ?", "active").count
+    @quiz_submission_count = submissions.count
+    @quiz_average_score = submissions.where.not(score: nil).average(:score)&.round(1)
+    @quiz_best_score = submissions.maximum(:score)
+  end
 
   def calculate_level_summary(user_details, quarter, level)
     # Get quarter months (both monthly and quarterly formats)

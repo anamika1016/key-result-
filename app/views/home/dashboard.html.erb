@@ -5,56 +5,167 @@
     "checked_out" => "slate", "rejected" => "red", "cancelled" => "red",
     "submitted" => "amber", "in_review" => "blue", "reopened" => "amber", "resolved" => "green", "closed" => "slate"
   }
-  modules = [
-    {
-      key: "guest", title: "Guest House", link: admin_guest_house_bookings_path, link_label: "Admin Bookings",
-      headline: @guest_house_booking_count, headline_label: "Total bookings",
-      stats: [
-        [ "Pending approval", @guest_house_pending_count ],
-        [ "Checked in", @guest_house_checked_in_count ],
-        [ "Checked out", @guest_house_checked_out_count ],
-        [ "Payment pending", @guest_house_payment_pending_count ]
-      ]
-    },
-    {
-      key: "help", title: "Help Desk", link: help_desk_tickets_path, link_label: "Open Tickets",
-      headline: @help_desk_total_count, headline_label: "Total tickets",
-      stats: [
-        [ "Open / in review", @help_desk_open_count ],
-        [ "Unassigned", @help_desk_unassigned_count ],
-        [ "Resolved", @help_desk_resolved_count ],
-        [ "Closed", @help_desk_closed_count ]
-      ]
-    },
-    {
-      key: "training", title: "Training", link: trainings_path, link_label: "Online Training",
-      headline: @training_total_count, headline_label: "Online trainings",
-      stats: [
-        [ "Active", @training_active_count ],
-        [ "This month", @training_this_month_count ],
-        [ "Completions", @training_completed_count ],
-        [ "TOT records", @tot_record_count ]
-      ]
-    },
-    {
-      key: "quiz", title: "Quiz", link: quizzes_path, link_label: "Quiz Details",
-      headline: @quiz_total_count, headline_label: "Total quizzes",
-      stats: [
-        [ "Active", @quiz_active_count ],
-        [ "Participants", @quiz_participant_count ],
-        [ "Submissions", @quiz_submission_count ],
-        [ "Avg. score", @quiz_average_score || "—" ]
-      ]
-    }
-  ]
+  icons = {
+    "employees" => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+    "guest" => '<path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M9 8h1"/><path d="M14 8h1"/><path d="M9 12h1"/><path d="M14 12h1"/><path d="M10 21v-5h4v5"/>',
+    "help" => '<path d="M4 5h16a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-5l-3 3-3-3H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/><path d="M8 10h8"/><path d="M8 14h5"/>',
+    "training" => '<path d="M22 10 12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
+    "quiz" => '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>'
+  }
+  icon = ->(name) { raw(%(<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">#{icons[name]}</svg>)) }
+
+  if @personal_dashboard
+    tickets_done = @help_desk_resolved_count + @help_desk_closed_count
+    tickets_done_pct = @help_desk_total_count.positive? ? (tickets_done * 100.0 / @help_desk_total_count).round : 0
+    training_done_pct = @training_this_month_count.positive? ? [ (@training_completed_count * 100.0 / @training_this_month_count).round, 100 ].min : 0
+
+    greeting_name = current_user.display_name.to_s
+    greeting_name = greeting_name.split("@").first.to_s.tr("._", "  ").titleize if greeting_name.include?("@")
+    hero_title = "Welcome, #{greeting_name}"
+    hero_text = "Your guest house bookings, help desk tickets, trainings and quizzes."
+    hero_actions = [
+      [ "Book Guest House", guest_house_bookings_path ],
+      [ "My Booking Records", records_guest_house_bookings_path ],
+      [ "Raise a Ticket", help_desk_tickets_path ],
+      [ "My Trainings", trainings_path ]
+    ]
+
+    summary = [
+      { key: "guest", label: "My Bookings", value: @guest_house_booking_count, meta: "#{@guest_house_pending_count} pending · #{@guest_house_checked_in_count} checked in", link: records_guest_house_bookings_path },
+      { key: "employees", icon: "guest", label: "Payment Pending", value: @guest_house_payment_pending_count, meta: "Guest house bills to pay", link: records_guest_house_bookings_path },
+      { key: "help", label: "My Open Tickets", value: @help_desk_open_count, meta: "#{@help_desk_total_count} raised in total", link: help_desk_tickets_path },
+      { key: "training", label: "Trainings Completed", value: @training_completed_count, meta: "#{@training_in_progress_count} in progress", link: trainings_path },
+      { key: "quiz", label: "Quizzes Attempted", value: @quiz_submission_count, meta: "Avg. score #{@quiz_average_score || '—'}", link: nil }
+    ]
+
+    modules = [
+      {
+        key: "guest", title: "My Guest House", link: guest_house_bookings_path, link_label: "New Booking",
+        headline: @guest_house_booking_count, headline_label: "bookings",
+        stats: [
+          [ "Pending / accepted", @guest_house_pending_count ],
+          [ "Checked in", @guest_house_checked_in_count ],
+          [ "Checked out", @guest_house_checked_out_count ],
+          [ "Payment pending", @guest_house_payment_pending_count ]
+        ]
+      },
+      {
+        key: "help", title: "My Help Desk", link: help_desk_tickets_path, link_label: "My Tickets",
+        headline: @help_desk_total_count, headline_label: "tickets raised",
+        progress: tickets_done_pct, progress_label: "Resolved / closed",
+        stats: [
+          [ "Open / in review", @help_desk_open_count ],
+          [ "Awaiting my confirmation", @help_desk_resolved_count ],
+          [ "Closed", @help_desk_closed_count ],
+          [ "Assigned to me", @help_desk_assigned_to_me_count ]
+        ]
+      },
+      {
+        key: "training", title: "My Training", link: trainings_path, link_label: "Online Training",
+        headline: @training_this_month_count, headline_label: "trainings this month",
+        progress: training_done_pct, progress_label: "Completed",
+        stats: [
+          [ "Completed", @training_completed_count ],
+          [ "In progress", @training_in_progress_count ],
+          [ "Assigned to me", @training_assignment_count ],
+          [ "TOT records", @tot_record_count ]
+        ]
+      },
+      {
+        key: "quiz", title: "My Quiz", link: nil,
+        headline: @quiz_submission_count, headline_label: "quizzes attempted",
+        stats: [
+          [ "Active quizzes", @quiz_active_count ],
+          [ "Attempted", @quiz_submission_count ],
+          [ "Avg. score", @quiz_average_score || "—" ],
+          [ "Best score", @quiz_best_score || "—" ]
+        ]
+      }
+    ]
+    bookings_list_title = "My Recent Bookings"
+    tickets_list_title = "My Recent Tickets"
+  else
+    occupancy_pct = @guest_house_total_rooms.to_i.positive? ? [ (@guest_house_checked_in_count * 100.0 / @guest_house_total_rooms).round, 100 ].min : 0
+    tickets_done = @help_desk_resolved_count + @help_desk_closed_count
+    tickets_done_pct = @help_desk_total_count.positive? ? (tickets_done * 100.0 / @help_desk_total_count).round : 0
+
+    hero_title = "Dashboard"
+    hero_text = "Guest House, Help Desk, Training, Quiz and Employees at a glance."
+    hero_actions = [
+      [ "Guest House Booking", guest_house_bookings_path ],
+      [ "Help Desk", help_desk_tickets_path ],
+      [ "Assign Training", user_training_assignments_path ],
+      [ "Quiz Results", user_quizzes_path ]
+    ]
+
+    summary = [
+      { key: "employees", label: "Employees", value: @total_employee_details, meta: "#{number_with_delimiter(@total_users)} login users", link: employee_details_path },
+      { key: "guest", label: "Guests Checked In", value: @guest_house_checked_in_count, meta: "#{@guest_house_total_rooms} rooms · #{@guest_house_today_checkins} arriving today", link: admin_guest_house_bookings_path },
+      { key: "help", label: "Open Tickets", value: @help_desk_open_count, meta: "#{@help_desk_unassigned_count} unassigned", link: help_desk_tickets_path },
+      { key: "training", label: "Training Completions", value: @training_completed_count, meta: "#{@training_in_progress_count} in progress", link: user_training_assignments_path },
+      { key: "quiz", label: "Quiz Submissions", value: @quiz_submission_count, meta: "Avg. score #{@quiz_average_score || '—'}", link: user_quizzes_path }
+    ]
+
+    modules = [
+      {
+        key: "guest", title: "Guest House", link: admin_guest_house_bookings_path, link_label: "Admin Bookings",
+        headline: @guest_house_booking_count, headline_label: "total bookings",
+        progress: occupancy_pct, progress_label: "Room occupancy",
+        stats: [
+          [ "Pending approval", @guest_house_pending_count ],
+          [ "Checked out", @guest_house_checked_out_count ],
+          [ "Payment pending", @guest_house_payment_pending_count ],
+          [ "Guest houses", @guest_house_count ]
+        ]
+      },
+      {
+        key: "help", title: "Help Desk", link: help_desk_tickets_path, link_label: "All Tickets",
+        headline: @help_desk_total_count, headline_label: "total tickets",
+        progress: tickets_done_pct, progress_label: "Resolved / closed",
+        stats: [
+          [ "Open / in review", @help_desk_open_count ],
+          [ "Unassigned", @help_desk_unassigned_count ],
+          [ "Resolved", @help_desk_resolved_count ],
+          [ "Closed", @help_desk_closed_count ]
+        ]
+      },
+      {
+        key: "training", title: "Training", link: trainings_path, link_label: "Online Training",
+        headline: @training_total_count, headline_label: "online trainings",
+        stats: [
+          [ "Active", @training_active_count ],
+          [ "This month", @training_this_month_count ],
+          [ "Assignments", @training_assignment_count ],
+          [ "TOT records", @tot_record_count ]
+        ]
+      },
+      {
+        key: "quiz", title: "Quiz", link: quizzes_path, link_label: "Quiz Details",
+        headline: @quiz_total_count, headline_label: "total quizzes",
+        stats: [
+          [ "Active", @quiz_active_count ],
+          [ "Participants", @quiz_participant_count ],
+          [ "Submissions", @quiz_submission_count ],
+          [ "Avg. score", @quiz_average_score || "—" ]
+        ]
+      }
+    ]
+    bookings_list_title = "Recent Guest House Bookings"
+    tickets_list_title = "Recent Help Desk Tickets"
+  end
 %>
 
 <div class="ops-dashboard">
   <section class="ops-hero">
-    <div>
+    <div class="ops-hero__copy">
       <span class="ops-eyebrow">ASA Operations</span>
-      <h1>Dashboard</h1>
-      <p>Live summary of Guest House, Help Desk, Training, Quiz and Employees.</p>
+      <h1><%= hero_title %></h1>
+      <p><%= hero_text %></p>
+      <div class="ops-hero__actions">
+        <% hero_actions.each do |label, path| %>
+          <%= link_to label, path, class: "ops-action" %>
+        <% end %>
+      </div>
     </div>
     <div class="ops-clock">
       <div class="ops-clock__time" id="dashboard-live-clock"><%= dashboard_time.strftime("%I:%M:%S %p") %></div>
@@ -63,39 +174,43 @@
   </section>
 
   <section class="ops-summary">
-    <%= link_to employee_details_path, class: "ops-summary__card" do %>
-      <span class="ops-summary__label">Employees</span>
-      <span class="ops-summary__value"><%= number_with_delimiter(@total_employee_details) %></span>
-      <span class="ops-summary__meta"><%= number_with_delimiter(@total_users) %> login users</span>
-    <% end %>
-    <%= link_to guest_houses_path, class: "ops-summary__card" do %>
-      <span class="ops-summary__label">Guest Houses</span>
-      <span class="ops-summary__value"><%= @guest_house_count %></span>
-      <span class="ops-summary__meta"><%= @guest_house_total_rooms %> rooms · <%= @guest_house_today_checkins %> check-ins today</span>
-    <% end %>
-    <%= link_to user_training_assignments_path, class: "ops-summary__card" do %>
-      <span class="ops-summary__label">Training Assignments</span>
-      <span class="ops-summary__value"><%= number_with_delimiter(@training_assignment_count) %></span>
-      <span class="ops-summary__meta"><%= @training_in_progress_count %> in progress</span>
-    <% end %>
-    <%= link_to help_desk_tickets_path, class: "ops-summary__card" do %>
-      <span class="ops-summary__label">Open Tickets</span>
-      <span class="ops-summary__value"><%= @help_desk_open_count %></span>
-      <span class="ops-summary__meta"><%= @help_desk_unassigned_count %> unassigned</span>
+    <% summary.each do |card| %>
+      <% card_body = capture do %>
+        <span class="ops-summary__icon"><%= icon.call(card[:icon] || card[:key]) %></span>
+        <span class="ops-summary__body">
+          <span class="ops-summary__label"><%= card[:label] %></span>
+          <span class="ops-summary__value"><%= number_with_delimiter(card[:value]) %></span>
+          <span class="ops-summary__meta"><%= card[:meta] %></span>
+        </span>
+      <% end %>
+      <% if card[:link] %>
+        <%= link_to card_body, card[:link], class: "ops-summary__card ops-tone--#{card[:key]}" %>
+      <% else %>
+        <div class="ops-summary__card ops-summary__card--static ops-tone--<%= card[:key] %>"><%= card_body %></div>
+      <% end %>
     <% end %>
   </section>
 
   <section class="ops-modules">
     <% modules.each do |mod| %>
-      <article class="ops-module ops-module--<%= mod[:key] %>">
-        <header>
-          <h2><%= mod[:title] %></h2>
-          <%= link_to "#{mod[:link_label]} →", mod[:link], class: "ops-module__link" %>
+      <article class="ops-module ops-tone--<%= mod[:key] %>">
+        <header class="ops-card__header">
+          <span class="ops-module__title">
+            <span class="ops-module__icon"><%= icon.call(mod[:key]) %></span>
+            <h2><%= mod[:title] %></h2>
+          </span>
+          <%= link_to "#{mod[:link_label]} →", mod[:link], class: "ops-link" if mod[:link] %>
         </header>
         <div class="ops-module__headline">
           <strong><%= number_with_delimiter(mod[:headline]) %></strong>
           <span><%= mod[:headline_label] %></span>
         </div>
+        <% if mod[:progress] %>
+          <div class="ops-progress">
+            <div class="ops-progress__label"><span><%= mod[:progress_label] %></span><span><%= mod[:progress] %>%</span></div>
+            <div class="ops-progress__track"><div class="ops-progress__bar" style="width: <%= mod[:progress] %>%"></div></div>
+          </div>
+        <% end %>
         <dl class="ops-module__stats">
           <% mod[:stats].each do |label, value| %>
             <div>
@@ -110,16 +225,17 @@
 
   <section class="ops-lists">
     <article class="ops-list">
-      <header>
-        <h2>Recent Guest House Bookings</h2>
-        <%= link_to "All records →", records_guest_house_bookings_path, class: "ops-module__link" %>
+      <header class="ops-card__header">
+        <h2><%= bookings_list_title %></h2>
+        <%= link_to "All records →", records_guest_house_bookings_path, class: "ops-link" %>
       </header>
       <% if @recent_guest_house_bookings.any? %>
         <ul>
           <% @recent_guest_house_bookings.each do |booking| %>
             <li>
               <%= link_to guest_house_booking_path(booking), class: "ops-list__row" do %>
-                <span>
+                <span class="ops-avatar ops-tone--guest"><%= booking.requester_name.to_s.strip.first.to_s.upcase.presence || "G" %></span>
+                <span class="ops-list__text">
                   <strong><%= booking.requester_name %></strong>
                   <small><%= booking.booking_reference_label %> · <%= booking.guest_house&.name %></small>
                 </span>
@@ -134,16 +250,17 @@
     </article>
 
     <article class="ops-list">
-      <header>
-        <h2>Recent Help Desk Tickets</h2>
-        <%= link_to "All tickets →", help_desk_tickets_path, class: "ops-module__link" %>
+      <header class="ops-card__header">
+        <h2><%= tickets_list_title %></h2>
+        <%= link_to "All tickets →", help_desk_tickets_path, class: "ops-link" %>
       </header>
       <% if @recent_help_desk_tickets.any? %>
         <ul>
           <% @recent_help_desk_tickets.each do |ticket| %>
             <li>
               <%= link_to help_desk_ticket_path(ticket), class: "ops-list__row" do %>
-                <span>
+                <span class="ops-avatar ops-tone--help"><%= ticket.requester_name.to_s.strip.first.to_s.upcase.presence || "T" %></span>
+                <span class="ops-list__text">
                   <strong><%= ticket.requester_name %></strong>
                   <small><%= ticket.request_type.to_s.humanize %> · <%= ticket.created_at.in_time_zone("Asia/Kolkata").strftime("%d %b %Y") %></small>
                 </span>
@@ -160,59 +277,139 @@
 </div>
 
 <style>
-  .ops-dashboard { display: flex; flex-direction: column; gap: 20px; padding: 4px; color: #0f172a; }
-  .ops-hero { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 28px; border-radius: 18px; color: #fff; background: linear-gradient(120deg, #1e3a8a 0%, #2563eb 55%, #0ea5e9 100%); box-shadow: 0 12px 30px rgba(37, 99, 235, .22); }
-  .ops-eyebrow { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
-  .ops-hero h1 { margin: 4px 0 6px; font-size: 30px; font-weight: 800; }
-  .ops-hero p { margin: 0; opacity: .9; }
+  .ops-dashboard {
+    display: flex; flex-direction: column; gap: 20px;
+    min-height: 100vh; padding: 16px; box-sizing: border-box;
+    color: #0f172a; background: #f4f6fb;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .ops-dashboard *, .ops-dashboard *::before, .ops-dashboard *::after { box-sizing: border-box; }
+  @media (min-width: 1024px) {
+    .ops-dashboard { margin-left: 15.25rem; padding: 24px 28px; }
+  }
+
+  .ops-tone--employees { --tone: #0f766e; --tone-soft: #ccfbf1; }
+  .ops-tone--guest { --tone: #2563eb; --tone-soft: #dbeafe; }
+  .ops-tone--help { --tone: #d97706; --tone-soft: #fef3c7; }
+  .ops-tone--training { --tone: #16a34a; --tone-soft: #dcfce7; }
+  .ops-tone--quiz { --tone: #9333ea; --tone-soft: #f3e8ff; }
+
+  /* Hero */
+  .ops-hero {
+    display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 16px;
+    padding: 24px 28px; border-radius: 18px; color: #fff;
+    background: linear-gradient(120deg, #1e3a8a 0%, #2563eb 60%, #0ea5e9 100%);
+    box-shadow: 0 10px 28px rgba(37, 99, 235, .2);
+  }
+  .ops-eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; opacity: .85; }
+  .ops-hero__copy { min-width: 0; flex: 1 1 320px; }
+  .ops-hero h1 { margin: 4px 0 4px; font-size: 28px; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+  .ops-hero p { margin: 0; opacity: .9; font-size: 15px; }
+  .ops-hero__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .ops-action {
+    padding: 7px 14px; border-radius: 999px; font-size: 13px; font-weight: 600;
+    color: #fff; text-decoration: none; background: rgba(255, 255, 255, .16); border: 1px solid rgba(255, 255, 255, .3);
+    transition: background .15s;
+  }
+  .ops-action:hover { background: rgba(255, 255, 255, .28); }
   .ops-clock { text-align: right; }
-  .ops-clock__time { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .ops-clock__time { font-size: 26px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
   .ops-clock__date { font-size: 13px; opacity: .85; }
 
-  .ops-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
-  .ops-summary__card { display: flex; flex-direction: column; gap: 4px; padding: 18px 20px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; text-decoration: none; color: inherit; transition: box-shadow .15s, transform .15s; }
+  /* Summary */
+  .ops-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
+  .ops-summary__card {
+    display: flex; align-items: flex-start; gap: 12px; min-width: 0;
+    padding: 16px; border: 1px solid #e5e9f2; border-radius: 14px; background: #fff;
+    text-decoration: none; color: inherit; transition: box-shadow .15s, transform .15s;
+  }
   .ops-summary__card:hover { box-shadow: 0 8px 22px rgba(15, 23, 42, .08); transform: translateY(-1px); }
-  .ops-summary__label { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #64748b; }
-  .ops-summary__value { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; }
-  .ops-summary__meta { font-size: 13px; color: #64748b; }
+  .ops-summary__card--static:hover { box-shadow: none; transform: none; }
+  .ops-summary__icon, .ops-module__icon, .ops-avatar {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    color: var(--tone); background: var(--tone-soft); border-radius: 10px;
+  }
+  .ops-summary__icon { width: 40px; height: 40px; }
+  .ops-summary__icon svg { width: 20px; height: 20px; }
+  .ops-summary__body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .ops-summary__label { font-size: 12px; font-weight: 600; color: #64748b; line-height: 1.3; }
+  .ops-summary__value { font-size: 26px; font-weight: 800; line-height: 1.15; font-variant-numeric: tabular-nums; }
+  .ops-summary__meta { font-size: 12px; color: #64748b; line-height: 1.35; }
 
-  .ops-modules { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
-  .ops-module { padding: 20px; border: 1px solid #e2e8f0; border-top: 4px solid var(--accent); border-radius: 14px; background: #fff; }
-  .ops-module--guest { --accent: #2563eb; }
-  .ops-module--help { --accent: #f59e0b; }
-  .ops-module--training { --accent: #16a34a; }
-  .ops-module--quiz { --accent: #9333ea; }
-  .ops-module header, .ops-list header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; }
-  .ops-module h2, .ops-list h2 { margin: 0; font-size: 17px; font-weight: 700; }
-  .ops-module__link { font-size: 13px; font-weight: 600; color: #2563eb; text-decoration: none; white-space: nowrap; }
-  .ops-module__link:hover { text-decoration: underline; }
-  .ops-module__headline { display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px; }
-  .ops-module__headline strong { font-size: 34px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+  /* Modules */
+  .ops-modules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .ops-module, .ops-list {
+    display: flex; flex-direction: column; min-width: 0;
+    padding: 18px; border: 1px solid #e5e9f2; border-radius: 14px; background: #fff;
+  }
+  .ops-module { border-top: 4px solid var(--tone); }
+  .ops-card__header { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .ops-card__header h2 { margin: 0; font-size: 16px; font-weight: 700; line-height: 1.3; }
+  .ops-module__title { display: inline-flex; align-items: center; gap: 10px; min-width: 0; }
+  .ops-module__icon { width: 32px; height: 32px; border-radius: 9px; }
+  .ops-module__icon svg { width: 17px; height: 17px; }
+  .ops-link { font-size: 13px; font-weight: 600; color: #2563eb; text-decoration: none; white-space: nowrap; }
+  .ops-link:hover { text-decoration: underline; }
+  .ops-module__headline { display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px; }
+  .ops-module__headline strong { font-size: 32px; font-weight: 800; line-height: 1; color: var(--tone); font-variant-numeric: tabular-nums; }
   .ops-module__headline span { font-size: 13px; color: #64748b; }
-  .ops-module__stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0; }
-  .ops-module__stats div { padding: 10px 12px; border-radius: 10px; background: #f8fafc; }
-  .ops-module__stats dt { font-size: 12px; color: #64748b; }
+  .ops-progress { margin-bottom: 14px; }
+  .ops-progress__label { display: flex; justify-content: space-between; font-size: 12px; color: #64748b; margin-bottom: 6px; }
+  .ops-progress__label span:last-child { font-weight: 700; color: #0f172a; }
+  .ops-progress__track { height: 6px; border-radius: 999px; background: #eef2f7; overflow: hidden; }
+  .ops-progress__bar { height: 100%; border-radius: 999px; background: var(--tone); }
+  .ops-module__stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: auto 0 0; }
+  .ops-module__stats div { padding: 10px 12px; border-radius: 10px; background: #f6f8fb; min-width: 0; }
+  .ops-module__stats dt { font-size: 12px; color: #64748b; line-height: 1.3; }
   .ops-module__stats dd { margin: 2px 0 0; font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
-  .ops-lists { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
-  .ops-list { padding: 20px; border: 1px solid #e2e8f0; border-radius: 14px; background: #fff; }
-  .ops-list ul { list-style: none; margin: 0; padding: 0; }
-  .ops-list li + li { border-top: 1px solid #f1f5f9; }
-  .ops-list__row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 4px; text-decoration: none; color: inherit; }
-  .ops-list__row:hover { background: #f8fafc; }
-  .ops-list__row span:first-child { display: flex; flex-direction: column; min-width: 0; }
-  .ops-list__row small { color: #64748b; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ops-badge { flex-shrink: 0; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  /* Recent lists */
+  .ops-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+  .ops-list ul { list-style: none; margin: 0 -8px; padding: 0; }
+  .ops-list li + li { border-top: 1px solid #f1f4f8; }
+  .ops-list__row {
+    display: flex; align-items: center; gap: 12px; padding: 10px 8px;
+    border-radius: 10px; text-decoration: none; color: inherit;
+  }
+  .ops-list__row:hover { background: #f6f8fb; }
+  .ops-avatar { width: 34px; height: 34px; border-radius: 50%; font-size: 14px; font-weight: 700; }
+  .ops-list__text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .ops-list__text strong { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ops-list__text small { color: #64748b; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ops-badge { flex-shrink: 0; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
   .ops-badge--amber { background: #fef3c7; color: #92400e; }
   .ops-badge--blue { background: #dbeafe; color: #1e40af; }
   .ops-badge--green { background: #dcfce7; color: #166534; }
   .ops-badge--red { background: #fee2e2; color: #991b1b; }
   .ops-badge--slate { background: #f1f5f9; color: #334155; }
-  .ops-empty { margin: 0; color: #64748b; font-size: 14px; }
+  .ops-empty { margin: auto 0; padding: 24px 0; text-align: center; color: #94a3b8; font-size: 14px; }
 
+  /* Responsive */
+  @media (max-width: 1500px) {
+    .ops-modules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  /* 5 summary cards: 3 on the first row, 2 wider ones on the second (no empty gap) */
+  @media (max-width: 1400px) {
+    .ops-summary { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+    .ops-summary__card { grid-column: span 2; }
+    .ops-summary__card:nth-child(n+4) { grid-column: span 3; }
+  }
+  @media (max-width: 900px) {
+    .ops-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ops-summary__card, .ops-summary__card:nth-child(n+4) { grid-column: span 1; }
+    .ops-summary__card:last-child { grid-column: span 2; }
+    .ops-lists { grid-template-columns: 1fr; }
+  }
   @media (max-width: 640px) {
     .ops-hero { padding: 20px; }
+    .ops-hero h1 { font-size: 24px; }
     .ops-clock { text-align: left; }
+    .ops-modules { grid-template-columns: 1fr; }
+    .ops-summary__card { padding: 12px; gap: 10px; }
+    .ops-summary__icon { width: 34px; height: 34px; }
+    .ops-summary__value { font-size: 22px; }
+    .ops-hero__actions { gap: 6px; }
+    .ops-action { padding: 6px 12px; }
   }
 </style>
 
