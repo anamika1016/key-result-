@@ -3,7 +3,7 @@
     <!-- Flash messages are handled globally in application layout -->
 
     <!-- Bulk Upload and Export Buttons -->
-    <div class="w-full max-w-7xl mx-auto mt-4 flex justify-between items-center bg-white p-6 rounded-xl shadow">
+    <div class="employee-upload-card w-full max-w-7xl mx-auto mt-4 flex justify-between items-center bg-white p-6 rounded-xl shadow">
       <div class="flex flex-col space-y-2">
         <%= form_with url: import_employee_details_path, local: true, html: { multipart: true }, class: "flex space-x-4 items-center" do |f| %>
           <%= f.file_field :file, class: "block w-full border border-gray-300 rounded-lg px-4 py-2" %>

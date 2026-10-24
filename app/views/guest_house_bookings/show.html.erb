@@ -158,7 +158,7 @@
       </section>
     <% end %>
 
-    <% if @booking.self_booking? && (@booking.invoice_total.to_d.positive? || @booking.payment_generated? || @booking.payment_uploaded? || @booking.payment_paid?) %>
+    <% if @booking.self_booking? && (@booking.invoice_total.to_d.positive? || @booking.payment_generated? || @booking.payment_uploaded? || @booking.payment_paid? || @booking.payment_waived?) %>
       <section class="guest-house-panel">
         <div class="guest-house-panel__header">
           <h2 class="guest-house-section-title">Invoice & Payment</h2>

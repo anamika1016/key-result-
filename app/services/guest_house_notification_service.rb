@@ -54,6 +54,15 @@ class GuestHouseNotificationService
       title: "Guest house slot available",
       message: message
     )
+    ItToolNotification.deliver(
+      recipients: waitlist.user,
+      subject: "Guest House: Slot available - #{waitlist.guest_house.name}",
+      message: message,
+      link: Rails.application.routes.url_helpers.guest_house_bookings_url(waitlist_id: waitlist.id, **(Rails.application.config.action_mailer.default_url_options || {})),
+      action: "availability_opened",
+      employee_name: waitlist.user.display_name,
+      employee_code: waitlist.user.employee_code
+    )
     mobile = waitlist.user.mapped_employee_detail&.mobile_number
     SmsService.send_sms(mobile, "Guest house slot is now available for #{waitlist.booking_date.strftime('%d %b %Y')} to #{waitlist.checkout_date.strftime('%d %b %Y')}. Please book promptly. ASA") if mobile.present?
   rescue StandardError => e
@@ -172,7 +181,35 @@ class GuestHouseNotificationService
       title: title,
       message: message
     )
+    email_notification(user: user, booking: booking, event_type: event_type, title: title, message: message)
   rescue StandardError => e
     Rails.logger.warn("Guest house in-app notification failed for booking #{booking.id}: #{e.message}")
+  end
+
+  # Every in-app guest house notification is also emailed through the KRAI it-tool mail endpoint.
+  def self.email_notification(user:, booking:, event_type:, title:, message:)
+    ItToolNotification.deliver(
+      recipients: user,
+      subject: "Guest House: #{title} - #{booking.booking_reference_label}",
+      message: message,
+      link: Rails.application.routes.url_helpers.guest_house_booking_url(booking, **(Rails.application.config.action_mailer.default_url_options || {})),
+      action: event_type,
+      remarks: notification_remarks(booking, event_type),
+      employee_name: booking.requester_name,
+      employee_code: booking.user&.employee_code
+    )
+  rescue StandardError => e
+    Rails.logger.warn("Guest house notification email failed for booking #{booking&.id}: #{e.message}")
+  end
+
+  def self.notification_remarks(booking, event_type)
+    case event_type
+    when "booking_rejected" then booking.rejection_remark.presence || booking.admin_remark
+    when "booking_cancelled" then booking.cancellation_reason
+    when "complaint_submitted" then booking.guest_complaint
+    when "feedback_submitted" then booking.feedback_comment
+    when "booking_accepted" then booking.admin_remark
+    when "payment_generated", "payment_updated", "checkout_completed" then booking.payment_note
+    end
   end
 end

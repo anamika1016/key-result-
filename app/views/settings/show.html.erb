@@ -1,5 +1,22 @@
 <!-- Main Content Area - Full Screen Layout -->
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-gray-50 settings-page">
+  <style>
+    @media (max-width: 1023.98px) {
+      .settings-page > .ml-64 { padding: 16px !important; }
+      .settings-page h1.text-3xl { font-size: 1.5rem; line-height: 2rem; }
+      .settings-page .p-10 { padding: 18px !important; }
+      .settings-page .mb-8 { margin-bottom: 18px !important; }
+      .settings-page .flex.items-start.justify-between { flex-direction: column; align-items: stretch; gap: 16px; }
+      .settings-page .flex.items-center.gap-6 { flex-direction: column; align-items: center; text-align: center; gap: 14px; }
+      .settings-page #profileImageContainer { width: 9rem; height: 9rem; }
+      .settings-page h2.text-3xl { font-size: 1.4rem; line-height: 1.9rem; overflow-wrap: anywhere; }
+      .settings-page .grid.grid-cols-2,
+      .settings-page .grid.grid-cols-3 { grid-template-columns: 1fr !important; gap: 16px !important; }
+      .settings-page .space-y-6 > * + * { margin-top: 14px !important; }
+      .settings-page p.text-lg { font-size: 1rem; overflow-wrap: anywhere; }
+      .settings-page label.text-base { font-size: 0.85rem; }
+    }
+  </style>
   <!-- Content Area -->
   <div class="ml-64 p-8">
   <!-- Settings Header -->

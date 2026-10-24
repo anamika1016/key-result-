@@ -85,6 +85,8 @@ class HelpDeskTicket < ApplicationRecord
   before_validation :assign_initial_escalation_details, on: :create
   after_commit :schedule_initial_escalation_check, on: :create
   after_commit :record_initial_support_update, on: :create
+  after_commit :send_created_action_notifications, on: :create
+  after_commit :send_updated_action_notifications, on: :update
   after_commit :send_help_desk_submission_sms, on: :create
   after_commit :send_help_desk_approved_sms, on: :update
 
@@ -952,11 +954,32 @@ class HelpDeskTicket < ApplicationRecord
     "Updated"
   end
 
+  # Emails everyone linked to the ticket through the KRAI it-tool mail endpoint.
   def send_action_notifications!(action_label)
     recipients = notification_recipient_emails
     return if recipients.blank?
 
-    HelpDeskTicketMailer.ticket_action(id, recipients, action_label).deliver_later
+    department_name = department&.department_type
+    details = [ "Department: #{department_name}", ("Request: #{request_type.to_s.humanize}" if request_type.present?), "Status: #{status.to_s.humanize}" ].compact.join(". ")
+    ItToolNotification.deliver(
+      recipients: recipients,
+      subject: "Help Desk #{action_label} - #{ticket_reference}",
+      message: "Help Desk ticket #{ticket_reference} raised by #{requester_name}: #{action_label}. #{details}.",
+      link: Rails.application.routes.url_helpers.help_desk_tickets_url(**(Rails.application.config.action_mailer.default_url_options || {})),
+      action: action_label.to_s.parameterize(separator: "_"),
+      remarks: notification_remarks_for(action_label),
+      employee_name: requester_name,
+      employee_code: requester_employee_code.presence || user&.employee_code
+    )
+  rescue StandardError => e
+    Rails.logger.error("[HelpDesk] notification for #{ticket_reference} failed: #{e.class}: #{e.message}")
+  end
+
+  def notification_remarks_for(action_label)
+    case action_label
+    when "Requester Remark", "Reopened" then requester_remark
+    when "Support Update", "Completed By Support", "Closed" then response_message
+    end.to_s.truncate(500).presence
   end
 
   def send_assignment_notifications

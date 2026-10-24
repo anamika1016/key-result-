@@ -128,6 +128,24 @@
 </head>
 
 <body class="bg-gray-50">
+  <!-- Mobile top bar (hidden on desktop) -->
+  <header class="mobile-topbar" aria-label="Mobile navigation">
+    <button type="button" class="mobile-topbar__menu" data-mobile-sidebar-toggle aria-controls="hs-application-sidebar" aria-expanded="false" aria-label="Open menu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <%= link_to root_path, class: "mobile-topbar__brand", aria: { label: "Dashboard" } do %>
+      <%= image_tag "asa.jpeg", alt: "ASA" %>
+    <% end %>
+    <%= link_to settings_path, class: "mobile-topbar__user", aria: { label: "User Profile" } do %>
+      <% if current_user.avatar.attached? %>
+        <%= image_tag current_user.avatar, alt: "" %>
+      <% else %>
+        <%= image_tag "business_female_male_users.svg", alt: "" %>
+      <% end %>
+    <% end %>
+  </header>
+  <div class="mobile-sidebar-backdrop" data-mobile-sidebar-close></div>
+
   <!-- Sidebar -->
   <div id="hs-application-sidebar" class="hs-overlay  [--auto-close:lg]
     hs-overlay-open:translate-x-0
@@ -138,6 +156,9 @@
     bg-white border-e border-gray-200
     lg:block lg:translate-x-0 lg:end-auto lg:bottom-0" role="dialog" tabindex="-1" aria-label="Sidebar">
     <div class="relative flex flex-col h-full max-h-full">
+      <button type="button" class="mobile-sidebar-close" data-mobile-sidebar-close aria-label="Close menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
       <div class="px-4 pt-3 flex items-center">
         <!-- Logo -->
         <a class="d-inline-block rounded-xl text-xl font-weight-semibold" href="#" aria-label="Preline">
@@ -459,3 +480,26 @@
     </div>
   </div>
   <!-- End Sidebar -->
+  <script>
+    (function () {
+      if (window.__mobileSidebarBound) return;
+      window.__mobileSidebarBound = true;
+      var setOpen = function (open) {
+        document.documentElement.classList.toggle("mobile-sidebar-open", open);
+        document.querySelectorAll("[data-mobile-sidebar-toggle]").forEach(function (button) {
+          button.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+      };
+      document.addEventListener("click", function (event) {
+        if (event.target.closest("[data-mobile-sidebar-toggle]")) {
+          setOpen(!document.documentElement.classList.contains("mobile-sidebar-open"));
+        } else if (event.target.closest("[data-mobile-sidebar-close]") || event.target.closest("#hs-application-sidebar a")) {
+          setOpen(false);
+        }
+      });
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") setOpen(false);
+      });
+      document.addEventListener("turbo:before-render", function () { setOpen(false); });
+    })();
+  </script>
