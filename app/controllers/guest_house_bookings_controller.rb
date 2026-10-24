@@ -1,8 +1,11 @@
 class GuestHouseBookingsController < ApplicationController
+  include GuestHouseBilling
+
   before_action :load_guest_house_context, only: [ :index, :create ]
-  before_action :set_booking, only: [ :show, :destroy, :accept, :reject, :cancel, :check_in, :checkout, :receipt, :submit_complaint, :submit_feedback, :generate_payment, :upload_payment ]
+  before_action :set_booking, only: [ :show, :edit, :update, :destroy, :accept, :reject, :cancel, :check_in, :checkout, :receipt, :submit_complaint, :submit_feedback, :generate_payment, :upload_payment ]
   before_action :ensure_booking_owner_or_admin!, only: [ :show, :cancel, :receipt, :submit_complaint, :submit_feedback ]
   before_action :ensure_hod!, only: [ :destroy ]
+  before_action :ensure_booking_editable!, only: [ :edit, :update ]
   before_action :ensure_guest_house_admin!, only: [ :accept, :reject, :check_in, :checkout, :generate_payment, :upload_payment ]
   before_action :ensure_confirmed!, only: [ :accept ]
   before_action :ensure_rejectable!, only: [ :reject ]
@@ -96,6 +99,28 @@ class GuestHouseBookingsController < ApplicationController
                                                   .where(guest_house_id: @booking.guest_house_id)
                                                   .ordered
     }
+  end
+
+  def edit
+    prepare_booking_form
+  end
+
+  def update
+    attributes = booking_params
+    mark_removed_occupants_for_destruction(attributes)
+    @booking.assign_attributes(attributes)
+    @booking.force_availability_check = true
+
+    saved = @booking.guest_house.with_lock { @booking.save }
+    if saved
+      sync_external_booking_status!
+      GuestHouseNotificationService.booking_updated(@booking, actor: current_user)
+      redirect_to guest_house_booking_path(@booking), notice: "Booking #{@booking.booking_reference_label} updated successfully."
+    else
+      flash.now[:alert] = @booking.errors.full_messages.to_sentence
+      prepare_booking_form
+      render :edit, status: :unprocessable_entity
+    end
   end
 
   def destroy
@@ -232,15 +257,27 @@ class GuestHouseBookingsController < ApplicationController
       end
 
       billing_params = checkout_billing_params
-      @booking.assign_attributes(billing_params)
-      apply_selected_facility_charge
-      @booking.status = "checked_out"
-      @booking.checked_out_at = Time.current
       override_room_charge = params[:override_room_charge] == "1"
-      @booking.room_charge_overridden = override_room_charge
-      room_charge_override = override_room_charge ? billing_params[:room_charge_amount] : nil
-      calculated_room_charge = room_charge_override.nil? ? @booking.room_charge_total(as_of: @booking.checked_out_at) : room_charge_override
-      @booking.calculate_bill!(room_charge_amount: calculated_room_charge)
+      begin
+        bed_rate = parse_billing_rate(billing_params[:room_rate_per_day], "Bed rate")
+        raise InvalidRate, "Enter the bed rate (per bed per day) before checkout." if bed_rate.nil? && !override_room_charge
+
+        @booking.assign_attributes(billing_params.except(:room_rate_per_day))
+        apply_selected_facility_charge
+        @booking.status = "checked_out"
+        @booking.checked_out_at = Time.current
+        @booking.room_charge_overridden = override_room_charge
+        @booking.room_rate_per_day = bed_rate
+        room_charge = if override_room_charge
+                        parse_billing_rate(billing_params[:room_charge_amount], "Bed charge") || 0.to_d
+                      else
+                        @booking.bed_charge_for_rate(bed_rate, as_of: @booking.checked_out_at)
+                      end
+      rescue InvalidRate => e
+        redirect_to admin_guest_house_bookings_path, alert: e.message
+        return
+      end
+      @booking.calculate_bill!(room_charge_amount: room_charge)
       @booking.save!
       GuestHouseNotificationService.checkout_completed(@booking, actor: current_user)
       redirect_to guest_house_booking_path(@booking), notice: "Checkout completed and bill generated successfully."
@@ -287,21 +324,35 @@ class GuestHouseBookingsController < ApplicationController
   end
 
   def generate_payment
-    @booking.assign_attributes(payment_params)
-    apply_selected_facility_charge
-    @booking.room_charge_overridden = payment_params[:room_charge_amount].present?
-    @booking.calculate_bill!(room_charge_amount: payment_params[:room_charge_amount])
+    begin
+      bed_rate = parse_billing_rate(payment_params[:room_rate_per_day], "Bed rate")
+      @booking.assign_attributes(payment_params.except(:room_rate_per_day))
+      apply_selected_facility_charge
+    rescue InvalidRate => e
+      redirect_to admin_guest_house_bookings_path, alert: e.message
+      return
+    end
+
+    if bed_rate
+      @booking.room_rate_per_day = bed_rate
+      @booking.room_charge_overridden = false
+      @booking.calculate_bill!(room_charge_amount: @booking.bed_charge_for_rate(bed_rate, as_of: @booking.checked_out_at))
+    else
+      @booking.room_charge_overridden = payment_params[:room_charge_amount].present?
+      @booking.calculate_bill!(room_charge_amount: payment_params[:room_charge_amount])
+    end
     @booking.update!(
       bill_amount: @booking.total_bill_amount,
       payment_note: payment_params[:payment_note],
       payment_status: "generated"
     )
     GuestHouseNotificationService.payment_generated(@booking, actor: current_user)
-    redirect_to guest_house_booking_path(@booking), notice: "Payment QR generated successfully."
+    redirect_to guest_house_booking_path(@booking), notice: "Bill updated successfully."
   end
 
   def upload_payment
-    if @booking.invoice_total.to_d <= 0 && !@booking.room_charge_overridden?
+    # Older bookings (checked out before admin-entered rates) still get their bill from the master rate.
+    if @booking.invoice_total.to_d <= 0 && !@booking.room_charge_overridden? && @booking.room_rate_per_day.nil?
       @booking.calculate_bill!(room_charge_amount: @booking.room_charge_total(as_of: @booking.checked_out_at || Time.current))
     end
     @booking.payment_receipt.attach(payment_upload_params[:payment_receipt]) if payment_upload_params[:payment_receipt].present?
@@ -432,40 +483,16 @@ class GuestHouseBookingsController < ApplicationController
   end
 
   def checkout_billing_params
-    params.fetch(:guest_house_booking, {}).permit(:room_charge_amount, :other_services_amount, :other_services_details, :payment_note)
+    params.fetch(:guest_house_booking, {}).permit(:room_rate_per_day, :room_charge_amount, :other_services_amount, :other_services_details, :payment_note)
   end
 
   def selected_facility_params
-    params.fetch(:guest_house_booking, {}).permit(facility_ids: [], facility_quantities: {})
+    params.fetch(:guest_house_booking, {}).permit(facility_ids: [], facility_quantities: {}, facility_rates: {})
   end
 
   def apply_selected_facility_charge
-    facility_ids = Array(selected_facility_params[:facility_ids]).reject(&:blank?)
-    return if facility_ids.blank?
-
-    quantities = selected_facility_params[:facility_quantities] || {}
-    facilities = GuestHouseFacility.active
-                                   .where(id: facility_ids, guest_house_id: @booking.guest_house_id)
-                                   .index_by { |facility| facility.id.to_s }
-    selected_lines = facility_ids.filter_map do |facility_id|
-      facility = facilities[facility_id.to_s]
-      next if facility.blank?
-
-      quantity = quantities[facility_id.to_s].to_i
-      quantity = 1 if quantity <= 0
-      selected_amount = facility.rate.to_d * quantity
-      "#{facility.name} x #{quantity} @ Rs. #{format('%.2f', facility.rate)} = Rs. #{format('%.2f', selected_amount)}"
-    end
-
-    selected_amount = facility_ids.sum do |facility_id|
-      facility = facilities[facility_id.to_s]
-      next 0.to_d if facility.blank?
-
-      quantity = quantities[facility_id.to_s].to_i
-      quantity = 1 if quantity <= 0
-      facility.rate.to_d * quantity
-    end
-    return if selected_amount.zero?
+    selected_amount, selected_lines = selected_facility_charges(selected_facility_params, @booking.guest_house_id)
+    return if selected_lines.empty?
 
     current_amount = @booking.other_services_amount.to_d
     current_details = @booking.other_services_details.to_s.strip
@@ -487,11 +514,52 @@ class GuestHouseBookingsController < ApplicationController
   end
 
   def payment_params
-    params.require(:guest_house_booking).permit(:room_charge_amount, :other_services_amount, :other_services_details, :payment_note)
+    params.require(:guest_house_booking).permit(:room_rate_per_day, :room_charge_amount, :other_services_amount, :other_services_details, :payment_note)
   end
 
   def payment_upload_params
     params.require(:guest_house_booking).permit(:payment_status, :payment_receipt, :payment_qr_image, :transaction_id, :payment_details)
+  end
+
+  def ensure_booking_editable!
+    return if @booking.editable_by?(current_user)
+
+    message = if @booking.user_id == current_user.id
+                "This booking can no longer be edited because the guest house admin has already acted on it."
+              elsif guest_house_admin_for?(@booking.guest_house)
+                "This booking can no longer be edited because check-in has started."
+              else
+                "You are not authorized to edit this booking."
+              end
+    redirect_to guest_house_booking_path(@booking), alert: message
+  end
+
+  def prepare_booking_form
+    @guest_house_booking = @booking
+    @guest_houses = (GuestHouse.active.ordered.to_a + [ @booking.guest_house ]).uniq
+    @single_room_eligible = @booking.single_room_eligible?
+    build_guest_detail_rows
+  end
+
+  # Occupant rows removed in the form are not submitted, so delete them explicitly.
+  def mark_removed_occupants_for_destruction(attributes)
+    submitted = attributes[:guest_house_booking_guests_attributes]&.to_h || {}
+    submitted_ids = submitted.values.filter_map { |guest| guest["id"].presence&.to_s }
+    removed = @booking.guest_house_booking_guests.reject { |guest| submitted_ids.include?(guest.id.to_s) }
+    return if removed.empty?
+
+    removed_attributes = removed.each_with_index.to_h { |guest, index| [ "removed_#{index}", { "id" => guest.id.to_s, "_destroy" => "1" } ] }
+    attributes[:guest_house_booking_guests_attributes] = submitted.merge(removed_attributes)
+  end
+
+  def sync_external_booking_status!
+    return unless @booking.external_booking?
+
+    guests = @booking.guest_house_booking_guests.reload
+    return if guests.empty?
+
+    status = guests.any?(&:approval_pending?) ? "confirmed" : "accepted"
+    @booking.update_column(:status, status) if @booking.status != status && (@booking.confirmed? || @booking.accepted?)
   end
 
   def build_guest_detail_rows

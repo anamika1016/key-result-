@@ -159,7 +159,7 @@ Rails.application.routes.draw do
       patch :upload_payment
     end
   end
-  resources :guest_house_bookings, path: "guest-house", only: [ :index, :create, :show, :destroy ] do
+  resources :guest_house_bookings, path: "guest-house", only: [ :index, :create, :show, :edit, :update, :destroy ] do
     collection do
       get :admin, path: "admin-bookings", as: :admin
       get :records, path: "booking-records", as: :records

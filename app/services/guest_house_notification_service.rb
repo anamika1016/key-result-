@@ -37,6 +37,12 @@ class GuestHouseNotificationService
     notify_admins(booking, event_type: "booking_cancelled", title: "Booking cancelled", message: message, actor: actor)
   end
 
+  def self.booking_updated(booking, actor:)
+    message = "#{booking.booking_reference_label} was updated by #{actor.display_name}."
+    notify_user(booking, event_type: "booking_updated", title: "Booking updated", message: message, actor: actor) unless actor.id == booking.user_id
+    notify_admins(booking, event_type: "booking_updated", title: "Booking updated", message: message, actor: actor)
+  end
+
   def self.availability_opened(waitlist, cancelled_booking:, actor:)
     message = availability_message(waitlist)
     GuestHouseNotification.create!(
@@ -92,7 +98,7 @@ class GuestHouseNotificationService
 
   def self.occupant_payment_updated(occupant, actor:)
     booking = occupant.guest_house_booking
-    notify_user(booking, event_type: "occupant_payment_updated", title: "#{occupant.full_name} payment updated", message: "Payment for #{occupant.full_name}'s Rs. #{format('%.2f', occupant.total_bill_amount)} bill is now #{occupant.payment_status.humanize}.", actor: actor)
+    notify_user(booking, event_type: "occupant_payment_updated", title: "#{occupant.full_name} payment updated", message: "Payment for #{occupant.full_name}'s Rs. #{format('%.2f', occupant.total_bill_amount)} bill is now #{occupant.payment_status_label}.", actor: actor)
   end
 
   def self.occupant_checked_out(occupant, actor:)
@@ -105,7 +111,7 @@ class GuestHouseNotificationService
   end
 
   def self.payment_updated(booking, actor:)
-    notify_user(booking, event_type: "payment_updated", title: "Payment status updated", message: "Payment for #{booking.booking_reference_label} is now #{booking.payment_status.humanize}.", actor: actor)
+    notify_user(booking, event_type: "payment_updated", title: "Payment status updated", message: "Payment for #{booking.booking_reference_label} is now #{booking.payment_status_label}.", actor: actor)
   end
 
   def self.complaint_submitted(booking, actor:)

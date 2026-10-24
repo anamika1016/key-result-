@@ -1099,9 +1099,13 @@
   box-shadow: var(--guest-house-shadow-md);
 }
 
+.guest-house-master-form.guest-house-master-form--service {
+  grid-template-columns: minmax(200px, 1fr) minmax(200px, 1fr) auto auto;
+}
+
 .guest-house-master-form {
   display: grid;
-  grid-template-columns: minmax(170px, 1fr) minmax(90px, 0.45fr) minmax(120px, 0.55fr) minmax(210px, 1fr) auto auto;
+  grid-template-columns: minmax(170px, 1fr) minmax(90px, 0.45fr) minmax(210px, 1fr) auto auto;
   gap: 12px;
   align-items: end;
   min-width: 0;
@@ -1429,6 +1433,217 @@
   min-width: 120px;
 }
 
+/* Admin billing: rate entered by the guest house admin */
+.guest-house-bill-form {
+  gap: 14px;
+}
+
+.guest-house-bill-step {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.guest-house-bill-form .guest-house-bill-step__title {
+  margin: 0;
+  color: var(--guest-house-text);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.guest-house-bill-form .guest-house-bill-step__title span {
+  display: inline;
+  margin: 0;
+  color: var(--guest-house-muted);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.guest-house-bill-form label.guest-house-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.guest-house-bill-form label.guest-house-field > span {
+  margin: 0;
+  color: var(--guest-house-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guest-house-rate-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 280px) 1fr;
+  gap: 12px;
+  align-items: end;
+}
+
+.guest-house-rate-field .guest-house-input {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.guest-house-bill-form .guest-house-rate-calc {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-height: 42px;
+}
+
+.guest-house-bill-form .guest-house-rate-calc span {
+  margin: 0;
+  color: var(--guest-house-muted);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.guest-house-bill-form > div:first-of-type span {
+  font-size: 12.5px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.guest-house-bill-form .guest-house-rate-calc strong {
+  display: inline;
+  color: var(--guest-house-text);
+  font-size: 15px;
+}
+
+.guest-house-override summary {
+  cursor: pointer;
+  color: var(--guest-house-blue);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.guest-house-override__body {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 240px);
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.guest-house-override__body .guest-house-override-option {
+  grid-column: auto;
+}
+
+.guest-house-service-table {
+  display: grid;
+  gap: 6px;
+}
+
+.guest-house-service-head,
+.guest-house-service-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1.4fr) 80px minmax(110px, 1fr) minmax(90px, 0.8fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.guest-house-bill-form .guest-house-service-head span {
+  margin: 0;
+  padding: 0 4px;
+  color: var(--guest-house-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.guest-house-service-row {
+  padding: 6px 4px;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+
+.guest-house-service-row.is-selected {
+  background: #eff6ff;
+}
+
+.guest-house-service-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.guest-house-service-name input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--guest-house-blue);
+}
+
+.guest-house-service-name strong {
+  font-size: 14px;
+}
+
+.guest-house-service-row .guest-house-input:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+
+.guest-house-bill-form .guest-house-service-amount {
+  margin: 0;
+  color: var(--guest-house-text);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-align: right;
+}
+
+.guest-house-bill-preview--total span:last-child {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.guest-house-bill-preview--total span:last-child strong {
+  color: var(--guest-house-blue-dark);
+  font-size: 18px;
+}
+
+.guest-house-service-details p {
+  margin: 2px 0 0;
+}
+
+@media (max-width: 760px) {
+  .guest-house-rate-row,
+  .guest-house-override__body {
+    grid-template-columns: 1fr;
+  }
+
+  .guest-house-service-head {
+    display: none;
+  }
+
+  .guest-house-service-row {
+    grid-template-columns: 1fr 1fr;
+    padding: 10px;
+    border: 1px solid #e2e8f0;
+  }
+
+  .guest-house-service-name {
+    grid-column: 1 / -1;
+  }
+
+  .guest-house-bill-form .guest-house-service-amount {
+    grid-column: 1 / -1;
+    text-align: left;
+  }
+}
+
 @media (max-width: 760px) {
   .guest-house-approval-form {
     grid-template-columns: 1fr;
@@ -1567,7 +1782,8 @@
   .guest-house-inline-grid--compact,
   .guest-house-summary,
   .guest-house-summary--compact,
-  .guest-house-occupant-row {
+  .guest-house-occupant-row,
+  .guest-house-master-form.guest-house-master-form--service {
     grid-template-columns: 1fr;
   }
 
@@ -1673,36 +1889,197 @@
   }
 }
 
+.guest-house-print-header {
+  display: none;
+}
+
 @media print {
+  @page {
+    size: A4;
+    margin: 10mm 10mm 12mm;
+  }
+
+  html,
   body {
     background: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 
   #hs-application-sidebar,
   .guest-house-no-print,
+  .guest-house-page form,
+  .guest-house-page details,
   .alert {
     display: none !important;
   }
 
-  .sidebar-aware-content {
+  .sidebar-aware-content,
+  .main-content {
     width: 100% !important;
-    margin-left: 0 !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   .guest-house-page {
-    padding: 0;
+    min-height: 0;
+    padding: 0 !important;
     background: #ffffff;
+    font-size: 11px;
   }
 
-  .guest-house-toolbar,
-  .guest-house-panel {
-    border-color: #cbd5e1;
-    border-radius: 0;
-    box-shadow: none;
-    animation: none;
+  .guest-house-page *,
+  .guest-house-page *::before,
+  .guest-house-page *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  .guest-house-shell {
+    gap: 8px;
   }
 
   .guest-house-print-only {
     display: block;
+  }
+
+  .guest-house-print-header {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 0 0 8px;
+    border-bottom: 3px solid var(--guest-house-blue);
+  }
+
+  .guest-house-print-header__logo {
+    width: 96px;
+    height: auto;
+  }
+
+  .guest-house-print-header__title strong {
+    display: block;
+    color: var(--guest-house-text);
+    font-size: 18px;
+  }
+
+  .guest-house-print-header__title span {
+    display: block;
+    margin-top: 2px;
+    color: var(--guest-house-blue-dark);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .guest-house-print-header__meta {
+    text-align: right;
+  }
+
+  .guest-house-print-header__meta strong {
+    display: block;
+    font-size: 14px;
+  }
+
+  .guest-house-print-header__meta span {
+    display: block;
+    color: var(--guest-house-muted);
+    font-size: 10px;
+  }
+
+  .guest-house-panel {
+    padding: 10px 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    box-shadow: none;
+    background: #ffffff;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .guest-house-panel__header {
+    margin-bottom: 6px;
+  }
+
+  .guest-house-section-title {
+    font-size: 14px;
+  }
+
+  .guest-house-section-copy {
+    display: none;
+  }
+
+  .guest-house-page .guest-house-summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .guest-house-page .guest-house-summary div {
+    padding: 5px 7px;
+    border-radius: 4px;
+    background: #f8fafc;
+    break-inside: avoid;
+  }
+
+  .guest-house-page .guest-house-summary span {
+    font-size: 8px;
+    letter-spacing: 0.06em;
+  }
+
+  .guest-house-page .guest-house-summary strong {
+    margin-top: 2px;
+    font-size: 11px;
+  }
+
+  .guest-house-page .guest-house-bill-preview {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    margin-top: 8px;
+  }
+
+  .guest-house-page .guest-house-bill-preview span {
+    padding: 6px 8px;
+    font-size: 8px;
+  }
+
+  .guest-house-page .guest-house-bill-preview strong {
+    font-size: 12px;
+  }
+
+  .guest-house-page .guest-house-bill-preview span:last-child {
+    border-color: var(--guest-house-blue);
+    background: #eff6ff;
+  }
+
+  .guest-house-page .guest-house-grid--center {
+    grid-template-columns: minmax(0, 1fr) 120px;
+    gap: 12px;
+    align-items: start;
+  }
+
+  .guest-house-page .guest-house-grid--center svg,
+  .guest-house-page .guest-house-grid--center img {
+    width: 110px !important;
+    height: 110px !important;
+  }
+
+  .guest-house-page .guest-house-subtitle {
+    margin-top: 6px;
+    font-size: 10.5px;
+  }
+
+  .guest-house-page .guest-house-guest-list {
+    gap: 6px;
+  }
+
+  .guest-house-page .guest-house-guest-list > div {
+    padding: 6px 8px;
+    break-inside: avoid;
+  }
+
+  .guest-house-page .guest-house-btn {
+    display: none !important;
   }
 }

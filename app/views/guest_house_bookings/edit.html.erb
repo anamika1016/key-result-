@@ -1,0 +1,32 @@
+<% content_for :head do %>
+  <%= stylesheet_link_tag "guest_house", "data-turbo-track": "reload" %>
+<% end %>
+
+<div class="main-content sidebar-aware-content guest-house-page">
+  <div class="guest-house-shell">
+    <section class="guest-house-toolbar">
+      <div class="guest-house-toolbar__main">
+        <span class="guest-house-eyebrow">Edit Booking</span>
+        <h1 class="guest-house-title"><%= @booking.booking_reference_label %></h1>
+        <p class="guest-house-subtitle">
+          <% if current_user.hod? || @booking.guest_house.manager_user_id == current_user.id %>
+            You can change this booking until the guest checks in. Room availability is checked again when you save.
+          <% else %>
+            You can change this booking until the guest house admin approves it. Room availability is checked again when you save.
+          <% end %>
+        </p>
+      </div>
+      <div class="guest-house-toolbar__actions">
+        <%= link_to "Back", guest_house_booking_path(@booking), class: "guest-house-btn light" %>
+      </div>
+    </section>
+
+    <section class="guest-house-panel">
+      <div class="guest-house-panel__header">
+        <h2 class="guest-house-section-title">Booking Details</h2>
+        <p class="guest-house-section-copy">Update the stay window, room details or guest details, then save.</p>
+      </div>
+      <%= render "guest_house_bookings/form", url: guest_house_booking_path(@booking), method: :patch, submit_label: "Save Changes", cancel_path: guest_house_booking_path(@booking) %>
+    </section>
+  </div>
+</div>

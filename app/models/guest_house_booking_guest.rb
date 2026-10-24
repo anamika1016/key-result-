@@ -55,8 +55,25 @@ class GuestHouseBookingGuest < ApplicationRecord
     [ (billing_end_date - checkin_date).to_i, 1 ].max
   end
 
+  # Bed charge for a rate the admin entered while billing (rate per bed per day).
+  def bed_charge_for_rate(rate)
+    rate.to_d * charge_days
+  end
+
+  # Rate shown on bills: the rate the admin entered, or for older bills the bed charge spread over bed-days.
+  def billed_room_rate
+    return room_rate_per_day if room_rate_per_day.present?
+    return nil if room_charge_overridden? || room_charge_amount.to_d.zero?
+
+    (room_charge_amount.to_d / charge_days).round(2)
+  end
+
   def room_charge_total
     guest_house_booking.guest_house.room_charge_per_day.to_d * charge_days
+  end
+
+  def payment_status_label
+    GuestHouseBooking.payment_status_label(payment_status)
   end
 
   def billed?
@@ -88,7 +105,7 @@ class GuestHouseBookingGuest < ApplicationRecord
       "Guest House: #{guest_house_booking.guest_house.name}",
       "Bill: #{format('%.2f', total_bill_amount)}",
       "Token: #{payment_qr_token}",
-      "Status: #{payment_status.humanize}"
+      "Status: #{payment_status_label}"
     ].join("\n")
   end
 

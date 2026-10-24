@@ -10,7 +10,7 @@ class GuestHouseFacility < ApplicationRecord
   scope :ordered, -> { joins(:guest_house).order(Arel.sql("lower(guest_houses.name) asc, lower(guest_house_facilities.name) asc")) }
 
   def display_name
-    "#{guest_house.name} - #{name} (Rs. #{format('%.2f', rate || 0)})"
+    "#{guest_house.name} - #{name}"
   end
 
   private

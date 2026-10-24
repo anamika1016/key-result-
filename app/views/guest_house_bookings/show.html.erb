@@ -4,7 +4,8 @@
 
 <div class="main-content sidebar-aware-content guest-house-page">
   <div class="guest-house-shell">
-    <section class="guest-house-toolbar">
+    <%= render "guest_house_bookings/print_header", title: "Booking Details", reference: @booking.booking_reference_label, subtitle: @booking.guest_house.name %>
+    <section class="guest-house-toolbar guest-house-no-print">
       <div class="guest-house-toolbar__main">
         <span class="guest-house-eyebrow">Booking Receipt</span>
         <h1 class="guest-house-title"><%= @booking.booking_reference_label %></h1>
@@ -12,6 +13,9 @@
       </div>
       <div class="guest-house-toolbar__actions guest-house-no-print">
         <button type="button" class="guest-house-btn" data-guest-house-print onclick="window.print();">Print</button>
+        <% if @booking.editable_by?(current_user) %>
+          <%= link_to "Edit Booking", edit_guest_house_booking_path(@booking), class: "guest-house-btn secondary" %>
+        <% end %>
         <% if current_user.hod? %>
           <%= button_to "Delete Booking",
                         guest_house_booking_path(@booking),
@@ -163,15 +167,16 @@
         <div class="guest-house-grid guest-house-grid--center">
           <div>
             <div class="guest-house-summary">
+              <div><span>Bed Rate</span><strong><%= @booking.billed_room_rate ? "₹#{number_with_precision(@booking.billed_room_rate, precision: 2, delimiter: ',')} / bed / day" : "Fixed amount" %></strong></div>
               <div><span>Bed Charge</span><strong><%= number_to_currency(@booking.room_charge_amount || 0, unit: "₹") %></strong></div>
               <div><span>Other Services</span><strong><%= number_to_currency(@booking.other_services_amount || 0, unit: "₹") %></strong></div>
               <div><span>GST 5%</span><strong><%= number_to_currency(@booking.gst_amount || 0, unit: "₹") %></strong></div>
               <div><span>Total</span><strong><%= number_to_currency(@booking.invoice_total || 0, unit: "₹") %></strong></div>
-              <div><span>Payment Status</span><strong><%= @booking.payment_status.humanize %></strong></div>
+              <div><span>Payment Status</span><strong><%= @booking.payment_status_label %></strong></div>
               <div><span>Transaction ID</span><strong><%= @booking.transaction_id.presence || "Pending" %></strong></div>
             </div>
             <% if @booking.other_services_details.present? %>
-              <p class="guest-house-subtitle"><strong>Other Services:</strong> <%= @booking.other_services_details %></p>
+              <div class="guest-house-subtitle guest-house-service-details"><strong>Other Services:</strong><%= simple_format(@booking.other_services_details) %></div>
             <% end %>
             <% if @booking.payment_note.present? %>
               <p class="guest-house-subtitle"><%= @booking.payment_note %></p>

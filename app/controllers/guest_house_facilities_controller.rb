@@ -6,7 +6,7 @@ class GuestHouseFacilitiesController < ApplicationController
     facility = GuestHouseFacility.new(facility_params)
 
     if facility.save
-      redirect_to guest_houses_path, notice: "Facility added successfully."
+      redirect_to guest_houses_path, notice: "Service added successfully."
     else
       redirect_to guest_houses_path, alert: facility.errors.full_messages.to_sentence
     end
@@ -14,7 +14,7 @@ class GuestHouseFacilitiesController < ApplicationController
 
   def update
     if @facility.update(facility_params)
-      redirect_to guest_houses_path, notice: "Facility updated successfully."
+      redirect_to guest_houses_path, notice: "Service updated successfully."
     else
       redirect_to guest_houses_path, alert: @facility.errors.full_messages.to_sentence
     end
@@ -22,7 +22,7 @@ class GuestHouseFacilitiesController < ApplicationController
 
   def destroy
     @facility.destroy
-    redirect_to guest_houses_path, notice: "Facility deleted successfully."
+    redirect_to guest_houses_path, notice: "Service deleted successfully."
   end
 
   private

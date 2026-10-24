@@ -1,4 +1,6 @@
 class GuestHouseBookingGuestsController < ApplicationController
+  include GuestHouseBilling
+
   before_action :set_guest
   before_action :ensure_guest_house_admin!, except: [ :bill, :receipt ]
 
@@ -121,12 +123,26 @@ class GuestHouseBookingGuestsController < ApplicationController
 
     previous_total = @guest.total_bill_amount.to_d if @guest.billed?
     billing = bill_params
-    @guest.assign_attributes(billing)
-    apply_selected_facility_charge
     override_room_charge = params[:override_room_charge] == "1"
+    failure_path = params[:return_to_bill] == "1" ? bill_guest_house_booking_guest_path(@guest) : admin_guest_house_bookings_path
+    begin
+      bed_rate = parse_billing_rate(billing[:room_rate_per_day], "Bed rate")
+      raise InvalidRate, "Enter the bed rate (per bed per day) for #{@guest.full_name}." if bed_rate.nil? && !override_room_charge
+
+      @guest.assign_attributes(billing.except(:room_rate_per_day))
+      apply_selected_facility_charge
+      room_charge = if override_room_charge
+                      parse_billing_rate(billing[:room_charge_amount], "Bed charge") || 0.to_d
+                    else
+                      @guest.bed_charge_for_rate(bed_rate)
+                    end
+    rescue InvalidRate => e
+      redirect_to failure_path, alert: e.message
+      return
+    end
     @guest.room_charge_overridden = override_room_charge
-    room_charge_override = override_room_charge ? billing[:room_charge_amount] : nil
-    @guest.calculate_bill!(room_charge_amount: room_charge_override)
+    @guest.room_rate_per_day = bed_rate
+    @guest.calculate_bill!(room_charge_amount: room_charge)
     if previous_total.present? && previous_total != @guest.total_bill_amount.to_d
       @guest.payment_status = "generated"
       @guest.paid_at = nil
@@ -193,11 +209,11 @@ class GuestHouseBookingGuestsController < ApplicationController
   end
 
   def bill_params
-    params.fetch(:guest_house_booking_guest, {}).permit(:room_charge_amount, :other_services_amount, :other_services_details, :bill_note)
+    params.fetch(:guest_house_booking_guest, {}).permit(:room_rate_per_day, :room_charge_amount, :other_services_amount, :other_services_details, :bill_note)
   end
 
   def selected_facility_params
-    params.fetch(:guest_house_booking_guest, {}).permit(facility_ids: [], facility_quantities: {})
+    params.fetch(:guest_house_booking_guest, {}).permit(facility_ids: [], facility_quantities: {}, facility_rates: {})
   end
 
   def payment_params
@@ -205,26 +221,9 @@ class GuestHouseBookingGuestsController < ApplicationController
   end
 
   def apply_selected_facility_charge
-    facility_ids = Array(selected_facility_params[:facility_ids]).reject(&:blank?)
-    return if facility_ids.blank?
+    facility_total, lines = selected_facility_charges(selected_facility_params, @booking.guest_house_id)
+    return if lines.empty?
 
-    quantities = selected_facility_params[:facility_quantities] || {}
-    facilities = GuestHouseFacility.active.where(id: facility_ids, guest_house_id: @booking.guest_house_id).index_by { |facility| facility.id.to_s }
-    lines = facility_ids.filter_map do |facility_id|
-      facility = facilities[facility_id.to_s]
-      next if facility.blank?
-
-      quantity = [ quantities[facility_id.to_s].to_i, 1 ].max
-      amount = facility.rate.to_d * quantity
-      "#{facility.name} x #{quantity} @ Rs. #{format('%.2f', facility.rate)} = Rs. #{format('%.2f', amount)}"
-    end
-
-    facility_total = facility_ids.sum do |facility_id|
-      facility = facilities[facility_id.to_s]
-      next 0.to_d if facility.blank?
-
-      facility.rate.to_d * [ quantities[facility_id.to_s].to_i, 1 ].max
-    end
     manual_amount = @guest.other_services_amount.to_d
     manual_details = @guest.other_services_details.to_s.strip
     @guest.other_services_amount = manual_amount + facility_total

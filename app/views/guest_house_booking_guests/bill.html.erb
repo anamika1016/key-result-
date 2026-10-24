@@ -4,6 +4,7 @@
 
 <div class="main-content sidebar-aware-content guest-house-page">
   <div class="guest-house-shell">
+    <%= render "guest_house_bookings/print_header", title: "Individual GST Bill", reference: @booking.booking_reference_label, subtitle: @guest.full_name %>
     <section class="guest-house-toolbar guest-house-no-print">
       <div class="guest-house-toolbar__main">
         <span class="guest-house-eyebrow">Individual GST Bill</span>
@@ -29,6 +30,7 @@
         <div><span>Actual Check-in</span><strong><%= @guest.checked_in_at&.strftime("%d %b %Y, %I:%M %p") %></strong></div>
         <div><span>Actual Checkout</span><strong><%= @guest.checked_out_at&.strftime("%d %b %Y, %I:%M %p") %></strong></div>
         <div><span>Billable Bed-Days</span><strong><%= @guest.charge_days %></strong></div>
+        <div><span>Bed Rate</span><strong><%= @guest.billed_room_rate ? "₹#{number_with_precision(@guest.billed_room_rate, precision: 2, delimiter: ',')} / bed / day" : "Fixed amount" %></strong></div>
         <div><span>Bill Generated</span><strong><%= @guest.billed_at&.strftime("%d %b %Y, %I:%M %p") %></strong></div>
       </div>
 
@@ -49,21 +51,37 @@
       <% if current_user.hod? || @booking.guest_house.manager_user_id == current_user.id %>
         <details class="guest-house-more-action guest-house-no-print">
           <summary>Edit Individual Bill</summary>
-          <%= form_with model: @guest, url: generate_bill_guest_house_booking_guest_path(@guest), method: :patch, local: true, class: "guest-house-action-card guest-house-action-card--wide", data: { guest_house_billing: true } do |form| %>
-            <%= hidden_field_tag :override_room_charge, "1" %>
+          <%= form_with model: @guest, url: generate_bill_guest_house_booking_guest_path(@guest), method: :patch, local: true, class: "guest-house-action-card guest-house-action-card--wide guest-house-bill-form", data: { guest_house_billing: true, guest_house_bed_days: @guest.charge_days } do |form| %>
             <%= hidden_field_tag :return_to_bill, "1" %>
             <div>
               <strong>Edit <%= @guest.full_name %>'s Bill</strong>
-              <span>GST and total will be recalculated automatically.</span>
+              <span>Change the bed rate or services total. GST and total are recalculated automatically.</span>
+            </div>
+            <div class="guest-house-rate-row">
+              <label class="guest-house-field guest-house-rate-field">
+                <span>Bed rate (₹ per bed per day)</span>
+                <%= form.number_field :room_rate_per_day, min: 0, step: "0.01", value: @guest.billed_room_rate, required: true, class: "guest-house-input", data: { guest_house_bed_rate: true } %>
+              </label>
+              <div class="guest-house-rate-calc">
+                <span>× <strong><%= @guest.charge_days %></strong> <%= "bed-day".pluralize(@guest.charge_days) %></span>
+              </div>
             </div>
             <div class="guest-house-inline-grid">
-              <%= form.number_field :room_charge_amount, min: 0, step: "0.01", class: "guest-house-input", data: { guest_house_room_amount: true } %>
-              <%= form.number_field :other_services_amount, min: 0, step: "0.01", class: "guest-house-input", data: { guest_house_manual_amount: true } %>
-              <%= form.text_field :other_services_details, placeholder: "Service details", class: "guest-house-input" %>
-              <%= form.text_field :bill_note, placeholder: "Bill note", class: "guest-house-input" %>
+              <label class="guest-house-field">
+                <span>Services total (₹)</span>
+                <%= form.number_field :other_services_amount, min: 0, step: "0.01", class: "guest-house-input", data: { guest_house_manual_amount: true } %>
+              </label>
+              <label class="guest-house-field">
+                <span>Service details</span>
+                <%= form.text_field :other_services_details, placeholder: "Service details", class: "guest-house-input" %>
+              </label>
+              <label class="guest-house-field guest-house-field--wide">
+                <span>Bill note</span>
+                <%= form.text_field :bill_note, placeholder: "Bill note", class: "guest-house-input" %>
+              </label>
             </div>
-            <div class="guest-house-bill-preview">
-              <span>Bed <strong data-guest-house-room-total><%= number_to_currency(@guest.room_charge_amount, unit: "₹") %></strong></span>
+            <div class="guest-house-bill-preview guest-house-bill-preview--total">
+              <span>Bed charge <strong data-guest-house-room-total><%= number_to_currency(@guest.room_charge_amount, unit: "₹") %></strong></span>
               <span>Services <strong data-guest-house-facility-total><%= number_to_currency(@guest.other_services_amount, unit: "₹") %></strong></span>
               <span>GST 5% <strong data-guest-house-gst-total><%= number_to_currency(@guest.gst_amount, unit: "₹") %></strong></span>
               <span>Total <strong data-guest-house-grand-total><%= number_to_currency(@guest.total_bill_amount, unit: "₹") %></strong></span>
@@ -83,7 +101,7 @@
         <div>
           <div class="guest-house-summary">
             <div><span>Payable Amount</span><strong><%= number_to_currency(@guest.total_bill_amount, unit: "₹") %></strong></div>
-            <div><span>Payment Status</span><strong><%= @guest.payment_status.humanize %></strong></div>
+            <div><span>Payment Status</span><strong><%= @guest.payment_status_label %></strong></div>
             <div><span>Transaction ID</span><strong><%= @guest.transaction_id.presence || "Pending" %></strong></div>
             <div><span>Paid At</span><strong><%= @guest.paid_at&.strftime("%d %b %Y, %I:%M %p") || "Pending" %></strong></div>
           </div>
@@ -114,7 +132,7 @@
             <%= form.text_field :payment_details, placeholder: "Payment details", class: "guest-house-input" %>
             <%= form.file_field :payment_qr_image, class: "guest-house-input" %>
             <%= form.file_field :payment_receipt, class: "guest-house-input" %>
-            <%= form.select :payment_status, GuestHouseBookingGuest::PAYMENT_STATUSES.map { |status| [ status.humanize, status ] }, { selected: "paid" }, class: "guest-house-select" %>
+            <%= form.select :payment_status, GuestHouseBooking.payment_status_options, { selected: "paid" }, class: "guest-house-select" %>
           </div>
           <%= form.submit "Complete Individual Payment", class: "guest-house-btn" %>
         <% end %>

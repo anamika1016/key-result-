@@ -1,0 +1,76 @@
+<%# Billing inputs where the guest house admin enters the bed rate and service rates.
+    Locals: form, scope, facilities, bed_days, note_field; optional rate, allow_override. %>
+<% rate = local_assigns[:rate] %>
+<% allow_override = local_assigns.fetch(:allow_override, true) %>
+<div class="guest-house-bill-step">
+  <div class="guest-house-bill-step__title">1. Bed charge</div>
+  <div class="guest-house-rate-row">
+    <label class="guest-house-field guest-house-rate-field">
+      <span>Bed rate (₹ per bed per day)</span>
+      <%= form.number_field :room_rate_per_day, min: 0, step: "0.01", value: rate, placeholder: "Enter rate, e.g. 500", class: "guest-house-input", required: true, data: { guest_house_bed_rate: true } %>
+    </label>
+    <div class="guest-house-rate-calc">
+      <span>× <strong><%= bed_days %></strong> <%= "bed-day".pluralize(bed_days) %></span>
+      <span>= <strong data-guest-house-room-total>₹0.00</strong></span>
+    </div>
+  </div>
+  <% if allow_override %>
+    <details class="guest-house-override">
+      <summary>Enter a fixed bed charge instead</summary>
+      <div class="guest-house-override__body">
+        <label class="guest-house-override-option">
+          <%= check_box_tag :override_room_charge, "1", false, data: { guest_house_room_override: true } %>
+          <span>Use fixed amount</span>
+        </label>
+        <%= form.number_field :room_charge_amount, min: 0, step: "0.01", value: nil, placeholder: "Fixed bed charge ₹", class: "guest-house-input", disabled: true, data: { guest_house_room_amount: true } %>
+      </div>
+    </details>
+  <% end %>
+</div>
+
+<div class="guest-house-bill-step">
+  <div class="guest-house-bill-step__title">2. Services used <span>(tick, then enter quantity and rate)</span></div>
+  <% if facilities.present? %>
+    <div class="guest-house-service-table">
+      <div class="guest-house-service-head"><span>Service</span><span>Qty</span><span>Rate (₹)</span><span>Amount</span></div>
+      <% facilities.each do |facility| %>
+        <div class="guest-house-service-row" data-guest-house-service-row>
+          <label class="guest-house-service-name">
+            <%= check_box_tag "#{scope}[facility_ids][]", facility.id, false, data: { guest_house_facility_check: true } %>
+            <strong><%= facility.name %></strong>
+          </label>
+          <%= number_field_tag "#{scope}[facility_quantities][#{facility.id}]", 1, min: 1, class: "guest-house-input", disabled: true, aria: { label: "#{facility.name} quantity" }, data: { guest_house_facility_qty: true } %>
+          <%= number_field_tag "#{scope}[facility_rates][#{facility.id}]", nil, min: 0, step: "0.01", placeholder: "Rate", class: "guest-house-input", disabled: true, aria: { label: "#{facility.name} rate" }, data: { guest_house_facility_rate: true } %>
+          <span class="guest-house-service-amount" data-guest-house-facility-line>₹0.00</span>
+        </div>
+      <% end %>
+    </div>
+  <% else %>
+    <div class="guest-house-empty guest-house-empty--soft">No services added in Guest House Master. Use "Other charge" below for any extra.</div>
+  <% end %>
+</div>
+
+<div class="guest-house-bill-step">
+  <div class="guest-house-bill-step__title">3. Other charge and note <span>(optional)</span></div>
+  <div class="guest-house-inline-grid">
+    <label class="guest-house-field">
+      <span>Other charge (₹)</span>
+      <%= form.number_field :other_services_amount, min: 0, step: "0.01", value: nil, placeholder: "0.00", class: "guest-house-input", data: { guest_house_manual_amount: true } %>
+    </label>
+    <label class="guest-house-field">
+      <span>Other charge details</span>
+      <%= form.text_field :other_services_details, value: nil, placeholder: "e.g. Laundry", class: "guest-house-input" %>
+    </label>
+    <label class="guest-house-field guest-house-field--wide">
+      <span>Bill note</span>
+      <%= form.text_field note_field, value: nil, placeholder: "Shown on the bill and receipt", class: "guest-house-input" %>
+    </label>
+  </div>
+</div>
+
+<div class="guest-house-bill-preview guest-house-bill-preview--total">
+  <span>Bed charge <strong data-guest-house-room-total>₹0.00</strong></span>
+  <span>Services <strong data-guest-house-facility-total>₹0.00</strong></span>
+  <span>GST 5% <strong data-guest-house-gst-total>₹0.00</strong></span>
+  <span>Total <strong data-guest-house-grand-total>₹0.00</strong></span>
+</div>

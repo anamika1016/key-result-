@@ -17,7 +17,7 @@ class GuestHouse < ApplicationRecord
   scope :managed_by, ->(user) { where(manager_user_id: user.id) }
 
   def display_name
-    "#{name} (#{total_rooms} rooms, Rs. #{format('%.2f', room_charge_per_day || 0)}/bed/day)"
+    "#{name} (#{total_rooms} rooms)"
   end
 
   def facility_rate_lines

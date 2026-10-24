@@ -2,6 +2,8 @@ class GuestHouseBooking < ApplicationRecord
   STATUSES = %w[pending confirmed accepted checked_in checked_out rejected cancelled].freeze
   ACTIVE_ROOM_STATUSES = %w[pending confirmed accepted checked_in].freeze
   PAYMENT_STATUSES = %w[pending generated uploaded paid waived].freeze
+  # "waived" stays the stored value; it is shown to people as Complimentary.
+  PAYMENT_STATUS_LABELS = { "waived" => "Complimentary" }.freeze
   ROOM_TYPES = %w[single sharing].freeze
   GUEST_GENDERS = %w[male female other].freeze
   BOOKING_FOR_OPTIONS = %w[self guest auditor].freeze
@@ -27,6 +29,10 @@ class GuestHouseBooking < ApplicationRecord
   attribute :payment_receipt_number, :string
   attribute :paid_at, :datetime
   attribute :room_charge_overridden, :boolean, default: false
+  attribute :room_rate_per_day, :decimal
+
+  # Set while a booking is edited so room availability is always re-checked.
+  attr_accessor :force_availability_check
 
   before_validation :normalize_counts
   before_validation :normalize_booking_for
@@ -48,7 +54,7 @@ class GuestHouseBooking < ApplicationRecord
   validate :actual_checkout_after_checkin
   validate :rooms_do_not_exceed_guest_house
   validate :guest_house_must_be_active, on: :create
-  validate :booking_date_cannot_be_in_past, on: :create
+  validate :booking_date_cannot_be_in_past, if: -> { new_record? || will_save_change_to_booking_date? }
   validate :room_type_matches_designation
   validate :guest_details_match_booking_basis
   validate :rooms_available_for_slot, if: :availability_validation_required?
@@ -150,6 +156,18 @@ class GuestHouseBooking < ApplicationRecord
     end.first(limit)
   end
 
+  def self.payment_status_label(status)
+    PAYMENT_STATUS_LABELS.fetch(status.to_s, status.to_s.humanize)
+  end
+
+  def self.payment_status_options
+    PAYMENT_STATUSES.map { |status| [ payment_status_label(status), status ] }
+  end
+
+  def payment_status_label
+    self.class.payment_status_label(payment_status)
+  end
+
   def booking_reference_label
     booking_reference.presence || "GH-PENDING"
   end
@@ -176,6 +194,25 @@ class GuestHouseBooking < ApplicationRecord
 
   def cancellable?
     (confirmed? || accepted?) && checked_in_at.blank? && active_booking_guests.none?(&:stay_checked_in?)
+  end
+
+  # Guest house admin (manager or HOD) can edit until anyone checks in.
+  def admin_editable?
+    (pending? || confirmed? || accepted?) && checked_in_at.blank? &&
+      guest_house_booking_guests.none? { |guest| guest.stay_checked_in? || guest.stay_checked_out? }
+  end
+
+  # The employee who booked can edit only until the guest house admin approves it.
+  def requester_editable?
+    (pending? || confirmed?) && checked_in_at.blank? &&
+      guest_house_booking_guests.none? { |guest| guest.approval_accepted? || guest.approval_rejected? }
+  end
+
+  def editable_by?(user)
+    return false if user.blank?
+    return admin_editable? if user.hod? || guest_house&.manager_user_id == user.id
+
+    user_id == user.id && requester_editable?
   end
 
   def requester_mobile
@@ -262,7 +299,7 @@ class GuestHouseBooking < ApplicationRecord
       "Guest House: #{guest_house&.name}",
       "Guest: #{requester_name}",
       "Bill: #{invoice_total.positive? ? invoice_total : 'Pending'}",
-      "Status: #{payment_status.humanize}"
+      "Status: #{payment_status_label}"
     ].join("\n")
   end
 
@@ -271,6 +308,20 @@ class GuestHouseBooking < ApplicationRecord
     return 1 if booking_date.blank? || billing_end_date.blank?
 
     [(billing_end_date - booking_date).to_i, 1].max
+  end
+
+  # Bed charge for a rate the admin entered while billing (rate per bed per day).
+  def bed_charge_for_rate(rate, as_of: nil)
+    rate.to_d * chargeable_bed_days(as_of: as_of)
+  end
+
+  # Rate shown on bills: the rate the admin entered, or for older bills the bed charge spread over bed-days.
+  def billed_room_rate
+    return room_rate_per_day if room_rate_per_day.present?
+    return nil if room_charge_overridden? || room_charge_amount.to_d.zero?
+
+    days = chargeable_bed_days(as_of: checked_out_at)
+    days.positive? ? (room_charge_amount.to_d / days).round(2) : nil
   end
 
   def room_charge_total(as_of: nil)
@@ -472,7 +523,7 @@ class GuestHouseBooking < ApplicationRecord
   end
 
   def availability_validation_required?
-    new_record? || will_save_change_to_guest_house_id? || will_save_change_to_booking_date? ||
+    new_record? || force_availability_check || will_save_change_to_guest_house_id? || will_save_change_to_booking_date? ||
       will_save_change_to_checkout_date? || will_save_change_to_checkin_time? ||
       will_save_change_to_checkout_time? || will_save_change_to_extended_checkout_date? ||
       will_save_change_to_extended_checkout_time? || will_save_change_to_rooms_count? ||

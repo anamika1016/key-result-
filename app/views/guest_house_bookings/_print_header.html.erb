@@ -1,0 +1,13 @@
+<%# Header shown only on paper. locals: title:, reference:, subtitle: nil %>
+<header class="guest-house-print-only guest-house-print-header">
+  <%= image_tag "asa-removebg-preview.png", alt: "ASA", class: "guest-house-print-header__logo" %>
+  <div class="guest-house-print-header__title">
+    <strong>ASA Guest House</strong>
+    <span><%= title %></span>
+  </div>
+  <div class="guest-house-print-header__meta">
+    <strong><%= reference %></strong>
+    <% if subtitle.present? %><span><%= subtitle %></span><% end %>
+    <span>Printed <%= Time.current.in_time_zone("Asia/Kolkata").strftime("%d %b %Y, %I:%M %p") %></span>
+  </div>
+</header>

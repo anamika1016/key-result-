@@ -348,55 +348,63 @@ const initGuestHouse = () => {
       currency: "INR",
       minimumFractionDigits: 2
     });
+    const amountOf = (input) => Math.max(Number.parseFloat(input?.value || "0") || 0, 0);
+    const setText = (selector, value) => {
+      form.querySelectorAll(selector).forEach((element) => { element.textContent = money.format(value); });
+    };
 
+    const bedRate = form.querySelector("[data-guest-house-bed-rate]");
+    const bedDays = Number.parseFloat(form.dataset.guestHouseBedDays || "0") || 0;
     const roomAmount = form.querySelector("[data-guest-house-room-amount]");
     const roomOverride = form.querySelector("[data-guest-house-room-override]");
     const manualAmount = form.querySelector("[data-guest-house-manual-amount]");
-    const facilityTotal = form.querySelector("[data-guest-house-facility-total]");
-    const gstTotal = form.querySelector("[data-guest-house-gst-total]");
-    const grandTotal = form.querySelector("[data-guest-house-grand-total]");
-    const roomTotal = form.querySelector("[data-guest-house-room-total]");
 
     const calculate = () => {
-      let selectedFacilityTotal = 0;
+      const overridden = Boolean(roomOverride?.checked);
+      if (roomAmount && roomOverride) roomAmount.disabled = !overridden;
+      if (bedRate) bedRate.required = !overridden;
 
+      let roomCharge;
+      if (bedRate && !overridden) {
+        roomCharge = amountOf(bedRate) * bedDays;
+      } else {
+        roomCharge = amountOf(roomAmount);
+      }
+
+      let servicesTotal = 0;
       form.querySelectorAll("[data-guest-house-facility-check]").forEach((checkbox) => {
-        const option = checkbox.closest(".guest-house-facility-option");
-        const quantityInput = option?.querySelector("[data-guest-house-facility-qty]");
+        const row = checkbox.closest("[data-guest-house-service-row]");
+        const quantityInput = row?.querySelector("[data-guest-house-facility-qty]");
+        const rateInput = row?.querySelector("[data-guest-house-facility-rate]");
+        const lineOutput = row?.querySelector("[data-guest-house-facility-line]");
+        const checked = checkbox.checked;
+
+        if (quantityInput) quantityInput.disabled = !checked;
+        if (rateInput) {
+          rateInput.disabled = !checked;
+          rateInput.required = checked;
+        }
+        row?.classList.toggle("is-selected", checked);
+
         const quantity = Math.max(Number.parseInt(quantityInput?.value || "1", 10) || 1, 1);
-        const rate = Number.parseFloat(checkbox.dataset.rate || "0") || 0;
-
-        if (quantityInput) {
-          quantityInput.disabled = !checkbox.checked;
-        }
-
-        if (checkbox.checked) {
-          selectedFacilityTotal += rate * quantity;
-        }
+        const rate = rateInput ? amountOf(rateInput) : Number.parseFloat(checkbox.dataset.rate || "0") || 0;
+        const line = checked ? rate * quantity : 0;
+        if (lineOutput) lineOutput.textContent = money.format(line);
+        servicesTotal += line;
       });
 
-      const roomCharge = Math.max(Number.parseFloat(roomAmount?.value || "0") || 0, 0);
-      const manual = Math.max(Number.parseFloat(manualAmount?.value || "0") || 0, 0);
-      const taxable = roomCharge + selectedFacilityTotal + manual;
+      const services = servicesTotal + amountOf(manualAmount);
+      const taxable = roomCharge + services;
       const gst = taxable * 0.05;
-      const total = taxable + gst;
 
-      if (roomTotal) roomTotal.textContent = money.format(roomCharge);
-      if (facilityTotal) facilityTotal.textContent = money.format(selectedFacilityTotal + manual);
-      if (gstTotal) gstTotal.textContent = money.format(gst);
-      if (grandTotal) grandTotal.textContent = money.format(total);
-    };
-
-    const syncRoomOverride = () => {
-      if (roomAmount && roomOverride) roomAmount.disabled = !roomOverride.checked;
+      setText("[data-guest-house-room-total]", roomCharge);
+      setText("[data-guest-house-facility-total]", services);
+      setText("[data-guest-house-gst-total]", gst);
+      setText("[data-guest-house-grand-total]", taxable + gst);
     };
 
     form.addEventListener("input", calculate);
-    form.addEventListener("change", () => {
-      syncRoomOverride();
-      calculate();
-    });
-    syncRoomOverride();
+    form.addEventListener("change", calculate);
     calculate();
   });
 };

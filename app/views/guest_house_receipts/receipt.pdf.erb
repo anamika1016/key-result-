@@ -12,6 +12,8 @@
 <% payment_details = guest ? guest.payment_details : booking.payment_details %>
 <% bill_note = guest ? guest.bill_note : booking.payment_note %>
 <% room_charge_overridden = guest ? guest.room_charge_overridden? : booking.room_charge_overridden? %>
+<% room_rate = guest ? guest.billed_room_rate : booking.billed_room_rate %>
+<% bed_days = guest ? guest.charge_days : booking.chargeable_bed_days(as_of: booking.checked_out_at) %>
 <style>
   body { font-family: "DejaVu Sans", Arial, sans-serif; color: #172033; font-size: 12px; }
   .receipt { border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; }
@@ -48,7 +50,7 @@
       <h1>ASA Guest House</h1>
     </div>
     <div class="receipt-meta">
-      <strong><%= payment_status == "waived" ? "PAYMENT WAIVER RECEIPT" : "PAYMENT RECEIPT" %></strong>
+      <strong><%= payment_status == "waived" ? "COMPLIMENTARY STAY RECEIPT" : "PAYMENT RECEIPT" %></strong>
       <span>Receipt No: <b><%= receipt_number %></b></span>
       <span>Date: <b><%= paid_at&.strftime("%d %b %Y, %I:%M %p") %></b></span>
     </div>
@@ -67,7 +69,7 @@
         <td><span class="label">Check-in</span><span class="value"><%= (guest&.checked_in_at || booking.checked_in_at)&.strftime("%d %b %Y, %I:%M %p") %></span></td>
         <td><span class="label">Check-out</span><span class="value"><%= (guest&.checked_out_at || booking.checked_out_at)&.strftime("%d %b %Y, %I:%M %p") %></span></td>
         <td><span class="label">Room Type</span><span class="value"><%= booking.room_type_label %></span></td>
-        <td><span class="label">Billable Bed-days</span><span class="value"><%= guest ? guest.charge_days : booking.chargeable_bed_days %></span></td>
+        <td><span class="label">Billable Bed-days</span><span class="value"><%= bed_days %></span></td>
       </tr>
     </table>
   </div>
@@ -77,13 +79,13 @@
     <table class="charges">
       <thead><tr><th>Description</th><th>Amount</th></tr></thead>
       <tbody>
-        <tr><td>Room / bed charge</td><td>&#8377;<%= number_with_precision(room_charge, precision: 2, delimiter: ",") %></td></tr>
+        <tr><td>Room / bed charge<% if room_rate %> (&#8377;<%= number_with_precision(room_rate, precision: 2, delimiter: ",") %> &times; <%= bed_days %> bed-<%= bed_days == 1 ? "day" : "days" %>)<% end %></td><td>&#8377;<%= number_with_precision(room_charge, precision: 2, delimiter: ",") %></td></tr>
         <tr><td>Facilities and other services</td><td>&#8377;<%= number_with_precision(services_charge, precision: 2, delimiter: ",") %></td></tr>
         <tr><td>GST @ 5%</td><td>&#8377;<%= number_with_precision(gst, precision: 2, delimiter: ",") %></td></tr>
-        <tr class="total"><td><%= payment_status == "waived" ? "Total Amount Waived" : "Total Amount Received" %></td><td>&#8377;<%= number_with_precision(total, precision: 2, delimiter: ",") %></td></tr>
+        <tr class="total"><td><%= payment_status == "waived" ? "Total Amount (Complimentary)" : "Total Amount Received" %></td><td>&#8377;<%= number_with_precision(total, precision: 2, delimiter: ",") %></td></tr>
       </tbody>
     </table>
-    <% if services_details.present? %><div class="note"><b>Service details:</b> <%= services_details %></div><% end %>
+    <% if services_details.present? %><div class="note"><b>Service details:</b><br><%= services_details %></div><% end %>
     <% if room_charge_overridden %><div class="note"><b>Admin adjustment:</b> Calculated room/bed charge was manually overridden by the Guest House administrator.</div><% end %>
     <% if bill_note.present? %><div class="note"><b>Bill note:</b> <%= bill_note %></div><% end %>
   </div>
@@ -91,7 +93,7 @@
   <div class="section">
     <table class="details">
       <tr>
-        <td><span class="label">Payment Status</span><span class="status"><%= payment_status.humanize %></span></td>
+        <td><span class="label">Payment Status</span><span class="status"><%= GuestHouseBooking.payment_status_label(payment_status) %></span></td>
         <td><span class="label">Transaction ID</span><span class="value"><%= transaction_id.presence || "Not provided" %></span></td>
         <td colspan="2"><span class="label">Payment Note</span><span class="value"><%= payment_details.presence || "Payment recorded by Guest House administration" %></span></td>
       </tr>

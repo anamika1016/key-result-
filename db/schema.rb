@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2026_07_04_095000) do
+ActiveRecord::Schema[8.0].define(version: 2026_10_24_100000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -247,6 +247,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_04_095000) do
     t.text "rejection_remark"
     t.string "payment_receipt_number"
     t.boolean "room_charge_overridden", default: false, null: false
+    t.decimal "room_rate_per_day", precision: 10, scale: 2
     t.index ["aadhaar_number"], name: "index_guest_house_booking_guests_on_aadhaar_number"
     t.index ["accepted_by_id"], name: "index_guest_house_booking_guests_on_accepted_by_id"
     t.index ["approval_status"], name: "index_guest_house_booking_guests_on_approval_status"
@@ -312,6 +313,7 @@ ActiveRecord::Schema[8.0].define(version: 2026_07_04_095000) do
     t.string "payment_receipt_number"
     t.datetime "paid_at"
     t.boolean "room_charge_overridden", default: false, null: false
+    t.decimal "room_rate_per_day", precision: 10, scale: 2
     t.index ["accepted_by_id"], name: "index_guest_house_bookings_on_accepted_by_id"
     t.index ["booking_for"], name: "index_guest_house_bookings_on_booking_for"
     t.index ["booking_reference"], name: "index_guest_house_bookings_on_booking_reference", unique: true
