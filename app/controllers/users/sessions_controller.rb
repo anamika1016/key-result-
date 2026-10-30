@@ -220,13 +220,28 @@ class Users::SessionsController < Devise::SessionsController
     ENV["ESS_SSO_SECRET"].presence || Rails.application.credentials.dig(:ess_sso_secret).presence
   end
 
+  # Pages ESS (hr.asaindia.org → IT Tools) may open directly after its signed sign-in link.
+  ESS_LANDING_PAGES = {
+    "guest_house" => :guest_house_bookings_path,
+    "help_desk"   => :help_desk_tickets_path,
+    "training"    => :trainings_path
+  }.freeze
+
+  def ess_landing_page
+    page = params[:to].to_s
+    ESS_LANDING_PAGES.key?(page) ? page : nil
+  end
+
   def external_sign_in_redirect_path(user)
+    return public_send(ESS_LANDING_PAGES[ess_landing_page]) if ess_landing_page
     return after_sign_in_path_for(user) if params[:year].blank?
 
     dashboard_path(year: normalize_financial_year(params[:year]))
   end
 
+  # A link with ?to=<page> signs "code:to:expires_at"; older links (with or without year) are unchanged.
   def external_sign_in_payload(employee_code, expires_at)
+    return "#{employee_code}:#{ess_landing_page}:#{expires_at}" if ess_landing_page
     return "#{employee_code}:#{expires_at}" if params[:year].blank?
 
     "#{employee_code}:#{normalize_financial_year(params[:year])}:#{expires_at}"
