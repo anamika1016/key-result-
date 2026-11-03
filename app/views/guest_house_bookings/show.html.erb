@@ -43,7 +43,13 @@
         <div><span>Guests / Beds</span><strong><%= @booking.external_booking? ? @booking.active_booking_guests.size : @booking.rooms_count %></strong></div>
         <div><span>Rooms Allocated</span><strong><%= @booking.allocation_room_units %></strong></div>
         <div><span>Beds Charged</span><strong><%= @booking.chargeable_bed_units %></strong></div>
-        <div><span>Guest</span><strong><%= @booking.requester_name %></strong></div>
+        <% if @booking.external_booking? %>
+          <% occupant_names = @booking.guest_house_booking_guests.map(&:full_name).compact_blank %>
+          <div><span><%= @booking.booking_for_label %></span><strong><%= occupant_names.to_sentence.presence || "Not added" %></strong></div>
+          <div><span>Booked By</span><strong><%= @booking.requester_name %></strong></div>
+        <% else %>
+          <div><span>Guest</span><strong><%= @booking.requester_name %></strong></div>
+        <% end %>
         <div><span>Check-in</span><strong><%= @booking.checkin_label %></strong></div>
         <div><span>Check-out Date</span><strong><%= @booking.effective_checkout_date.strftime("%d %b %Y") %></strong></div>
         <div><span>Check-out</span><strong><%= @booking.effective_checkout_time&.strftime("%I:%M %p") %></strong></div>
