@@ -83,19 +83,29 @@ class GuestHouseBookingGuestsController < ApplicationController
       return
     end
 
-    if @guest.planned_checkin_at.present? && Time.current < @guest.planned_checkin_at
-      redirect_to admin_guest_house_bookings_path, alert: "#{@guest.full_name} is scheduled for check-in at #{@guest.planned_checkin_at.strftime('%d %b %Y, %I:%M %p')}."
+    # Guests often arrive a little early, so check-in opens on the scheduled day (any time).
+    if @guest.checkin_date.present? && Date.current < @guest.checkin_date
+      redirect_to admin_guest_house_bookings_path, alert: "#{@guest.full_name} is scheduled for check-in on #{@guest.checkin_date.strftime('%d %b %Y')}. Check-in opens on that day."
+      return
+    end
+
+    begin
+      ActiveRecord::Base.transaction do
+        @guest.update!(
+          check_in_params.except(:id_proof).merge(
+            stay_status: "checked_in",
+            checked_in_at: Time.current
+          )
+        )
+        @booking.update!(status: "checked_in", checked_in_at: @booking.checked_in_at || Time.current)
+      end
+    rescue ActiveRecord::RecordInvalid => e
+      Rails.logger.error("[GuestHouse] check-in failed for occupant #{@guest.id}: #{e.record.errors.full_messages.to_sentence}")
+      redirect_to admin_guest_house_bookings_path, alert: "Check-in failed for #{@guest.full_name}: #{e.record.errors.full_messages.to_sentence}"
       return
     end
 
     @guest.id_proof.attach(check_in_params[:id_proof]) if check_in_params[:id_proof].present?
-    @guest.update!(
-      check_in_params.except(:id_proof).merge(
-        stay_status: "checked_in",
-        checked_in_at: Time.current
-      )
-    )
-    @booking.update!(status: "checked_in", checked_in_at: @booking.checked_in_at || Time.current)
     GuestHouseNotificationService.occupant_checked_in(@guest, actor: current_user)
     redirect_to admin_guest_house_bookings_path, notice: "#{@guest.full_name} checked in successfully."
   end
