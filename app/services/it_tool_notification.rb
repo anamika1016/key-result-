@@ -104,16 +104,30 @@ class ItToolNotification
       end
 
       Thread.new do
-        uri = URI(url)
-        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 10, read_timeout: 20) do |http|
-          http.get(uri.request_uri)
-        end
+        response = get_following_redirects(URI(url))
         unless response.is_a?(Net::HTTPSuccess)
           Rails.logger.error("[ItToolNotification] #{params[:subject]} -> #{params[:to_email]} failed: HTTP #{response.code}")
         end
       rescue StandardError => e
         Rails.logger.error("[ItToolNotification] #{params[:subject]} -> #{params[:to_email]} failed: #{e.class}: #{e.message}")
       end
+    end
+
+    MAX_REDIRECTS = 5
+
+    # KRAI is ASP.NET with cookieless sessions: the first request is answered with a 302 to
+    # /(S(<session>))/page.aspx?..., and the mail is only sent once that URL is loaded.
+    def get_following_redirects(uri)
+      response = nil
+      (MAX_REDIRECTS + 1).times do
+        response = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", open_timeout: 10, read_timeout: 20) do |http|
+          http.get(uri.request_uri)
+        end
+        break unless response.is_a?(Net::HTTPRedirection) && response["location"].present?
+
+        uri = URI.join(uri.to_s, response["location"])
+      end
+      response
     end
   end
 end
