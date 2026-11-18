@@ -8,7 +8,8 @@ require "net/http"
 #
 # Every request carries to_email, to_name, subject, message, the module's own fields,
 # updated_on, updated_by, test_mode and actual_email. Set KRAI_NOTIFY_TEST_EMAIL to send
-# every mail to that address instead (real address in actual_email). test_mode is always 0:
+# every mail to that address instead. actual_email is always blank (KRAI mails actual_email
+# instead of to_email when it is set) and test_mode is always 0:
 # KRAI treats test_mode=1 as "preview only" and sends no email.
 #
 # Requests run in a background thread and never raise, so a mail problem can never
@@ -54,7 +55,7 @@ class ItToolNotification
           updated_on: format_time(Time.current),
           updated_by: updated_by.presence || "System",
           test_mode: 0,
-          actual_email: test_email ? recipient[:email] : nil
+          actual_email: nil
         )
         send_request(endpoint, params)
       end
