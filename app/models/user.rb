@@ -59,8 +59,8 @@ class User < ApplicationRecord
 
   def mapped_employee_detail
     @mapped_employee_detail ||= employee_detail ||
+      (email.present? ? EmployeeDetail.where("LOWER(TRIM(employee_email)) = ?", email.to_s.strip.downcase).order(:id).first : nil) ||
       EmployeeDetail.find_by(employee_code: employee_code) ||
-      EmployeeDetail.find_by(employee_email: email) ||
       EmployeeDetail.where("REGEXP_REPLACE(TRIM(employee_code), '^0+', '') = ?", employee_code.to_s.strip.sub(/\A0+/, "")).order(:id).first
   end
 

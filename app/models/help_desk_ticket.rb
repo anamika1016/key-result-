@@ -962,17 +962,39 @@ class HelpDeskTicket < ApplicationRecord
     department_name = department&.department_type
     details = [ "Department: #{department_name}", ("Request: #{request_type.to_s.humanize}" if request_type.present?), "Status: #{status.to_s.humanize}" ].compact.join(". ")
     ItToolNotification.deliver(
+      module_name: :help_desk,
       recipients: recipients,
       subject: "Help Desk #{action_label} - #{ticket_reference}",
       message: "Help Desk ticket #{ticket_reference} raised by #{requester_name}: #{action_label}. #{details}.",
-      link: Rails.application.routes.url_helpers.help_desk_tickets_url(**(Rails.application.config.action_mailer.default_url_options || {})),
-      action: action_label.to_s.parameterize(separator: "_"),
-      remarks: notification_remarks_for(action_label),
-      employee_name: requester_name,
-      employee_code: requester_employee_code.presence || user&.employee_code
+      fields: {
+        ticket_id: id,
+        ticket_no: ticket_reference,
+        requester_name: requester_name,
+        employee_code: requester_employee_code.presence || user&.employee_code,
+        requester_email: requester_email,
+        department: department_name,
+        request_type: request_type.to_s.humanize,
+        subject_line: question_subject,
+        ticket_status: status.to_s.humanize,
+        assigned_to: assigned_to_user&.display_name,
+        raised_on: ItToolNotification.format_time(request_received_at || created_at),
+        event: action_label.to_s.parameterize(separator: "_"),
+        remarks: notification_remarks_for(action_label),
+        link: Rails.application.routes.url_helpers.help_desk_tickets_url(**(Rails.application.config.action_mailer.default_url_options || {}))
+      },
+      updated_by: notification_actor_name(action_label)
     )
   rescue StandardError => e
     Rails.logger.error("[HelpDesk] notification for #{ticket_reference} failed: #{e.class}: #{e.message}")
+  end
+
+  def notification_actor_name(action_label)
+    actor = case action_label
+            when "Submitted", "Requester Remark", "Reopened" then submitted_by_user || user
+            when "Closed" then closed_by_user || responded_by_user
+            when "Support Update", "Completed By Support" then responded_by_user
+            end
+    actor&.display_name
   end
 
   def notification_remarks_for(action_label)

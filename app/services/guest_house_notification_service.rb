@@ -55,13 +55,30 @@ class GuestHouseNotificationService
       message: message
     )
     ItToolNotification.deliver(
+      module_name: :guest_house,
       recipients: waitlist.user,
       subject: "Guest House: Slot available - #{waitlist.guest_house.name}",
       message: message,
-      link: Rails.application.routes.url_helpers.guest_house_bookings_url(waitlist_id: waitlist.id, **(Rails.application.config.action_mailer.default_url_options || {})),
-      action: "availability_opened",
-      employee_name: waitlist.user.display_name,
-      employee_code: waitlist.user.employee_code
+      fields: {
+        booking_id: nil,
+        booking_reference: nil,
+        guest_house: waitlist.guest_house.name,
+        booking_for: waitlist.booking_for.to_s.humanize,
+        booked_by: waitlist.user.display_name,
+        employee_code: waitlist.user.employee_code,
+        mobile_no: waitlist.user.mapped_employee_detail&.mobile_number,
+        guest_name: nil,
+        checkin: ItToolNotification.format_date(waitlist.booking_date),
+        checkout: ItToolNotification.format_date(waitlist.checkout_date),
+        status: "Slot available",
+        payment_status: nil,
+        amount: nil,
+        transaction_id: nil,
+        event: "availability_opened",
+        remarks: nil,
+        link: Rails.application.routes.url_helpers.guest_house_bookings_url(waitlist_id: waitlist.id, **mail_url_options)
+      },
+      updated_by: actor&.display_name
     )
     mobile = waitlist.user.mapped_employee_detail&.mobile_number
     SmsService.send_sms(mobile, "Guest house slot is now available for #{waitlist.booking_date.strftime('%d %b %Y')} to #{waitlist.checkout_date.strftime('%d %b %Y')}. Please book promptly. ASA") if mobile.present?
@@ -181,25 +198,46 @@ class GuestHouseNotificationService
       title: title,
       message: message
     )
-    email_notification(user: user, booking: booking, event_type: event_type, title: title, message: message)
+    email_notification(user: user, booking: booking, event_type: event_type, title: title, message: message, actor: actor)
   rescue StandardError => e
     Rails.logger.warn("Guest house in-app notification failed for booking #{booking.id}: #{e.message}")
   end
 
-  # Every in-app guest house notification is also emailed through the KRAI it-tool mail endpoint.
-  def self.email_notification(user:, booking:, event_type:, title:, message:)
+  # Every in-app guest house notification is also emailed through the KRAI mail endpoint.
+  def self.email_notification(user:, booking:, event_type:, title:, message:, actor: nil)
+    guests = booking.external_booking? ? booking.guest_house_booking_guests.map(&:full_name).compact_blank : []
     ItToolNotification.deliver(
+      module_name: :guest_house,
       recipients: user,
       subject: "Guest House: #{title} - #{booking.booking_reference_label}",
       message: message,
-      link: Rails.application.routes.url_helpers.guest_house_booking_url(booking, **(Rails.application.config.action_mailer.default_url_options || {})),
-      action: event_type,
-      remarks: notification_remarks(booking, event_type),
-      employee_name: booking.requester_name,
-      employee_code: booking.user&.employee_code
+      fields: {
+        booking_id: booking.id,
+        booking_reference: booking.booking_reference_label,
+        guest_house: booking.guest_house&.name,
+        booking_for: booking.booking_for_label,
+        booked_by: booking.requester_name,
+        employee_code: booking.user&.employee_code,
+        mobile_no: booking.requester_mobile,
+        guest_name: guests.presence&.join(", ") || booking.requester_name,
+        checkin: ItToolNotification.format_time(booking.checkin_at_value),
+        checkout: ItToolNotification.format_time(booking.effective_checkout_at_value),
+        status: booking.status.to_s.humanize,
+        payment_status: booking.payment_status_label,
+        amount: booking.invoice_total.to_d.positive? ? ItToolNotification.format_amount(booking.invoice_total) : nil,
+        transaction_id: booking.transaction_id,
+        event: event_type,
+        remarks: notification_remarks(booking, event_type),
+        link: Rails.application.routes.url_helpers.guest_house_booking_url(booking, **mail_url_options)
+      },
+      updated_by: actor&.display_name
     )
   rescue StandardError => e
     Rails.logger.warn("Guest house notification email failed for booking #{booking&.id}: #{e.message}")
+  end
+
+  def self.mail_url_options
+    Rails.application.config.action_mailer.default_url_options || {}
   end
 
   def self.notification_remarks(booking, event_type)
